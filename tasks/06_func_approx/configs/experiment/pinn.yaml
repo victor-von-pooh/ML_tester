@@ -1,0 +1,2 @@
+# train_pinn.py 用の差分 (default/pinn.yaml に無い項目は記述不可)
+# 検証時にも勾配の計算を有効にする回避策は examples/pinn_force_grad.yaml

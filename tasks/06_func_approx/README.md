@@ -12,16 +12,21 @@ ML-Found の TODO の項目 2 (closure を渡す更新手順への対応) の動
 ```
 06_func_approx/
 ├── configs/
-│   ├── default/train.yaml          # 基準の config (Adam)
+│   ├── default/
+│   │   ├── train.yaml              # train.py の基準の config (Adam)
+│   │   └── pinn.yaml               # train_pinn.py の基準の config
 │   └── experiment/
-│       ├── train.yaml              # 普段使う差分 (空)
-│       └── examples/               # 下の「config」の実験 2 から 4 の差分
+│       ├── train.yaml              # train.py の普段使う差分 (空)
+│       ├── pinn.yaml               # train_pinn.py の普段使う差分 (空)
+│       └── examples/               # 下の実験 2 から 4 と 6 の差分
 │           ├── lbfgs.yaml
 │           ├── lbfgs_closure.yaml
-│           └── adam_closure.yaml
+│           ├── adam_closure.yaml
+│           └── pinn_force_grad.yaml
 ├── model.py                        # FunctionMLP
 ├── train.py                        # データ, step, ClosureTrainer (Trainer を継承), 学習の実行
-└── outputs/func_approx/<日付>/<時刻>/   # ML-Found が実験ごとに作る (git の管理外)
+├── train_pinn.py                   # 微分方程式を PINN で解く (実験 5 と 6)
+└── outputs/                        # func_approx/ と pinn/ に実験ごとに作られる (git の管理外)
 ```
 
 ## データ
@@ -92,7 +97,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 - [x] フルバッチ (`[data]` を渡す形) で数千エポック回したときの速度とログの量. 5000 エポックで `train.log` は 5,108 行 (845 KB). 学習時間の大部分はチェックポイントの保存だった (下の「気付いたこと」)
 - [x] LBFGS を指定したときに, どこで, どんなエラーになるか → `Trainer.update_parameters` の `optimizer.step()` で `TypeError: LBFGS.step() missing 1 required positional argument: 'closure'`
 - [x] エラーが分かりやすいか. 学習を始める前に気付けるか → torch のエラーがそのまま出るので原因は分かるが, ML-Found が closure に対応していないことは分からない. 最初のバッチの更新で初めて失敗し, 学習結果の無い出力先が残る. エラーは端末にだけ出て, `train.log` には残らない
-- [ ] (PINN を試す場合) 検証時に `torch.set_grad_enabled(False)` の中で `torch.autograd.grad` を呼べずに失敗するか → 未実施
+- [x] (PINN を試す場合) 検証時に `torch.set_grad_enabled(False)` の中で `torch.autograd.grad` を呼べずに失敗するか → 失敗した. エポック 1 の検証で `RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn`. `step` の中で `torch.enable_grad()` を使えば回避できた (実験 5 と 6)
 
 ## 期待する結果
 
@@ -103,7 +108,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 
 - LBFGS は `optimizer.step(closure)` が必要だが, `Trainer.update_parameters` は `optimizer.step()` を固定で呼ぶ → その通りだった
 - エポック数が多いと, 毎エポックの `last.pt` の保存とログの出力が学習そのものより遅くなる可能性がある. 保存やログの間隔を設定できると良さそう → 保存はその通りで, 学習時間の 8 割以上を占めた. ログの出力は 2000 エポックで 0.1 秒程度で問題にならなかった
-- PINN では検証時にも入力に対する勾配が必要だが, `run_epoch` は検証時に勾配の計算を止める → 未確認
+- PINN では検証時にも入力に対する勾配が必要だが, `run_epoch` は検証時に勾配の計算を止める → その通りだった (実験 5)
 
 ## 実行方法
 
@@ -122,6 +127,32 @@ python tasks/06_func_approx/train.py --experiment configs/experiment/examples/ad
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
 - 実験 2 はエラーで止まり, `config.yaml`, `diff.yaml`, `train.log` (未コミットの変更があれば `git_diff.patch`) だけを含む出力先が残る. エラーの内容は端末にだけ出る. この出力先は消してよい
 - 進捗バーは表示しない設定にしている. 学習時間は `train.log` の最後の「学習時間」に出る. 時間の目安は Apple Silicon の Mac での値
+
+## PINN (実験 5 と 6)
+
+検証時に勾配の計算が止まる ML-Found の仕様と, 損失の中で入力に対する微分を使う学習が衝突するかを確かめる.
+`train_pinn.py` で, 微分方程式 `u''(x) = -π² sin(πx)`, `u(0) = u(1) = 0` (厳密解 `u = sin(πx)`) を, `FunctionMLP` (隠れ層 32, 3 層, パラメータ数 2,209) で解く.
+
+- 損失は, 内部の 200 点 (一様乱数) での残差 `u'' - (-π² sin(πx))` の二乗平均と, 両端での `u` の二乗平均の和. `u''` は `torch.autograd.grad` を 2 回使って求める
+- 検証は等間隔の 101 点で同じ損失を求め, 厳密解との最大誤差 `max_err` も記録する
+- `train.py` とは別の config (`configs/default/pinn.yaml`, `configs/experiment/pinn.yaml`) を使う. default はコードで固定し, `--experiment` の既定は `configs/experiment/pinn.yaml` (空). `train.py` 用の `examples/` (`lbfgs*.yaml`, `adam_closure.yaml`) は使えない. 1 つのプロジェクトのディレクトリに複数の config の組を置いても ML-Found は問題なく動いた
+- 保存が学習時間の大部分を占めること (実験 1) を踏まえ, `trainer.checkpoint.save_best: false` と `save_last: false` にした
+
+`train.py` と同じく, `.venv` を有効にした状態で, どこから実行してもよい. 出力先は `tasks/06_func_approx/outputs/pinn/<日付>/<時刻>/` になる.
+
+```bash
+python tasks/06_func_approx/train_pinn.py                                                               # 実験 5 (エラー)
+python tasks/06_func_approx/train_pinn.py --experiment configs/experiment/examples/pinn_force_grad.yaml  # 実験 6 (学習時間 約 3 秒)
+```
+
+| 実験 | 検証時の勾配 | 結果 | ベストのエポック | 検証用の損失 | ベストのエポックでの厳密解との最大誤差 | 学習時間 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 5 回避策なし | ML-Found のまま (無効) | エポック 1 の検証で `RuntimeError` | - | - | - | - |
+| 6 `pinn_force_grad` | `step` の中で `torch.enable_grad()` | 3000 エポック学習 | 2988 | 1.11e-5 | **2.47e-4** | 3.2 秒 |
+
+- 実験 5 は学習のエポック 1 は通り, 検証 (`fit` から呼ばれる 2 回目の `run_epoch`) の `step` で失敗した. `x` は `requires_grad_(True)` にしているが, 勾配の計算が止まった中で求めた `u` が計算グラフを持たないので, `torch.autograd.grad(u.sum(), x)` が失敗する. 学習結果の無い出力先が残り, エラーは端末にだけ出る (`train.log` には残らない). この出力先は消してよい
+- 実験 6 は, `step` の中で順伝播と微分を `torch.enable_grad()` で囲めば, 検証でも 2 階微分を計算できた. ML-Found の `run_epoch` が `step` を `torch.set_grad_enabled(False)` で囲んでいても, 内側で有効にし直せる. 検証では `x` に対する微分だけを求めて `backward` はしないので, パラメータの勾配には影響しない
+- 実験 6 の最大誤差は `valid/loss` で選んだベストのエポック (2988) の値で, 最後のエポック (3000) では 1.55e-4 だった
 
 ## 結果のメモ
 

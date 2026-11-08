@@ -15,9 +15,9 @@
 │       ├── train.yaml              # 普段使う差分 (空)
 │       └── examples/
 │           ├── full60.yaml         # 実験 3: 通しで 60 エポック
-│           └── oddnn.yaml          # 実験 4: OddNN の自作 LSTM
+│           └── custom_lstm.yaml    # 実験 4: 自作の LSTM
 ├── prepare_data.py                 # 気象庁の CSV を整形して data/jma/tokyo_daily.csv を作る
-├── model.py                        # LSTMCell, LSTMLayer, OddLSTM (OddNN の LSTM を元にしたもの), WeatherForecaster
+├── model.py                        # LSTMCell, LSTMLayer, CustomLSTM (自作の LSTM), WeatherForecaster
 ├── train.py                        # データ, step, 学習の実行
 └── outputs/tokyo_temp/<日付>/<時刻>/ # ML-Found が実験ごとに作る (git の管理外)
 ```
@@ -69,14 +69,14 @@
 - `WeatherForecaster`: LSTM (2 層, 隠れ層 64) の最後の日の出力から, `nn.Linear` で翌日の 2 つの値を出す. パラメータ数 54,402
 - `model.lstm_type` で LSTM を切り替える
     - `torch` (既定): `nn.LSTM` (`batch_first=True`)
-    - `oddnn`: OddNN の `models/rnn_base.py` の自作 LSTM (`LSTMCell`, `LSTMLayer`, `LSTM`) を元にしたもの. このタスクでは `LSTM` を `OddLSTM` と名前を変えた. 入力が `(系列長, バッチ, 特徴量)` の順なので転置して渡す
+    - `custom`: 自作の LSTM (`LSTMCell`, `LSTMLayer`, `CustomLSTM`). 時刻を Python のループでたどる. 入力が `(系列長, バッチ, 特徴量)` の順なので転置して渡す
 - 比較用に, 「翌日も今日と同じ気温」とする単純な予測 (persistence) の誤差も求めて `train.log` に記録する
 
-OddNN の `rnn_base.py` から直した点.
+自作の LSTM の設計.
 
-- 重みを `torch.randn` (標準偏差 1) で初期化していて大きいので, 重みだけ `nn.LSTM` と同じく ±1/√hidden_dim の一様分布で初期化した (バイアスは OddNN と同じく 0). 大きい重みでゲートが飽和しやすいと考えたためで, 元の初期化との比較はしていない
-- 双方向と残差接続はこのタスクでは使わないので省いた (`LSTMLayer` の `cell_fwd` は `cell` に名前を変えたので, `state_dict` のキーは OddNN と違う)
-- 呼び出し方を簡単にした. `LSTM` (`OddLSTM`) は `c_0` を受け取らず, 全ての層で共通の `h_0` (形は `(バッチ, 隠れ層)`, 省略すると 0) を受け取り, 最終層の各時刻の出力だけを返す. OddNN の版は層ごとの `h_0`, `c_0` を受け取り, `(outputs, (h_t, c_t))` を返す. 初期状態を省略した場合の計算は同じ
+- `LSTMCell` は入力ゲート, 忘却ゲート, セルの候補, 出力ゲートの重みを, 入力用と隠れ状態用の行列にそれぞれまとめて計算する. 重みは `nn.LSTM` と同じく ±1/√hidden_dim の一様分布で初期化し, バイアスは 0 にする
+- 双方向と残差接続は持たない
+- `CustomLSTM` は全ての層で共通の初期の隠れ状態 `h_0` (形は `(バッチ, 隠れ層)`, 省略すると 0) を受け取り, 最終層の各時刻の出力だけを返す
 
 ## step の設計
 
@@ -109,7 +109,7 @@ data:
   input_days: 14
   batch_size: 32
 model:
-  lstm_type: torch       # torch または oddnn
+  lstm_type: torch       # torch または custom
   hidden_dim: 64
   num_layers: 2
 ```
@@ -119,7 +119,7 @@ model:
 1. 差分なし, 30 エポック
 2. 実験 1 の `last.pt` から, `trainer.epochs: 60` と `trainer.resume_from` を書いて再開する
 3. 比較として, 最初から 60 エポック学習する (`full60.yaml`). 実験 2 と `history.csv` が一致するかを見る
-4. OddNN の自作 LSTM (`oddnn.yaml`)
+4. 自作の LSTM (`custom_lstm.yaml`)
 
 ## 確かめる ML-Found の機能
 
@@ -154,7 +154,7 @@ python tasks/07_weather_forecast/prepare_data.py     # data/jma/raw/weather.csv 
 
 python tasks/07_weather_forecast/train.py                                                      # 実験 1 (約 2 秒)
 python tasks/07_weather_forecast/train.py --experiment configs/experiment/examples/full60.yaml   # 実験 3
-python tasks/07_weather_forecast/train.py --experiment configs/experiment/examples/oddnn.yaml    # 実験 4
+python tasks/07_weather_forecast/train.py --experiment configs/experiment/examples/custom_lstm.yaml   # 実験 4
 ```
 
 実験 2 (再開) は, 実験 1 の出力先を指す experiment の config を作って実行する.
@@ -186,11 +186,11 @@ python tasks/07_weather_forecast/train.py --experiment resume60.yaml
 | 1 差分なし | `nn.LSTM` | 30 | 28 | 2.292 ℃ | 1.208 ℃ | 1.7 秒 |
 | 2 再開 (30 → 60) | `nn.LSTM` | 60 | 28 | 2.292 ℃ | 1.208 ℃ | 1.6 秒 (再開後の 30 エポック) |
 | 3 `full60` | `nn.LSTM` | 60 | 28 | 2.292 ℃ | 1.208 ℃ | 3.3 秒 |
-| 4 `oddnn` | 自作 LSTM | 30 | 30 | 2.323 ℃ | 1.225 ℃ | 2.1 秒 |
+| 4 `custom_lstm` | 自作の LSTM | 30 | 30 | 2.323 ℃ | 1.225 ℃ | 2.1 秒 (他の学習と並行した再実行では 3.1 秒) |
 
 - ベストのエポック (`valid/loss` で選んだ) では, 前日と同じとする予測より最高気温で 0.21 ℃, 最低気温で 0.05 ℃ 良かった. ただしテスト用データは無く, 同じ検証用データでエポックを選んだ値. 最高気温は 60 エポック中 49 エポックで前日と同じとする予測に勝ったが, 最低気温は 21 エポックだけで, 最後のエポック (30: 1.271 ℃, 60: 1.261 ℃) は負けていた. 学習用が 593 組と少なく, 最低気温の改善はほとんど無い
 - 実験 2 と 3 の `history.csv` は完全に一致した. 再開でモデル, Optimizer, Scheduler, 記録, 乱数 (DataLoader の並べ替えを含む) が全て正しく戻っている. 60 エポックまで学習しても, ベストはエポック 28 のままだった
-- 実験 4 の自作 LSTM は `nn.LSTM` とほぼ同じ精度で, 学習時間は約 1.2 倍だった. 系列が 14 日と短いので, Python のループで時刻をたどっても差は小さい
+- 実験 4 の自作の LSTM は `nn.LSTM` とほぼ同じ精度で, 学習時間は約 1.2 倍だった. 系列が 14 日と短いので, Python のループで時刻をたどっても差は小さい
 
 ### ML-Found について気付いたこと
 

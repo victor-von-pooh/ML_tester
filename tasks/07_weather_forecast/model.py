@@ -15,8 +15,7 @@ class LSTMCell(nn.Module):
         self.hidden_dim = hidden_dim
 
         # 各種重みとバイアスの定義
-        # OddNN の版は重みを torch.randn (標準偏差 1) で初期化していて大きいので,
-        # 重みだけ nn.LSTM と同じく ±1/√hidden_dim の一様分布で初期化
+        # 重みは nn.LSTM と同じく ±1/√hidden_dim の一様分布で初期化
         bound = 1.0 / math.sqrt(self.hidden_dim)
         self.weight_ih = nn.Parameter(
             torch.empty(4 * self.hidden_dim, self.input_dim).uniform_(
@@ -90,7 +89,6 @@ class LSTMLayer(nn.Module):
         self.hidden_dim = hidden_dim
 
         # LSTM セルのインスタンスの作成
-        # OddNN の版の双方向と残差接続はこのタスクでは使わないので省略
         self.cell = LSTMCell(self.input_dim, self.hidden_dim)
 
     def forward(
@@ -128,10 +126,10 @@ class LSTMLayer(nn.Module):
         return outputs, h_t, c_t
 
 
-class OddLSTM(nn.Module):
+class CustomLSTM(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, num_layers: int):
         # 親クラスのコンストラクタを呼び出す
-        super(OddLSTM, self).__init__()
+        super(CustomLSTM, self).__init__()
 
         # 入力層サイズ, 隠れ層サイズ, 層数を保存
         self.input_dim = input_dim
@@ -194,19 +192,19 @@ class WeatherForecaster(nn.Module):
         self.output_dim = output_dim
         self.lstm_type = lstm_type
 
-        # torch は nn.LSTM, oddnn は OddNN の自作 LSTM を定義
+        # torch は nn.LSTM, custom は自作の LSTM を定義
         if self.lstm_type == "torch":
             self.lstm = nn.LSTM(
                 self.input_dim, self.hidden_dim, num_layers=self.num_layers,
                 batch_first=True
             )
-        elif self.lstm_type == "oddnn":
-            self.lstm = OddLSTM(
+        elif self.lstm_type == "custom":
+            self.lstm = CustomLSTM(
                 self.input_dim, self.hidden_dim, self.num_layers
             )
         else:
             raise ValueError(
-                f"model.lstm_type は torch か oddnn にしてください: {lstm_type}"
+                f"model.lstm_type は torch か custom にしてください: {lstm_type}"
             )
 
         # 最後の時刻の隠れ状態から予測する出力層の定義

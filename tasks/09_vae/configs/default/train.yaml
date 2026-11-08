@@ -23,7 +23,7 @@ data:
   num_workers: 2
 
 model:
-  # mlp は OddNN の VAE と同じ全結合, cnn は 08 と同じ畳み込み
+  # mlp は全結合, cnn は 08 と同じ畳み込み
   type: mlp
   hidden_dim: 400
   latent_dim: 16

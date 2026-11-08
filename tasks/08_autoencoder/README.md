@@ -36,7 +36,7 @@
 ## モデル
 
 自前で用意する. 事前学習済みモデルは使わない.
-Pooh の VGAE と OddNN の VAE と同じく, `Encoder`, `Decoder` と, それらを持つ `AutoEncoder` の 3 つのクラスに分ける.
+ルートの README の「モデルの書き方」の通り, `Encoder`, `Decoder` と, それらを持つ `AutoEncoder` の 3 つのクラスに分ける.
 
 - `Encoder`: `Conv2d` (4×4, stride 2) を 2 回 (28 → 14 → 7) と `Linear` で, 潜在変数 (`model.latent_dim`, 既定 16 次元) に圧縮
 - `Decoder`: `Linear` と `ConvTranspose2d` を 2 回 (7 → 14 → 28) で画像に戻し, 最後に `nn.Sigmoid()`

@@ -12,7 +12,7 @@ class Encoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.latent_dim = latent_dim
 
-        # 画像から隠れ層への部分の定義, mlp は OddNN の VAE と同じ全結合
+        # 画像から隠れ層への部分の定義, mlp は全結合
         self.flatten = nn.Flatten()
         if self.model_type == "mlp":
             self.conv1 = None
@@ -106,7 +106,6 @@ class Decoder(nn.Module):
             )
 
         # 活性化関数の定義
-        # OddNN の Decoder は self.relu を定義せずに使っていたので追加
         self.relu = nn.ReLU()
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:

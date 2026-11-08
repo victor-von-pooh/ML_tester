@@ -171,7 +171,7 @@ class QSampler(nn.Module):
         sampler = Sampler(seed=seed)
 
         # QNN をセットアップ
-        # OddNN の版は interpret を渡さず, 出力が全ての測定結果
+        # interpret を渡さないと出力が全ての測定結果
         # (2 の量子ビット数乗) の確率になるので,
         # 1 の数の偶奇で 2 クラスに集約
         qnn_base = SamplerQNN(
@@ -217,8 +217,7 @@ class QuantumNeuralNetwork(nn.Module):
         self.qcs = [self.qc, self.feature_map, self.ansatz]
 
         # observable を定義
-        # OddNN の版は省略すると self.observables が未定義になるので,
-        # 全ビットの Z を既定に設定
+        # 省略した場合は全ビットの Z を既定に設定
         if observables is None:
             observables = [SparsePauliOp("Z" * self.input_dim)]
         self.observables = observables

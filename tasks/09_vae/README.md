@@ -38,20 +38,19 @@
 ## モデル
 
 自前で用意する. 事前学習済みモデルは使わない.
-OddNN の `models/vae_base.py` と Pooh の VGAE の形に合わせ, `Encoder`, `Decoder`, `VAE` の 3 つのクラスにする.
+ルートの README の「モデルの書き方」の通り, `Encoder`, `Decoder`, `VAE` の 3 つのクラスにする.
 
 - `Encoder`: 隠れ層 (400) を通して, 平均 `mu` と対数分散 `log_var` (それぞれ `latent_dim` 次元) を出力し, 再パラメータ化 (`z = mu + exp(log_var / 2) * eps`) でサンプリングして `mu, log_var, z` を返す
 - `Decoder`: 潜在変数から隠れ層を通して画像に戻す. 損失を安定して計算できるように, Sigmoid を掛けずにロジットを出力する (`nn.BCEWithLogitsLoss(reduction="sum")` を使う)
 - `VAE`: `forward` は `outputs, mu, log_var, z` を返し, 生成用に `encode` と `decode` (Sigmoid を掛けた画像) のメソッドも持つ
 - `model.type` で構造を切り替える
-    - `mlp` (既定): OddNN と同じ全結合 (784 → 400 → 潜在変数). パラメータ数 65 万
+    - `mlp` (既定): 全結合 (784 → 400 → 潜在変数). パラメータ数 65 万
     - `cnn`: 08 と同じ畳み込み (28 → 14 → 7) の後に全結合の隠れ層を挟む. パラメータ数 260 万
 
-OddNN の `vae_base.py` から直した点.
+設計で決めたこと.
 
-- `Decoder.forward` が `self.relu` を使っているのに `__init__` で定義していなかったので, `self.relu = nn.ReLU()` を定義した
-- `Decoder` の出力の Sigmoid を外してロジットにし, 損失関数の側で Sigmoid と合わせて計算するようにした
-- 再パラメータ化の `torch.randn_like(torch.exp(log_var))` は `torch.randn_like(mu)` と同じなので, 簡単な方にした
+- `Decoder` は Sigmoid を掛けずにロジットを出し, 損失関数の側で Sigmoid と合わせて計算する (数値的に安定するため). 画素値が要る生成では `decode` で Sigmoid を掛ける
+- 再パラメータ化のノイズは `torch.randn_like(mu)` で作る
 
 ## step と Trainer の設計
 

@@ -31,11 +31,9 @@ ML_tester で作業するときの方針をまとめる.
 ## コードの書き方
 
 - [ML-Found/CODING_STYLE.md](ML-Found/CODING_STYLE.md) に従う (日本語の NumPy 形式の docstring, 下線 10 本, コメントは体言止め, `nn.functional` を使わない, 79 文字以内など)
-- モデルは次の参考リポジトリの書き方に合わせる
-    - `~/myprograms/Pooh/src/gnn/models.py`
-    - `~/myprograms/MIRAGE-GS/src/segment/model.py`
-    - [OddNN の models](https://github.com/victor-von-pooh/OddNN/tree/main/models)
-- 参考リポジトリのコードは全部真似せず, エラーや誤りがあれば適切に直して使う. 直した点はタスクの README に書く
+- モデルはルートの README の「モデルの書き方」に合わせる (部品ごとのクラス, 引数を `self` に保存してから層を定義, など)
+- 他の実装を参考にする場合も全部真似せず, エラーや誤りがあれば適切に直して使う
+- このリポジトリのドキュメント (README, FEEDBACK.md, この CLAUDE.md) とコードのコメントでは, ML-Found と ML-Dashboard 以外のリポジトリに触れない. ローカルのディレクトリ構成やパスも書かない. 第三者が読んで分からない情報になるため
 
 ## タスクを進める流れ
 

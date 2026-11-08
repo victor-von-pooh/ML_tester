@@ -31,7 +31,7 @@ data:
   batch_size: 32
 
 model:
-  # torch は nn.LSTM, oddnn は OddNN の自作 LSTM
+  # torch は nn.LSTM, custom は自作の LSTM (model.py の CustomLSTM)
   lstm_type: torch
   hidden_dim: 64
   num_layers: 2

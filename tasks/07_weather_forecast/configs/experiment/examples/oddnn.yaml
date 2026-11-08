@@ -1,3 +1,0 @@
-# 実験 4: OddNN の自作 LSTM
-model:
-  lstm_type: oddnn

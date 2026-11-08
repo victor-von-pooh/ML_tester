@@ -51,13 +51,7 @@ tasks/XX_name/
 
 ## モデルの書き方
 
-モデルは各タスクの `model.py` に自前のクラスとして書き, 次のリポジトリの書き方に合わせる.
-
-- `~/myprograms/Pooh/src/gnn/models.py` (VGAE)
-- `~/myprograms/MIRAGE-GS/src/segment/model.py` (Swin Transformer など)
-- [OddNN の models](https://github.com/victor-von-pooh/OddNN/tree/main/models) (VAE, 自作の LSTM, 量子ニューラルネット)
-
-書き方の要点.
+モデルは各タスクの `model.py` に自前のクラスとして書く. 書き方の要点.
 
 - 部品ごとにクラスを分け, 全体のクラスで組み合わせる (例: `Encoder`, `Decoder` と, それらを持つ `VAE`)
 - `__init__` では `super(クラス名, self).__init__()` を呼び, 引数を `self` に保存してから層と活性化関数を属性として定義する (`self.fc1 = nn.Linear(...)`, `self.relu = nn.ReLU()`)

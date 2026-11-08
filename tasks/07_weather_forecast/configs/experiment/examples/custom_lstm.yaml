@@ -1,0 +1,3 @@
+# 実験 4: 自作の LSTM (model.py の CustomLSTM)
+model:
+  lstm_type: custom

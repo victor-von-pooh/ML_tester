@@ -22,7 +22,7 @@ qiskit の量子回路を `TorchConnector` で `nn.Module` にした, 普通と�
 │           ├── hybrid.yaml
 │           ├── mlp.yaml
 │           └── no_qiskit_seed.yaml
-├── model.py                        # QEstimator, QSampler, QuantumNeuralNetwork (OddNN から), HybridQNN, ClassicalMLP
+├── model.py                        # QEstimator, QSampler, QuantumNeuralNetwork, HybridQNN, ClassicalMLP
 ├── train.py                        # データ, モデルの切り替え, step, 学習の実行
 └── outputs/qnn/<日付>/<時刻>/       # ML-Found が実験ごとに作る (git の管理外)
 ```
@@ -43,7 +43,7 @@ qiskit の量子回路を `TorchConnector` で `nn.Module` にした, 普通と�
 
 ## モデル
 
-[OddNN の `models/qnn_base.py`](https://github.com/victor-von-pooh/OddNN/blob/main/models/qnn_base.py) の `QuantumNeuralNetwork` を `model.py` に写して使う.
+`model.py` の `QuantumNeuralNetwork` (`QEstimator` と `QSampler` を持つ) を使う.
 
 - 特徴マップ (`zz_feature_map`) と ansatz (`real_amplitudes`, linear, reps 2) を 2 回交互に重ねる Re-Upload の回路. 同じ ansatz を 2 回使うので重みは共有され, 2 量子ビットで重みは 6 個
 - 出力の種類は 2 つあり, 両方を試す
@@ -54,12 +54,11 @@ qiskit の量子回路を `TorchConnector` で `nn.Module` にした, 普通と�
     - `hybrid`: `Linear` で特徴量を `[-π, π]` の回転角に変換してから量子層に入れ, 出力を `Linear` で 1 つのロジットに変換する. 前の `Linear` を学習するために, 量子層で入力に対する勾配も計算する (`input_gradients=True`)
     - `mlp`: 比較用の古典の MLP (隠れ層 8, パラメータ 33 個)
 
-OddNN の `qnn_base.py` から直した点.
+設計で決めたこと.
 
-- `net_type="Estimator"` で `observables` を省略すると `self.observables` が未定義のまま参照されて `AttributeError` になるので, 全ビットの `Z` を既定にした
-- `net_type="Sampler"` で `output_dim` を省略すると `self.output_dim` が未定義になるので, 既定を 2 にした
-- `SamplerQNN` に `interpret` を渡していないので, `output_shape` は警告とともに無視され, 出力が全ての測定結果 (2 の量子ビット数乗) の確率になる. 1 の数の偶奇でまとめる `interpret` を渡した
-- `net_type` が Estimator でも Sampler でもない場合に何もしない (`pass`) ので, エラーにした
+- `net_type="Estimator"` で `observables` を省略した場合は, 全ビットの `Z` を使う
+- `net_type="Sampler"` の出力は既定で 2 クラス. `SamplerQNN` に `interpret` を渡さないと `output_shape` が警告とともに無視され, 出力が全ての測定結果 (2 の量子ビット数乗) の確率になるので, 1 の数の偶奇でまとめる `interpret` を渡す
+- `net_type` が Estimator でも Sampler でもない場合はエラーにする
 
 依存ライブラリに `qiskit` と `qiskit-machine-learning` (どちらも Apache 2.0) が増える.
 
@@ -131,7 +130,6 @@ experiment で次の差分を試す. 2 から 7 は `configs/experiment/examples
 
 - `experiment.device: auto` では mps や cuda が選ばれてテンソルが GPU に移り, qiskit が受け取れずに失敗する → 外れた. `TorchConnector` がデバイスの移動を受け持つので動いた (遅くはなる)
 - qiskit の乱数は ML-Found のシード固定と再開の対象外なので, 利用者が `experiment.seed` を回路にも渡す必要がある → シード固定はその通りだった
-- OddNN の `QuantumNeuralNetwork` は `observables` や `output_dim` を省略すると `AttributeError` になる → 上の「直した点」の通り直した
 
 ## 実行方法
 

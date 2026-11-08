@@ -1,0 +1,3 @@
+# 実験 4: ReduceLROnPlateau をステップごとに更新する, エラーになるのが正しい
+scheduler:
+  interval: step

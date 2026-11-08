@@ -1,0 +1,6 @@
+# 実験 2: 自作の Optimizer (custom_optim.py の Lion) への変更
+optimizer:
+  name: custom_optim.Lion
+  params:
+    lr: 0.0001
+    weight_decay: 0.01

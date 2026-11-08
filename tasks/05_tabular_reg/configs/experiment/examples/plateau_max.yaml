@@ -1,0 +1,4 @@
+# 実験 3: ReduceLROnPlateau の mode を trainer.mode (min) と食い違わせる, エラーになるのが正しい
+scheduler:
+  params:
+    mode: max

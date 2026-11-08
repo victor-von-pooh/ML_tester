@@ -1,0 +1,3 @@
+# 実験 4: KL の重みを最初から 1 にする (annealing なし)
+loss:
+  kl_warmup_epochs: 0

@@ -1,0 +1,3 @@
+# 実験 2: 畳み込みの VAE
+model:
+  type: cnn

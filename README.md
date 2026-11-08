@@ -12,7 +12,7 @@ cd ML_tester
 python3.13 -m venv .venv    # Python 3.13 で動作確認
 source .venv/bin/activate
 pip install -e "./ML-Found[examples]"    # scikit-learn も入る
-pip install torchvision                   # 02, 08 から 11 で使う (torch 2.15.0 と torchvision 0.29.2 で動作確認)
+pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 ```
 
 ## タスク

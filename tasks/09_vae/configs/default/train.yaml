@@ -1,0 +1,40 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: mnist_vae
+  seed: 42
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+
+trainer:
+  epochs: 30
+  # KL の重みが変わる間も比べられるように, 重み 1 の負の ELBO を監視
+  monitor: valid/nelbo
+  mode: min
+
+# プロジェクト固有の設定
+data:
+  # 相対パスはタスクのディレクトリから辿る
+  root: ../../data/torchvision
+  valid_size: 6000
+  batch_size: 128
+  num_workers: 2
+
+model:
+  # mlp は OddNN の VAE と同じ全結合, cnn は 08 と同じ畳み込み
+  type: mlp
+  hidden_dim: 400
+  latent_dim: 16
+
+loss:
+  # KL の重みの最終値と, 最終値に達するまでのエポック数 (0 の場合は最初から最終値)
+  # エポック e の重みは beta * min(1, e / kl_warmup_epochs) で, エポック 1 は beta / 10
+  beta: 1.0
+  kl_warmup_epochs: 10
+
+visualize:
+  # 生成する画像の枚数と, 潜在変数が 2 次元の場合に格子でたどる数
+  n_images: 64
+  n_steps: 20

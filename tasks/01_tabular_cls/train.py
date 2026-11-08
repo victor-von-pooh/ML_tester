@@ -63,7 +63,7 @@ def resolve_experiment_path(path: str) -> Path:
         resolved = given
         return resolved
 
-    # タスクのディレクトリから辿り, 無い場合は実行した場所から辿る
+    # タスクのディレクトリから辿り, 無い場合は実行した場所から探索
     resolved = TASK_DIR / given
     if not resolved.exists() and given.exists():
         resolved = given.resolve()

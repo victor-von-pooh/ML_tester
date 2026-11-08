@@ -1,0 +1,6 @@
+# 実験 5: cpu との速度の比較, 時間がかかるのでエポック数を減らす
+experiment:
+  device: cpu
+
+trainer:
+  epochs: 3

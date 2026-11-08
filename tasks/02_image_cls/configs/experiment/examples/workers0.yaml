@@ -1,0 +1,3 @@
+# 実験 4: DataLoader のワーカーなし (メインプロセスで読み込み)
+data:
+  num_workers: 0

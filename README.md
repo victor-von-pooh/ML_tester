@@ -12,6 +12,7 @@ cd ML_tester
 python3.13 -m venv .venv    # Python 3.13 で動作確認
 source .venv/bin/activate
 pip install -e "./ML-Found[examples]"    # scikit-learn も入る
+pip install torchvision                   # 02, 08 から 11 で使う (torch 2.15.0 と torchvision 0.29.2 で動作確認)
 ```
 
 ## タスク
@@ -19,7 +20,7 @@ pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 | # | ディレクトリ | タスク | データ | 主に確かめる機能 |
 | --- | --- | --- | --- | --- |
 | 1 | `tasks/01_tabular_cls` | 表形式の多クラス分類 | Iris など | 基本の流れ, monitor と mode, Early Stopping, experiment の差分 |
-| 2 | `tasks/02_image_cls` | 画像分類 | MNIST / FashionMNIST | ミニバッチ, デバイス, step ごとの Scheduler, 勾配クリッピング |
+| 2 | `tasks/02_image_cls` | 画像分類 | Fashion-MNIST | ミニバッチ, デバイス, step ごとの Scheduler, 勾配クリッピング |
 | 3 | `tasks/03_imbalanced_cls` | 不均衡な二値分類 | 合成データ | `on_epoch_end` での AUC, `batch_size` の指定 |
 | 4 | `tasks/04_text_cls` | テキスト分類 | arXiv の論文リスト | 長さの違う系列, 辞書のバッチ |
 | 5 | `tasks/05_tabular_reg` | 表形式の回帰 | California Housing | ReduceLROnPlateau, 自作の Optimizer |
@@ -37,11 +38,15 @@ pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 tasks/XX_name/
 ├── configs/
 │   ├── default/train.yaml
-│   └── experiment/train.yaml
+│   └── experiment/
+│       ├── train.yaml
+│       └── examples/   # README の実験で使う差分, --experiment で切り替える
 ├── model.py        # モデルのクラス
 ├── train.py        # データ, step, 学習の実行
 └── README.md       # 目的, 確かめる機能, 実行方法, 期待する結果, 結果のメモ
 ```
+
+必要に応じて `data.py` (データの用意) や `evaluate.py` (学習後の評価) などを足す.
 
 ## モデルの書き方
 

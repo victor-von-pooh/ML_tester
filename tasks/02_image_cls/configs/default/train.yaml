@@ -1,0 +1,38 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: fashion_mnist
+  seed: 42
+
+optimizer:
+  name: AdamW
+  params:
+    lr: 0.001
+    weight_decay: 0.0001
+
+# バッチごとに学習率を更新
+# steps_per_epoch はバッチ数で決まるので train.py で書き込む
+scheduler:
+  name: OneCycleLR
+  params:
+    max_lr: 0.01
+    epochs: ${trainer.epochs}
+  interval: step
+
+trainer:
+  epochs: 15
+  # 正解率は大きい方が良いので max に設定
+  monitor: valid/acc
+  mode: max
+  grad_clip_norm: 1.0
+
+# プロジェクト固有の設定
+data:
+  # 相対パスはタスクのディレクトリから辿る
+  root: ../../data/torchvision
+  valid_size: 6000
+  batch_size: 128
+  num_workers: 2
+
+model:
+  channels: [32, 64]
+  hidden_dim: 128

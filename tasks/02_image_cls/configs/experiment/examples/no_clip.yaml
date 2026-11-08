@@ -1,0 +1,3 @@
+# 実験 3: 勾配クリッピングなし
+trainer:
+  grad_clip_norm: null

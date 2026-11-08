@@ -1,0 +1,7 @@
+# 実験 2: エポックごとに学習率を下げる Scheduler への変更
+scheduler:
+  name: StepLR
+  params:
+    step_size: 5
+    gamma: 0.5
+  interval: epoch

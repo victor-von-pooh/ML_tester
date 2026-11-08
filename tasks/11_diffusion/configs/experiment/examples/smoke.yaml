@@ -1,0 +1,10 @@
+# 動作確認用: 少ないエポックと時刻で短時間だけ回す
+trainer:
+  epochs: 2
+
+diffusion:
+  timesteps: 50
+
+sampling:
+  n_images: 16
+  every_n_epochs: 1

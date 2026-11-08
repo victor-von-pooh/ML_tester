@@ -1,0 +1,3 @@
+# 実験 2: EMA なし
+ema:
+  use: false

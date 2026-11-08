@@ -1,0 +1,46 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: mnist_ddpm
+  seed: 42
+
+optimizer:
+  name: AdamW
+  params:
+    lr: 0.0002
+
+scheduler:
+  name: CosineAnnealingLR
+  params:
+    T_max: ${trainer.epochs}
+
+trainer:
+  epochs: 30
+  grad_clip_norm: 1.0
+
+# プロジェクト固有の設定
+data:
+  # 相対パスはタスクのディレクトリから辿る
+  root: ../../data/torchvision
+  valid_size: 6000
+  batch_size: 128
+  num_workers: 2
+  # 28×28 に余白を足して 32×32 にする
+  image_size: 32
+
+model:
+  base_channels: 32
+  channel_mults: [1, 2, 4]
+
+diffusion:
+  timesteps: 1000
+  beta_start: 0.0001
+  beta_end: 0.02
+
+ema:
+  use: true
+  decay: 0.999
+
+sampling:
+  # 生成する画像の枚数と, 学習中に生成するエポックの間隔
+  n_images: 64
+  every_n_epochs: 10

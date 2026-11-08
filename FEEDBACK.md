@@ -39,7 +39,7 @@
 
 ## ML-Found での対応状況
 
-ML-Found のブランチ `improve/ml-tester-feedback` (`main` には未マージ) で, 次の項目に対応した (2 回のコミットに分けて追加). このリポジトリの結果は全て `main` の `3aca743` で得たもので, submodule もまだ `3aca743` のまま.
+ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. submodule は `8a6a69c` に更新した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの.
 
 | まとめの項目 | 対応 | 内容 |
 | --- | --- | --- |
@@ -57,9 +57,9 @@ ML-Found のブランチ `improve/ml-tester-feedback` (`main` には未マージ
 | 12 ドキュメント | 対応 | README に継承の `__init__` の例, `on_epoch_end` の使い方, cpu の明示, `final_model.pt` (cpu で保存するよう変更) などを記載 |
 | 13 その他 | 一部対応 | 勾配のノルムの記録 (`trainer.log_grad_norm`), `on_epoch_end` と `step` の同じ名前の指標をエラーに, 未コミットの変更をファイルごとに数える. モデルの構造のログは README で `extra_repr` を勧め, 残す仕組みは TODO に記載. 他 (コマンドラインからの上書き, ステップごとの学習率, 学習用データの推論モードでの評価) は ML-Found の TODO に記載 |
 
-ブランチの最初のコミット `7021f0f` の内容 (`monitor_tiebreak` と `progress_bar_batches` を加える前) で, このリポジトリのタスクを流し, 次を確かめた. 01 (cpu), 03, 05 (Lion), 06 (`ClosureTrainer`), 07 (再開を含む), 12 (古典の MLP) の `history.csv` が `3aca743` の結果と完全に一致した (回帰が無い). 10 の書き方 B と C と, 04 の段階 2 の動作確認の設定はエラーなく動いた. 06 の LBFGS は回避策なしで学習でき, 結果は回避策の `ClosureTrainer` と完全に一致した. 06 の PINN は `valid_grad: true` で回避策なしで学習でき, 結果は回避策の `torch.enable_grad()` と完全に一致した. 05 の ReduceLROnPlateau の設定の誤りは, 出力先を作る前にエラーになった.
+PR #1 の途中の内容 (`monitor_tiebreak` と `progress_bar_batches` を加える前) で, このリポジトリのタスクを流し, 次を確かめた. 01 (cpu), 03, 05 (Lion), 06 (`ClosureTrainer`), 07 (再開を含む), 12 (古典の MLP) の `history.csv` が `3aca743` の結果と完全に一致した (回帰が無い). 10 の書き方 B と C と, 04 の段階 2 の動作確認の設定はエラーなく動いた. 06 の LBFGS は回避策なしで学習でき, 結果は回避策の `ClosureTrainer` と完全に一致した. 06 の PINN は `valid_grad: true` で回避策なしで学習でき, 結果は回避策の `torch.enable_grad()` と完全に一致した. 05 の ReduceLROnPlateau の設定の誤りは, 出力先を作る前にエラーになった.
 
-2 つ目のコミット `7a75c36` で, 01 (cpu) に `trainer.monitor_tiebreak: valid/loss` を加えて流すと, 正解率が同じエポックを検証用データの損失で比べるようになり, Early Stopping のエポックは 39 から 89 に, ベストモデルのエポックは 69 (正解率 1.0000) になった.
+PR #1 の最終的な内容で, 01 (cpu) に `trainer.monitor_tiebreak: valid/loss` を加えて流すと, 正解率が同じエポックを検証用データの損失で比べるようになり, Early Stopping のエポックは 39 から 89 に, ベストモデルのエポックは 69 (正解率 1.0000) になった.
 
 ## 一覧
 

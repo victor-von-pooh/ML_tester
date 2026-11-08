@@ -1,0 +1,14 @@
+__pycache__/
+*.egg-info/
+
+venv/
+.venv/
+
+# 各タスクの実験の出力
+outputs/
+
+# 外部から取得したデータ
+data/*
+!data/.gitkeep
+
+.DS_Store

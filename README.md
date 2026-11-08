@@ -29,6 +29,7 @@ pip install -e ./ML-Found
 | 9 | `tasks/09_vae` | VAE | MNIST | 損失の内訳の記録, サンプルの生成 |
 | 10 | `tasks/10_gan` | GAN | MNIST | 2 つの Optimizer の交互の更新 |
 | 11 | `tasks/11_diffusion` | 拡散モデル | MNIST | timestep の乱数, EMA |
+| 12 | `tasks/12_quantum_nn` | 量子ニューラルネット | make_moons, Iris | CPU だけで動くモデル, 外部ライブラリの乱数, チェックポイント |
 
 各タスクのディレクトリは次の構成にする.
 
@@ -37,9 +38,26 @@ tasks/XX_name/
 ├── configs/
 │   ├── default/train.yaml
 │   └── experiment/train.yaml
-├── train.py
+├── model.py        # モデルのクラス
+├── train.py        # データ, step, 学習の実行
 └── README.md       # 目的, 確かめる機能, 実行方法, 期待する結果, 結果のメモ
 ```
+
+## モデルの書き方
+
+モデルは各タスクの `model.py` に自前のクラスとして書き, 次のリポジトリの書き方に合わせる.
+
+- `~/myprograms/Pooh/src/gnn/models.py` (VGAE)
+- `~/myprograms/MIRAGE-GS/src/segment/model.py` (Swin Transformer など)
+- [OddNN の models](https://github.com/victor-von-pooh/OddNN/tree/main/models) (VAE, 自作の LSTM, 量子ニューラルネット)
+
+書き方の要点.
+
+- 部品ごとにクラスを分け, 全体のクラスで組み合わせる (例: `Encoder`, `Decoder` と, それらを持つ `VAE`)
+- `__init__` では `super(クラス名, self).__init__()` を呼び, 引数を `self` に保存してから層と活性化関数を属性として定義する (`self.fc1 = nn.Linear(...)`, `self.relu = nn.ReLU()`)
+- `forward` の docstring は「順伝播を行う関数」とし, 複数の値を返す場合はタプルで返す (例: VAE は `outputs, mu, log_var, z`)
+- 一部だけを使う処理は `encode` や `decode` のようなメソッドに分ける
+- docstring とコメントの細かい書き方は ML-Found の [CODING_STYLE.md](ML-Found/CODING_STYLE.md) に従う (`Returns` の下線は 10 本, コメントは体言止め)
 
 ## データ
 

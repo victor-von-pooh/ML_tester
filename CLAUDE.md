@@ -1,0 +1,55 @@
+# CLAUDE.md
+
+ML_tester で作業するときの方針をまとめる.
+
+## このリポジトリの目的
+
+[ML-Found](ML-Found/) (PyTorch の学習の基盤, submodule) を利用者の立場で使い, いろいろな種類のタスクで機能するかを確かめるテストフィールド.
+
+- 各タスクの `train.py` を手で動かして結果を見る. pytest による自動判定はしない
+- 動かないことが予想されるタスク (LBFGS, GAN など) も実装し, どこでどう詰まったかを記録する. それが ML-Found への FB になる
+- ML-Found 側の修正はこのリポジトリでは行わない. 見つけた問題は [FEEDBACK.md](FEEDBACK.md) に書く
+
+## 構成
+
+- `tasks/XX_name/`: 1 タスク 1 ディレクトリ. ML-Found のプロジェクトのディレクトリとして扱う
+    - `configs/default/train.yaml`, `configs/experiment/train.yaml`: ML-Found の 2 段の config
+    - `configs/experiment/examples/`: README の実験で使う差分. `--experiment` で切り替える
+    - `model.py`: モデルのクラス
+    - `train.py`: データ, step, 学習の実行
+    - `README.md`: 目的, データ, モデル, 確かめる機能, 期待する結果, 予想される問題, 実行方法, 結果のメモ
+    - `outputs/`: ML-Found が作る (git の管理外)
+- `data/`: 外部から取得したデータ (git の管理外). ユーザーに用意してもらうデータは各タスクの README に条件を書く
+- `FEEDBACK.md`: ML-Found への FB を「タスク, 症状, 回避策, 提案」の表で集約
+
+## 環境
+
+- 仮想環境は `.venv` (Python 3.13). 既定の `python3` は 3.15 なので使わない
+- 実行はリポジトリのルートから `.venv/bin/python tasks/XX_name/train.py`
+
+## コードの書き方
+
+- [ML-Found/CODING_STYLE.md](ML-Found/CODING_STYLE.md) に従う (日本語の NumPy 形式の docstring, 下線 10 本, コメントは体言止め, `nn.functional` を使わない, 79 文字以内など)
+- モデルは次の参考リポジトリの書き方に合わせる
+    - `~/myprograms/Pooh/src/gnn/models.py`
+    - `~/myprograms/MIRAGE-GS/src/segment/model.py`
+    - [OddNN の models](https://github.com/victor-von-pooh/OddNN/tree/main/models)
+- 参考リポジトリのコードは全部真似せず, エラーや誤りがあれば適切に直して使う. 直した点はタスクの README に書く
+
+## タスクを進める流れ
+
+1. タスクの README の方針に沿って, `configs/`, `model.py`, `train.py` を作る
+2. README の「実行方法」の実験を全て実行する
+3. 結果を README の「結果のメモ」に書き, 確かめた項目のチェックボックスを埋める. 数値は実際の `outputs/` の値だけを書く
+4. ML-Found について気付いたことを README と `FEEDBACK.md` に書く. ML-Found の挙動についての主張は, ソースコードで原因を確かめてから書く
+5. **セルフレビュー**: 複数のエージェントを並行して動かし, おかしなところが無いかを確認する. 少なくとも次の 3 つの観点で行う
+    - コードのレビュー: バグ, ML-Found の API の使い方, パスの扱い, CODING_STYLE.md への準拠
+    - 記述の検証: README の結果と FEEDBACK.md の主張が `outputs/` と ML-Found のソースコードに合っているか
+    - 新しい利用者としての再現: README の手順だけで, 別のディレクトリからも動かせるか
+    - レビューを頼むときは, 自分の結論ではなく対象のファイルを渡す
+6. レビューの指摘を直し, 直した内容と残した指摘をユーザーに報告する
+
+## git
+
+- コミットはユーザーが行う. Claude はコミットメッセージを提案する
+- コミットメッセージは ML-Found に合わせて日本語の 1 行 (例: 「表形式の多クラス分類のタスクを実装し実験結果とFBを記録」)

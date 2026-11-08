@@ -11,7 +11,7 @@ git clone --recursive https://github.com/victor-von-pooh/ML_tester.git
 cd ML_tester
 python3.13 -m venv .venv    # Python 3.13 で動作確認
 source .venv/bin/activate
-pip install -e ./ML-Found
+pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 ```
 
 ## タスク

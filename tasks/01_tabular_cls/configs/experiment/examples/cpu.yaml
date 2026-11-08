@@ -1,0 +1,3 @@
+# mps と cpu の速度と結果の比較
+experiment:
+  device: cpu

@@ -7,6 +7,8 @@ optimizer:
   name: Adam
   params:
     lr: 0.01
+    # Adam の既定値と同じ 0.0, クラスを変えると捨てられることの確認に使う
+    weight_decay: 0.0
 
 trainer:
   epochs: 200

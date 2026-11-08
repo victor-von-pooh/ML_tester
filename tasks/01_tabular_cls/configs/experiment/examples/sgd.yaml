@@ -1,0 +1,6 @@
+# 実験 3: Optimizer のクラスの変更, default の params は捨てられる
+optimizer:
+  name: SGD
+  params:
+    lr: 0.05
+    momentum: 0.9

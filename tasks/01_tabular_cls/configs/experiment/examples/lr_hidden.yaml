@@ -1,0 +1,7 @@
+# 実験 2: 学習率と隠れ層の次元数の変更
+optimizer:
+  params:
+    lr: 0.001
+
+model:
+  hidden_dim: 32

@@ -1,0 +1,38 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: imbalanced
+  seed: 42
+  # 小さな MLP なので cpu の方が速い (01 で確認)
+  device: cpu
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+
+trainer:
+  epochs: 50
+  # on_epoch_end で求める平均適合率を監視
+  monitor: valid/ap
+  mode: max
+  early_stopping:
+    use: true
+    patience: 10
+
+# プロジェクト固有の設定
+data:
+  n_samples: 20000
+  n_features: 20
+  n_informative: 8
+  n_redundant: 4
+  pos_ratio: 0.05
+  valid_size: 0.2
+  batch_size: 256
+
+model:
+  hidden_dim: 64
+  dropout: 0.2
+
+loss:
+  # 正例に (負例の数 / 正例の数) の重みを付けるかどうか
+  use_pos_weight: true

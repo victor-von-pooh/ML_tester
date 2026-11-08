@@ -1,0 +1,3 @@
+# 実験 2: 正例の重みなし
+loss:
+  use_pos_weight: false

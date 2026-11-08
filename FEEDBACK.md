@@ -2,6 +2,42 @@
 
 各タスクで ML-Found を使って見つかった, 書きにくい点や足りない機能をまとめる.
 
+## まとめ
+
+12 のタスク (ML-Found `3aca743`) を通して見つかったことを, 優先度の高い順にまとめる. 詳細と根拠は下の表と各タスクの README にある.
+
+### 優先度: 高
+
+1. **ベストモデルの判定と学習後の巻き戻しを止められない** (09, 10). GAN では生成器の損失が最小のエポック 1 がベストになり, `final_model.pt` が崩れた画像を出すモデルになった. β-VAE でも学習の途中のモデルが残った. `trainer.restore_best: false` のような設定が要る
+2. **Optimizer が 1 つで更新手順が固定** (06, 10). LBFGS は closure を渡せずに最初の更新で失敗し, GAN は 2 つ目の Optimizer の作成, 更新, 保存, 再開の全てを自分で書く必要があった. ML-Found の TODO の項目 2 (closure への対応) に加え, 複数の Optimizer と自動の更新を止める設定 (`manual_optimization`) があると, この 2 つのタスクはどちらも素直に書ける
+3. **チェックポイントの保存が重い** (04, 06). 1 エポックが短いフルバッチ学習では保存が学習時間の 8 割以上を占め (`last.pt` を毎エポック, `best.pt` を改善のたびに, 記録の全てを含めて保存するため), 事前学習済みモデルでは `best.pt` と `last.pt` がそれぞれ 1 GB を超えた. 保存の間隔と, `last.pt` にベストモデルの重みを入れない設定が要る
+4. **検証時の扱いを変えられない** (06, 08, 11). 検証では勾配が止まるので PINN のように入力の微分を使う損失が失敗し, 損失に乱数を含む拡散モデルでは検証用の損失が揺れてベストモデルの判定が不安定になった. `valid_grad` や `valid_seed` のような設定が要る. 逆に `on_epoch_end` は検証の後でも勾配が有効なまま呼ばれる
+5. **データの量で決まる Scheduler の引数を config で書けず, 自分で作った Scheduler は記録に残らない** (02, 04). `OneCycleLR` や warmup 付きの Scheduler は `load_config` と `start_experiment` の間で config を書き換えるか, 自分で作って `Trainer` に渡す必要がある. 後者では `config.yaml` の `scheduler` が `name: null` のままになり, ML-Found の記録はクラス名だけになる
+6. **最良値と同じ値を改善とみなさない** (01). 正解率のように同じ値を取りやすい指標を監視すると, `valid/loss` が下がり続けている途中で Early Stopping が止めた
+
+### 優先度: 中
+
+7. **指標の平均の扱い** (04, 05, 09). `step` の戻り値はサンプル数で重み付けして平均されるので, RMSE のように平均してはいけない指標は小さめに出る. `BatchEncoding` のような `dict` の子クラスでない Mapping のバッチはサンプル数が 1 と推定される. 記録だけしたい値 (スケジュールの値など) も平均されて学習曲線が描かれる
+8. **失敗したときの後始末** (05, 06, 07). Scheduler の組み合わせの誤り, closure の不足, 存在しない `resume_from` は, 出力先を作った後に失敗し, 学習結果の無い出力先が残る. エラーの内容は `train.log` に書かれない
+9. **ML-Found の外の状態** (10, 11, 12). 2 つ目の Optimizer, EMA の重み, 外部ライブラリ (qiskit) の乱数は, チェックポイントと乱数の固定の対象外. `resume` が読み込んだ状態を外に出さないので, 継承して足すにもパスの解決を写す必要があった
+10. **進捗の見え方** (01, 04). 進捗バーがエポック単位なので, 1 エポックが 17.5 分かかる学習では中の進み具合が分からない. Early Stopping で止まると最後の表示が 1 エポック少ない. ML-Found の TODO の項目 3 (進捗を渡すコールバック) を作るときに合わせて見直すと良い
+
+### 優先度: 低
+
+11. ドキュメントで補えるもの: 継承したクラスの `__init__` の例 (03), `on_epoch_end` で指標以外を保存する例 (08), `step_fn` にエポックが渡らないこと (09), 小さなモデルでは `device: cpu` を明示した方が速いこと (01, 12), `final_model.pt` を読み込む例の `map_location` (02)
+12. その他: コマンドラインから experiment の config や `resume_from` を渡す補助 (01, 07), 学習率をエポックの開始時点しか記録しない (02), 勾配のノルムを記録しない (02), 学習用データを推論モードで評価し直せない (03), `on_epoch_end` と `step` の同じ名前の指標の上書き (03), 未コミットの変更の数え方 (01), モデルの構造のログ (12)
+
+### うまく動いたこと
+
+- **学習の再開**: モデル, Optimizer, Scheduler, 記録, Early Stopping, 乱数 (DataLoader の並べ替えを含む) が全て戻り, 30 エポックで止めて 60 エポックまで再開した学習と, 通しで 60 エポック学習した結果が完全に一致した (07)
+- **再現性**: 同じ環境で学習し直すと `history.csv` が完全に一致した (01, 03, 05, 06, 07, 08, 09, 11, 12). 別のディレクトリから実行しても一致した (03, 04, 05, 06, 07, 08, 09, 10, 12, 11 は短い動作確認の設定). mps でも一致した (01, 08, 09, 10, 11 は短い動作確認の設定). 12 は qiskit の乱数を自分で固定した場合
+- **config の 2 段構え**: default に無い項目のエラー, クラスを変えたときの引数の切り替え, `diff.yaml` の差分の記録, `${trainer.epochs}` の参照が README の通りに動いた (01, 02)
+- **継承のフック**: `step`, `on_epoch_start`, `on_epoch_end`, `update_parameters`, `state_dict`, `resume` を上書きして, AUC (03), 複数ラベルの F1 (04), RMSE (05), closure による更新 (06), KL annealing (09), GAN の 3 通りの書き分け (10), EMA (11) を書けた
+- **外部のモデル**: Hugging Face の DistilBERT, qiskit の量子回路 (`TorchConnector`) を `nn.Module` としてそのまま載せられた
+- **出力先**: 同じ秒に始めた実験も連番 (`_1`) の別の出力先になり, 並行して動かしても上書きされなかった (06 のレビューで同じ秒に始めた 2 つの実験が別の出力先になったことを確認)
+
+## 一覧
+
 | タスク | 症状 | 回避策 | ML-Found への提案 |
 | --- | --- | --- | --- |
 | 01 | 指標が最良値と同じ値になっても改善とみなされない (`training/callbacks.py` の `is_improved` が `>` と `<` で比べ, `Checkpoint` と `EarlyStopping` の両方が使う). 正解率のように同じ値を取りやすい指標を `monitor` にすると, ベストモデルは最初にその値に達したエポックのままになり, Early Stopping も最良値に並んだだけのエポックを「改善なし」と数えて, `valid/loss` が下がり続けている学習の途中で止めた | `monitor` を `valid/loss` にする. `early_stopping.min_delta` は負の値にしない限り同じ値を改善にできず, `Checkpoint` は `min_delta` を使わないので回避策にならない | 同じ値の場合に別の指標で比べる設定 (例: `trainer.monitor_tiebreak: valid/loss`) を用意し, `Checkpoint` と `EarlyStopping` の両方で使う. または同じ値を改善とみなすかどうかの設定 |
@@ -10,12 +46,16 @@
 | 01 | experiment の config のパスを `train.py` に固定で書くので, 複数の実験を切り替えにくい | `train.py` に `--experiment` の引数を自分で用意 | experiment のパスやコマンドラインからの上書き (`trainer.epochs=10` のような dotlist) を受け取る補助関数を ML-Found に用意する |
 | 01 | `train.log` の「未コミットの変更: N ファイル」が `git status --porcelain` の行数なので, 未追跡のディレクトリが 1 行にまとめられ, `git_diff.patch` のファイル数より少なく出る (3 ファイルと出たが patch には 7 ファイル) | なし (`git_diff.patch` 自体は正しい) | `git status --porcelain --untracked-files=all` で数える (`experiment/env_info.py` の `get_git_info`) |
 | 02 | データの量で決まる Scheduler の引数 (`OneCycleLR` の `steps_per_epoch` など) を config から渡す仕組みが無い (Scheduler を自分で作って `Trainer(..., scheduler=...)` に渡せるが, `config.yaml` に残らない). `load_config` と `start_experiment` の間で `cfg` を書き換えれば動き `config.yaml` にも残るが, この順番は利用者が知っている必要があり, `start_experiment` の後に書き換えると `config.yaml` と実際の設定がずれる. 書き込んだ値は `diff.yaml` には出ない | `train.py` で `start_experiment` の前に DataLoader を作り, `cfg.scheduler.params.steps_per_epoch = len(train_loader)` と書き込む | README にこの書き方を載せる. または `Trainer.fit` で `train_loader` の長さが分かる時点で Scheduler を作り, `steps_per_epoch` を自動で補う. ただし `fit` は `len()` を持たない Iterable も受け取り, `resume` も `fit` の中で Scheduler の状態を戻すので, 長さが無い場合の扱いと, 復元より前に作る順番に注意が要る |
-| 02 | `lr` はエポックの開始時点の値だけが記録されるので, `scheduler.interval: step` の場合はエポックの中の学習率の変化が `lr_curve.png` に出ず, 最後のステップの後の学習率も残らない | `Trainer` を継承し, `on_epoch_end` で `optimizer.param_groups[0]["lr"]` を返せばエポックの終了時点の学習率は残せる. ステップごとの値は自分で記録する必要がある | `interval: step` の場合はステップごとの学習率を別のファイル (例: `lr_steps.csv`) に記録して描く, またはエポックの終了時点の学習率も記録する |
+| 02 | `lr` はエポックの開始時点の値だけが記録されるので, `scheduler.interval: step` の場合はエポックの中の学習率の変化が `lr_curve.png` に出ず, 最後のステップの後の学習率も残らない. 04 の warmup 付きの Scheduler では, エポック 1 の `lr` が 0.0 と記録された | `Trainer` を継承し, `on_epoch_end` で `optimizer.param_groups[0]["lr"]` を返せばエポックの終了時点の学習率は残せる. ステップごとの値は自分で記録する必要がある | `interval: step` の場合はステップごとの学習率を別のファイル (例: `lr_steps.csv`) に記録して描く, またはエポックの終了時点の学習率も記録する |
 | 02 | 勾配のノルムが記録されないので, 勾配クリッピングが効いているか (どのくらいの頻度で切られているか) を確かめられない. `nn.utils.clip_grad_norm_` はクリップ前のノルムを返すが, `Trainer.update_parameters` は捨てている | `Trainer` を継承し, `update_parameters` を上書きしてノルムを貯め, `on_epoch_end` でエポック平均を返す (このタスクでは未実装) | クリップ前の勾配のノルムのエポック平均を `train/grad_norm` として記録する (設定で切り替え) |
 | 02 | `final_model.pt` を学習したデバイスのまま保存するので (mps で学習すると `mps:0` のテンソル), ML-Found の README の読み込み例 `torch.load("outputs/.../final_model.pt")` は mps や cuda の無い環境ではそのままでは動かない | `torch.load(..., map_location="cpu")` で読み込む | 保存する前に cpu に移す (`best.pt` などの重みも同じ), または README の例に `map_location="cpu"` を加える |
 | 03 | ML-Found の README に, `Trainer` を継承したクラスの `__init__` の例が無い. `step_fn` を使わない場合に親クラスへ何を渡すか (`None` を位置で渡すか, `optimizer=` などをキーワードで渡すか) を利用者が調べる必要がある | `super().__init__(model, experiment, None, optimizer, scheduler)` またはキーワード引数で呼ぶ | 小さな問題. README に継承時の `__init__` の例を載せる |
 | 03 | `on_epoch_end` の戻り値と `step` の戻り値に同じ名前の指標があると, `on_epoch_end` の値で黙って上書きされる (`training/trainer.py` の `run_epoch`) | 名前を変える | 同じ名前があればエラーにするか, 警告を出す |
 | 03 | `train/` の指標は学習中 (Dropout が効いた状態, パラメータ更新の途中) の予測から求めるので, エポック全体で求める AUC のような指標は `valid/` と比べにくい | `on_epoch_end` の `phase == "train"` のときに, 並べ替えない学習用の loader を `model.eval()` と `torch.no_grad()` で回し, `eval_auc` のような別名で返す (`run_epoch` は次の検証の前に推論モードへ戻すので安全. このタスクでは未実装) | 学習用データを推論モードで評価し直す設定 (例: `trainer.eval_train: true`) を用意する |
+| 04 | Hugging Face のトークナイザの出力 (`BatchEncoding`) は `dict` の子クラスではない (`UserDict`) ので, `get_batch_size` がサンプル数を見つけられず 1 として扱う. `step` で返す指標がサンプル数でなくバッチ数で平均され, 小さなバッチがサンプル数の割に重く効く (`move_to_device` は `BatchEncoding` が `.to` を持つので動く) | `step` の戻り値に `batch_size` を入れる | `find_batch_size` で `collections.abc.Mapping` を辞書として扱う. 見つからずに 1 とした場合は一度だけ警告する |
+| 04 | warmup 付きの Scheduler のように総ステップ数がバッチ数で決まる Scheduler を自分で作って `Trainer` に渡すと, `config.yaml` の `scheduler` は `name: null` のままで, ML-Found が残す記録は `train.log` の `Scheduler: LambdaLR` だけになる | Scheduler の引数を自分の config の項目にする (このタスクでは `warmup_ratio`), または自分で `train.log` に書く | 02 の「データの量で決まる Scheduler の引数」と合わせて, `Trainer` に渡した Optimizer と Scheduler の設定 (クラス名と主な引数) もログと出力先に記録する |
+| 04 | 事前学習済みモデル (DistilBERT, 6,700 万パラメータ) では `best.pt` と `last.pt` がそれぞれ 1.07 GB になる. `last.pt` にもベストモデルの重みを入れるので, 2 つで 2 GB を超え, 毎エポック書き込む | `trainer.checkpoint.save_best: false` にする (再開には `last.pt` だけで足りる) | ベストモデルの重みを `last.pt` に入れるかどうかの設定. 大きなモデル向けに `best.pt` を重みだけにする設定 |
+| 04 | 進捗バーがエポック単位なので, 1 エポックが 17.5 分かかる事前学習済みモデルの微調整では, エポックの中の進み具合が全く分からない (02 で予想した問題が実際に起きた) | なし | バッチ単位の進捗バー (エポックの中の内側のバー) を設定で出せるようにする |
 | 05 | ReduceLROnPlateau の `mode` や `interval` の食い違いは `Trainer` を作るとき (`start_experiment` の後) に確かめられるので, エラーで止まっても `config.yaml`, `diff.yaml`, `train.log` (と `git_diff.patch`) だけを含む出力先が残る (01 の「default に無い項目」のエラーは `load_config` で起きるので残らない) | 残った出力先を手で消す | config だけで確かめられる部分 (`scheduler.params.mode` と `trainer.mode` の一致, `interval` と Scheduler のクラスの組み合わせ, クラス名の解決など) を, `load_config` か `start_experiment` の出力先を作る前に確かめる |
 | 05 | エラーで止まった場合, `train.log` にエラーの内容が書かれない. 最後の行は途中の記録のままなので, 後から出力先を見ても失敗した実験だと分かりにくい | `train.py` で `start_experiment` の後の処理を `try` で囲み, `experiment.logger.exception(...)` で書いてから投げ直す (`Trainer` の作成で失敗する場合もあるので, `fit` だけを囲んでも足りない) | `Trainer.fit` (と `Trainer` の作成) で例外を受けたらロガーに書いてから投げ直す. 出力先に `FAILED` のような印を残す |
 | 05 | `step` で RMSE を返すと, バッチごとの値をサンプル数で重み付けして平均するので, エポック全体の RMSE 以下になる (このタスクの検証用データではベストのエポックで約 0.003, 最大で 0.005) | `Trainer` を継承し, 二乗誤差の合計を貯めて `on_epoch_end` で求める | README の `step` の説明に, 平均してよい指標 (MAE, 正解率など) とそうでない指標 (RMSE, AUC, F1 など) の注意を書く. または `step` から合計と件数を返せる仕組みを用意する |

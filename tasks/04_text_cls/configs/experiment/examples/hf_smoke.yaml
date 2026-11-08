@@ -1,0 +1,7 @@
+# train_hf.py の動作確認用: 件数を絞って 1 エポックだけ (数十秒)
+trainer:
+  epochs: 1
+
+data:
+  n_train: 64
+  n_valid: 32

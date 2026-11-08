@@ -1,0 +1,35 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: arxiv_cls
+  seed: 42
+  # 埋め込みの平均と線形層だけの小さなモデルなので cpu で学習
+  device: cpu
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+
+trainer:
+  epochs: 10
+  # on_epoch_end で求める分野ごとの F1 の平均を監視
+  monitor: valid/macro_f1
+  mode: max
+  early_stopping:
+    use: true
+    patience: 3
+
+# プロジェクト固有の設定
+data:
+  # 相対パスはタスクのディレクトリから辿る
+  path: ../../data/arxiv/arXiv.csv
+  # この年月 (yymm) 以降に投稿された論文を検証用にする
+  valid_from: "2507"
+  vocab_size: 30000
+  # タイトルと要旨の先頭から使う単語の数
+  max_len: 256
+  batch_size: 256
+
+model:
+  embed_dim: 128
+  dropout: 0.1

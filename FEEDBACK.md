@@ -37,6 +37,30 @@
 - **外部のモデル**: Hugging Face の DistilBERT, qiskit の量子回路 (`TorchConnector`) を `nn.Module` としてそのまま載せられた
 - **出力先**: 同じ秒に始めた実験も連番 (`_1`) の別の出力先になり, 並行して動かしても上書きされなかった (06 のレビューで同じ秒に始めた 2 つの実験が別の出力先になったことを確認)
 
+## ML-Found での対応状況
+
+ML-Found のブランチ `improve/ml-tester-feedback` (`main` には未マージ) で, 次の項目に対応した (2 回のコミットに分けて追加). このリポジトリの結果は全て `main` の `3aca743` で得たもので, submodule もまだ `3aca743` のまま.
+
+| まとめの項目 | 対応 | 内容 |
+| --- | --- | --- |
+| 1 ベストモデルへの巻き戻し | 対応 | `trainer.restore_best: false` で最後のエポックの重みを残す |
+| 2 Optimizer が 1 つで更新手順が固定 | 一部対応 | closure が必要な Optimizer (LBFGS) を自動で見分けて対応. `trainer.manual_optimization` で `step` の中で更新できる. 複数の Optimizer を config で扱う仕組みは未対応 |
+| 3 チェックポイントの保存が重い | 一部対応 | `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられる. `best.pt` は改善のたびに保存するままで, `last.pt` からベストモデルの重みを外す設定も未対応 (どちらも ML-Found の TODO に記載) |
+| 4 検証時の扱い | 対応 | `trainer.valid_grad` と `trainer.valid_seed`. `on_epoch_end` の勾配は README に注意を記載 |
+| 5 データの量で決まる Scheduler の引数 | 文書で対応 | `load_config` と `start_experiment` の間で書き込む方法を README に記載. 自分で渡した Scheduler の状態を `train.log` に記録. 自動で補う仕組みは ML-Found の TODO に記載 |
+| 6 最良値と同じ値を改善とみなさない | 対応 | `trainer.monitor_tiebreak` で, 同じ値の場合に別の指標 (例: `valid/loss`) で比べる. ベストモデルの判定と Early Stopping の両方に使う |
+| 7 指標の平均の扱い | 一部対応 | `dict` 以外の Mapping のバッチのサンプル数を推定. 平均してよい指標の注意を README に記載. 記録だけする値は ML-Found の TODO に記載 |
+| 8 失敗したときの後始末 | 一部対応 | Optimizer と Scheduler のクラス名と組み合わせ, 学習の設定の組み合わせ, 存在しない `resume_from` を出力先を作る前に確認. `fit` の中のエラーを `train.log` に記録. Optimizer と Scheduler の引数の誤りは, 出力先を作った後の `Trainer` の作成でエラーになるまま |
+| 9 再開で通しの学習と一致しない場合 | 警告で対応 | Scheduler の引数の食い違いと `persistent_workers` の DataLoader を再開時に警告 |
+| 10 ML-Found の外の状態 | 一部対応 | `extra_state_dict` と `load_extra_state_dict` で継承したクラスがチェックポイントに状態を加えられる. 外部ライブラリの乱数は未対応 |
+| 11 進捗の見え方 | 対応 | Early Stopping で止めたエポックも進捗バーで数える. `trainer.progress_bar_batches` でエポックの中のバッチ単位の進捗バーも出せる |
+| 12 ドキュメント | 対応 | README に継承の `__init__` の例, `on_epoch_end` の使い方, cpu の明示, `final_model.pt` (cpu で保存するよう変更) などを記載 |
+| 13 その他 | 一部対応 | 勾配のノルムの記録 (`trainer.log_grad_norm`), `on_epoch_end` と `step` の同じ名前の指標をエラーに, 未コミットの変更をファイルごとに数える. モデルの構造のログは README で `extra_repr` を勧め, 残す仕組みは TODO に記載. 他 (コマンドラインからの上書き, ステップごとの学習率, 学習用データの推論モードでの評価) は ML-Found の TODO に記載 |
+
+ブランチの最初のコミット `7021f0f` の内容 (`monitor_tiebreak` と `progress_bar_batches` を加える前) で, このリポジトリのタスクを流し, 次を確かめた. 01 (cpu), 03, 05 (Lion), 06 (`ClosureTrainer`), 07 (再開を含む), 12 (古典の MLP) の `history.csv` が `3aca743` の結果と完全に一致した (回帰が無い). 10 の書き方 B と C と, 04 の段階 2 の動作確認の設定はエラーなく動いた. 06 の LBFGS は回避策なしで学習でき, 結果は回避策の `ClosureTrainer` と完全に一致した. 06 の PINN は `valid_grad: true` で回避策なしで学習でき, 結果は回避策の `torch.enable_grad()` と完全に一致した. 05 の ReduceLROnPlateau の設定の誤りは, 出力先を作る前にエラーになった.
+
+2 つ目のコミット `7a75c36` で, 01 (cpu) に `trainer.monitor_tiebreak: valid/loss` を加えて流すと, 正解率が同じエポックを検証用データの損失で比べるようになり, Early Stopping のエポックは 39 から 89 に, ベストモデルのエポックは 69 (正解率 1.0000) になった.
+
 ## 一覧
 
 | タスク | 症状 | 回避策 | ML-Found への提案 |

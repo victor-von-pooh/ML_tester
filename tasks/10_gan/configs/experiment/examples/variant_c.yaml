@@ -1,0 +1,3 @@
+# 実験 3: step の中で識別器と生成器を手動で更新
+train:
+  variant: C

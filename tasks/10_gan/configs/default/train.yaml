@@ -1,0 +1,46 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: mnist_gan
+  seed: 42
+
+# A では生成器と識別器の両方, B と C では生成器だけの Optimizer
+optimizer:
+  name: Adam
+  params:
+    lr: 0.0002
+    betas: [0.5, 0.999]
+
+trainer:
+  epochs: 20
+  # 検証用データは使わないので, 監視できるのは学習用の指標だけ
+  monitor: train/loss
+  mode: min
+
+# プロジェクト固有の設定
+train:
+  # 書き方, A は損失を 1 つにまとめる, B は update_parameters の上書き,
+  # C は step の中で手動で更新
+  variant: B
+
+# B と C で識別器に使う 2 つ目の Optimizer (ML-Found の外の設定)
+discriminator_optimizer:
+  name: Adam
+  params:
+    lr: 0.0002
+    betas: [0.5, 0.999]
+
+data:
+  # 相対パスはタスクのディレクトリから辿る
+  root: ../../data/torchvision
+  batch_size: 128
+  num_workers: 2
+
+model:
+  noise_dim: 100
+  g_channels: 64
+  d_channels: 64
+
+visualize:
+  # 生成する画像の枚数と, 保存するエポックの間隔
+  n_images: 64
+  sample_every: 5

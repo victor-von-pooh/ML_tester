@@ -1,0 +1,3 @@
+# 実験 7: qiskit の乱数を固定しない (2 回学習して結果が一致するかを見る)
+train:
+  seed_qiskit: false

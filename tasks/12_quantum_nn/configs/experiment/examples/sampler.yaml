@@ -1,0 +1,3 @@
+# 実験 3: Sampler (測定結果の確率) で学習
+model:
+  net_type: Sampler

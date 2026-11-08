@@ -1,0 +1,3 @@
+# 実験 2: デバイスを自動で選ぶ (mps や cuda が選ばれると失敗する見込み)
+experiment:
+  device: auto

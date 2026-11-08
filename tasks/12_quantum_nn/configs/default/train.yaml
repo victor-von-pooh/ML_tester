@@ -1,0 +1,40 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: qnn
+  seed: 42
+  # 量子回路のシミュレーションは cpu でしか動かない
+  device: cpu
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.05
+
+trainer:
+  epochs: 50
+  monitor: valid/acc
+  mode: max
+
+# プロジェクト固有の設定
+data:
+  # moons (2 つの半月, 特徴量 2) または iris (setosa を除く 2 クラス, 特徴量 4)
+  dataset: moons
+  n_samples: 300
+  noise: 0.1
+  valid_size: 0.2
+  batch_size: 16
+
+model:
+  # qnn は量子層だけ, hybrid は古典の層で挟む, mlp は古典の MLP (比較用)
+  kind: qnn
+  # Estimator は期待値, Sampler は測定結果の確率を出力
+  net_type: Estimator
+  num_reuploads: 2
+  feature_map_reps: 1
+  ansatz_reps: 2
+  # mlp の隠れ層の次元数
+  hidden_dim: 8
+
+train:
+  # qiskit の乱数 (初期の重み, Estimator と Sampler) を experiment.seed で固定するかどうか
+  seed_qiskit: true

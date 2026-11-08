@@ -1,0 +1,3 @@
+# 実験 4: Iris の 2 クラス (4 量子ビット)
+data:
+  dataset: iris

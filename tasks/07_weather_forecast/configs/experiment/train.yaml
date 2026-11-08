@@ -1,0 +1,3 @@
+# default から変えたい項目だけを記述 (default に無い項目は記述不可)
+# README の実験は examples/ にあり, --experiment で切り替えられる
+# 学習の再開は README の「実行方法」を参照

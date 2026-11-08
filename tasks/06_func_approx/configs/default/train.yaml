@@ -1,0 +1,31 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: func_approx
+  seed: 42
+  # 小さな MLP なので cpu の方が速い (01 で確認)
+  device: cpu
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+
+trainer:
+  # フルバッチなので 1 エポックが 1 回の更新
+  epochs: 5000
+  # 1 エポックが短いので進捗バーは表示しない
+  progress_bar: false
+
+# プロジェクト固有の設定
+data:
+  n_train: 1000
+  n_valid: 200
+  noise: 0.01
+
+model:
+  hidden_dim: 64
+  n_layers: 3
+
+train:
+  # closure を渡して更新する ClosureTrainer を使うかどうか
+  use_closure: false

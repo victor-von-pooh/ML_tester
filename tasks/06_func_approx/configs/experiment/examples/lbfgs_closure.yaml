@@ -1,0 +1,14 @@
+# 実験 3: LBFGS を, closure を渡すように継承した ClosureTrainer で使う
+optimizer:
+  name: LBFGS
+  params:
+    lr: 1.0
+    max_iter: 20
+    history_size: 50
+    line_search_fn: strong_wolfe
+
+trainer:
+  epochs: 200
+
+train:
+  use_closure: true

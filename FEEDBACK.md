@@ -39,7 +39,7 @@
 
 ## ML-Found での対応状況
 
-ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. submodule は `8a6a69c` に更新した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの.
+ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を `run.json` と `progress.json` に書き出す PR #2 を含む `9707451` に更新した (ML-Dashboard で学習中の進み具合を見るため).
 
 | まとめの項目 | 対応 | 内容 |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目�
 | 8 失敗したときの後始末 | 一部対応 | Optimizer と Scheduler のクラス名と組み合わせ, 学習の設定の組み合わせ, 存在しない `resume_from` を出力先を作る前に確認. `fit` の中のエラーを `train.log` に記録. Optimizer と Scheduler の引数の誤りは, 出力先を作った後の `Trainer` の作成でエラーになるまま |
 | 9 再開で通しの学習と一致しない場合 | 警告で対応 | Scheduler の引数の食い違いと `persistent_workers` の DataLoader を再開時に警告 |
 | 10 ML-Found の外の状態 | 一部対応 | `extra_state_dict` と `load_extra_state_dict` で継承したクラスがチェックポイントに状態を加えられる. 外部ライブラリの乱数は未対応 |
-| 11 進捗の見え方 | 対応 | Early Stopping で止めたエポックも進捗バーで数える. `trainer.progress_bar_batches` でエポックの中のバッチ単位の進捗バーも出せる |
+| 11 進捗の見え方 | 対応 | Early Stopping で止めたエポックも進捗バーで数える. `trainer.progress_bar_batches` でエポックの中のバッチ単位の進捗バーも出せる. PR #2 で, 学習中の進み具合を `progress.json` に書き出し, 外から読めるようにした (ML-Dashboard で表示) |
 | 12 ドキュメント | 対応 | README に継承の `__init__` の例, `on_epoch_end` の使い方, cpu の明示, `final_model.pt` (cpu で保存するよう変更) などを記載 |
 | 13 その他 | 一部対応 | 勾配のノルムの記録 (`trainer.log_grad_norm`), `on_epoch_end` と `step` の同じ名前の指標をエラーに, 未コミットの変更をファイルごとに数える. モデルの構造のログは README で `extra_repr` を勧め, 残す仕組みは TODO に記載. 他 (コマンドラインからの上書き, ステップごとの学習率, 学習用データの推論モードでの評価) は ML-Found の TODO に記載 |
 

@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      # 各タスクのコードが Python として読めるかの確認 (学習は手で動かす)
+      - run: python -m compileall -q tasks
+      # git の管理下のファイルに, 手元の環境の絶対パスを書いていないかの確認
+      # URL の中の /home/ などに当たらないように, 直前が : / 英字 . の場合は対象外
+      - name: 手元のパスが無いことの確認
+        run: |
+          pattern='(^|[^:/a-zA-Z.])(/Users/|/home/|/private/(tmp|var)/|/Volumes/)|[A-Z]:\\Users'
+          if git grep -nE "$pattern" -- ':!.github/'; then
+            echo "手元の環境の絶対パスが書かれています"
+            exit 1
+          fi

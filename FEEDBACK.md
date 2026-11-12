@@ -39,7 +39,7 @@
 
 ## ML-Found での対応状況
 
-ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を `run.json` と `progress.json` に書き出す PR #2 を含む `9707451` に更新した (ML-Dashboard で学習中の進み具合を見るため).
+ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返して名前の誤りを学習の前に確かめる PR #4 を含む `f0c26ab` に更新した.
 
 | まとめの項目 | 対応 | 内容 |
 | --- | --- | --- |

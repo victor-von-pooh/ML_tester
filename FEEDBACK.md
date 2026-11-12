@@ -61,6 +61,8 @@ PR #1 の途中の内容 (`monitor_tiebreak` と `progress_bar_batches` を加�
 
 PR #1 の最終的な内容で, 01 (cpu) に `trainer.monitor_tiebreak: valid/loss` を加えて流すと, 正解率が同じエポックを検証用データの損失で比べるようになり, Early Stopping のエポックは 39 から 89 に, ベストモデルのエポックは 69 (正解率 1.0000) になった.
 
+submodule を `8a6a69c` に更新した後に, 全タスクの全ての config (`configs/experiment/` の下, 04 の DistilBERT の本番の設定を除く) を 2 エポックだけ流し, エラーと警告が無いことを確かめた. エラーになったのは, エラーになることを確かめるための 3 つ (05 の `plateau_max` と `plateau_step`, 06 の `pinn`) だけで, どれも各タスクの README に書いた通りのエラーだった. 05 の 2 つは, 学習を始める前の確認で止まるようになった.
+
 ## 一覧
 
 | タスク | 症状 | 回避策 | ML-Found への提案 |

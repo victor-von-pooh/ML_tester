@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # 各タスクのコードが Python として読めるかの確認 (学習は手で動かす)
+      - run: python -m compileall -q tasks
+      # ドキュメントとコードにローカルのパスを書いていないかの確認
+      - name: ローカルのパスが無いことの確認
+        run: |
+          if grep -rnE '/Users/|/home/[a-z]|~/myprograms' --include='*.md' --include='*.py' --include='*.yaml' . ; then
+            echo "ローカルのパスが書かれています"
+            exit 1
+          fi

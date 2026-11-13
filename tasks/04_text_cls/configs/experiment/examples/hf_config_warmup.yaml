@@ -1,0 +1,11 @@
+# transformers の warmup 付きの線形減衰を, ML-Found の config で書く
+# warmup で学習率を上げた後, 残りのステップ数 (auto) で 0 まで線形に下げる
+scheduler:
+  name: LinearLR
+  params:
+    start_factor: 1.0
+    end_factor: 0.0
+    total_iters: auto
+  warmup_ratio: 0.1
+  # transformers は 0 から上げるが, ML-Found は 0 より大きい倍率が必要
+  warmup_start_factor: 1.0e-8

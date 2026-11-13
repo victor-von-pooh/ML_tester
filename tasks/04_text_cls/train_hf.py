@@ -255,9 +255,19 @@ def main() -> None:
         problem_type="multi_label_classification"
     )
 
-    # Scheduler はバッチ数が要るので, Optimizer と一緒に作って Trainer に受け渡し
+    # config に Scheduler か warmup を書いた場合は ML-Found が作る
+    # (warmup の回数と auto はバッチ数から補う). 書かない場合は transformers の
+    # warmup 付きの線形減衰を, バッチ数を使って作って Trainer に受け渡し
     optimizer = build_optimizer(cfg.optimizer, model.parameters())
-    scheduler = build_scheduler(cfg, optimizer, len(train_loader))
+    uses_config = (
+        cfg.scheduler.name is not None
+        or cfg.scheduler.warmup_ratio is not None
+        or cfg.scheduler.warmup_steps is not None
+    )
+    scheduler = (
+        None if uses_config
+        else build_scheduler(cfg, optimizer, len(train_loader))
+    )
     trainer = HFTrainer(model, experiment, optimizer, scheduler)
     history = trainer.fit(train_loader, valid_loader)
 

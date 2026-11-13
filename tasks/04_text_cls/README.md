@@ -119,7 +119,7 @@ model:
 - [x] 辞書のバッチから `get_batch_size` がサンプル数を正しく推定する (最初に見つかったテンソルの 0 次元目) → 段階 1 の `dict` では推定できる. 段階 2 の `BatchEncoding` は `dict` の子クラスではない (`UserDict`) ので推定できず, 1 として扱われる. そのため段階 2 では `step` で `batch_size` を明示した (その後 ML-Found の PR #1 で `dict` 以外の Mapping も推定するようになった)
 - [x] Hugging Face のモデルを `Trainer` にそのまま渡せる
 - [x] `transformers.get_linear_schedule_with_warmup` で作った Scheduler (中身は `LambdaLR`) を `Trainer` に渡せる. `train.log` には `Scheduler: LambdaLR` と出る
-- [x] Hugging Face の warmup に必要な総ステップ数を config から決めにくくないか → 決められなかった. 02 の `OneCycleLR` と同じく, バッチ数から `train_hf.py` で計算した. 02 と違い Scheduler を自分で作って渡したので, `config.yaml` には Scheduler の名前も引数も残らない
+- [x] Hugging Face の warmup に必要な総ステップ数を config から決めにくくないか → 決められなかった. 02 の `OneCycleLR` と同じく, バッチ数から `train_hf.py` で計算した. 02 と違い Scheduler を自分で作って渡したので, `config.yaml` には Scheduler の名前も引数も残らない (`3aca743` の時点. その後 ML-Found の PR #29 の `auto` と PR #35 の `warmup_ratio` で, config だけで書けるようになった)
 - [x] モデルが大きい場合のチェックポイントの保存時間と容量 → `best.pt` と `last.pt` はそれぞれ 1.07 GB (モデル 268 MB に, Optimizer の状態とベストモデルの重みが加わる). 保存の時間はログに分けて出ないので測っていない
 
 ## 期待する結果
@@ -155,6 +155,8 @@ python tasks/04_text_cls/train_hf.py    # 段階 2 (Apple Silicon の mps で約
 
 # 段階 2 の動作確認 (件数を絞って 1 エポック, 数十秒)
 python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf_smoke.yaml
+# 段階 2 の Scheduler を ML-Found の config の warmup で作る (約 30 分)
+python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf_config_warmup.yaml
 ```
 
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
@@ -181,7 +183,7 @@ python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
 - Hugging Face のトークナイザの出力 (`BatchEncoding`) は `dict` の子クラスではないので, ML-Found の `get_batch_size` がサンプル数を見つけられず 1 として扱う. `step` で返す指標 (`loss`, `exact`) がバッチ数の平均になり, 小さなバッチがサンプル数の割に重く効く (段階 2 の検証用では 8 件のバッチが 32 件のバッチと同じ重み). `on_epoch_end` で求める F1 には影響しない. `move_to_device` は `BatchEncoding` が `.to` を持つので正しく動く (`3aca743` の時点. その後 ML-Found の PR #1 で `dict` 以外の Mapping のバッチもサンプル数を推定するようになり, PR #21 で推定できずに 1 とした場合は `train.log` に警告が 1 回出るようになった)
-- warmup 付きの Scheduler の総ステップ数がバッチ数で決まるので, Scheduler を自分で作って `Trainer` に渡した. この場合 `config.yaml` の `scheduler` は `name: null` のままで, ML-Found が残す記録は `train.log` の `Scheduler: LambdaLR` だけになる. このタスクでは `warmup_ratio` を自分の config の項目にしたので, 引数は `config.yaml` に残った
+- warmup 付きの Scheduler の総ステップ数がバッチ数で決まるので, Scheduler を自分で作って `Trainer` に渡した. この場合 `config.yaml` の `scheduler` は `name: null` のままで, ML-Found が残す記録は `train.log` の `Scheduler: LambdaLR` だけになる. このタスクでは `warmup_ratio` を自分の config の項目にしたので, 引数は `config.yaml` に残った (`3aca743` の時点. その後 ML-Found の PR #35 で warmup を config に書けるようになった. 下の「config の warmup」を参照)
 - 事前学習済みモデルでは `best.pt` と `last.pt` がそれぞれ 1 GB を超える. ベストモデルの重みを `last.pt` にも入れるので, 2 つで 2 GB を超える (`3aca743` の時点. その後 ML-Found の PR #10 で `best.pt` がベストモデルの重みを重ねて持たなくなり, `trainer.checkpoint.last_with_best: false` で `last.pt` からベストモデルの重みを外し, `best_weights_only: true` で `best.pt` を重みだけにできるようになった)
 - 進捗バーがエポック単位なので, 1 エポックが 17.5 分かかった段階 2 では, エポックの中の進み具合が全く分からない (02 で予想した問題が実際に起きた) (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.progress_bar_batches` でバッチ単位の進捗バーを出せるようになり, PR #11 で `STOP` に `now` と書くとエポックの途中でも止められるようになった)
 
@@ -200,3 +202,25 @@ python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf
 - エポック 1 は約 13.0 分 (以前は 17.5 分), エポック 2 は約 12.1 分で以前と同じ. 以前の遅さは GPU を分け合ったエポック 1 だけだった
 - `best.pt` は 1.07 GB から 0.80 GB になった (ベストモデルの重みを重ねて持たなくなったため). `last.pt` は 1.07 GB のまま
 - 段階 1 とほぼ同じという結論は変わらない
+
+### config の warmup (2026-11-13)
+
+ML-Found の PR #35 で, Scheduler の前に学習率を線形に上げる warmup (`scheduler.warmup_steps` と `warmup_ratio`) を config に書けるようになった. `get_linear_schedule_with_warmup` (warmup の後に 0 まで線形に下げる) は, 次のように書ける (`hf_config_warmup.yaml`). `train_hf.py` は, config に Scheduler か warmup を書いた場合は ML-Found に作らせ, 書かない場合はこれまでどおり transformers の関数で作る.
+
+```yaml
+scheduler:
+  name: LinearLR
+  params:
+    start_factor: 1.0
+    end_factor: 0.0
+    total_iters: auto      # warmup の後の残りのステップ数
+  warmup_ratio: 0.1
+  warmup_start_factor: 1.0e-8
+```
+
+動作確認の設定で学習用データを 640 件 (20 ステップ, warmup は 2 ステップ) にして, 2 つの作り方を ML-Found `1c5c47d` で比べた.
+
+- `train.log` に「LinearLR の引数を学習用データから補いました: warmup_steps=2, total_iters=18」と出て, `config.yaml` に補った値が残った. Scheduler は `SequentialLR` (warmup の `LinearLR` と減衰の `LinearLR`) になり, 中の Scheduler ごとの状態も `train.log` に残る
+- 更新ごとの学習率 (`lr_steps.csv`) は 20 ステップ全てで浮動小数の誤差の範囲で一致した. 違うのは最初のステップだけで, transformers は 0, ML-Found は 2e-13 (`warmup_start_factor` は 0 より大きい必要がある)
+- エポック 1 の `train/loss` は 0.58847998 と 0.58847997 で, 8 桁目まで同じだった
+- warmup の回数の求め方は, transformers が切り捨て (`int`), ML-Found が四捨五入 (`round`) なので, 総ステップ数 × 割合が `x.5` 以上になる場合は 1 回違う. 段階 2 の本番 (20,000 件, バッチ 32, 2 エポックで 1,250 ステップ) では 125 回で同じ

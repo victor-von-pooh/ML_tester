@@ -152,3 +152,9 @@ python tasks/05_tabular_reg/train.py --experiment configs/experiment/examples/pl
 - ReduceLROnPlateau の `mode` や `interval` の食い違いは, `Trainer` を作るとき (`start_experiment` の後) に確かめられるので, エラーで止まっても `config.yaml`, `diff.yaml`, `train.log` (と `git_diff.patch`) だけを含む出力先が残る. 01 の「default に無い項目」のエラーは `load_config` で起きるので出力先が作られなかったのと対照的
 - エラーで止まった場合, `train.log` にはエラーの内容が書かれず, 最後の行は途中の記録 (このタスクでは「目的変数の標準偏差」) のままになる. 後から出力先を見ても, 失敗した実験だと分かりにくい
 - `step` で RMSE を返すと, ML-Found はバッチごとの値をサンプル数で重み付けして平均するので, エポック全体の RMSE 以下になる. README の `step` の説明に, 平均してよい指標とそうでない指標の注意があると良い
+
+### 最新の ML-Found での再実行 (2026-11-13)
+
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`, 学習時間は一部 `e2df46e`) で流し直した. 実験 1 と 2 の `history.csv` は一致した. 実験 3 と 4 は同じエラーで, 今は出力先を作る前に止まる.
+
+- 学習時間: 実験 1 は 6.32 秒 (`e2df46e`), 実験 2 は 6.98 秒 (`24f18c2`)

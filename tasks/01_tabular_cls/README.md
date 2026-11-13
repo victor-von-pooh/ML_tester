@@ -160,3 +160,10 @@ model.load_state_dict(torch.load("outputs/iris/<日付>/<時刻>/final_model.pt"
 - `device: auto` では mps が選ばれるが, このタスクでは cpu の方が 6 倍以上速かった
 - experiment の config のパスは利用者が `train.py` に書くので, 複数の実験を切り替えるには毎回 `configs/experiment/train.yaml` を書き換えるか, 自分で引数を用意する必要がある. このタスクでは `--experiment` を自分で用意した
 - `train.log` の「未コミットの変更: N ファイル」は `git status --porcelain` の行数なので, 未追跡のディレクトリが 1 行にまとめられ, `git_diff.patch` に含まれるファイル数より少なく出る (このタスクの最初の実行では 3 ファイルと出たが, patch には 7 ファイル含まれていた)
+
+### 最新の ML-Found での再実行 (2026-11-13)
+
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`, 学習時間は一部 `e2df46e`) で流し直した. 止まったエポック, ベストのエポック, 正解率は全て同じで, `history.csv` もバイト単位で一致した. 実験 4 は同じエラーで, 出力先は作られない.
+
+- 学習時間 (`e2df46e`): 実験 1 は 1.00 秒, 実験 5 (cpu) は 0.13 秒で, 以前とほぼ同じ (`24f18c2` では状態のファイルの書き込みが重く, cpu で 0.19 秒だった. ML-Found の PR #18 で直した)
+- Early Stopping で止まると進捗バーが 1 少ない件は直り, `39/200` と出る

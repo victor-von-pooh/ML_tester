@@ -39,7 +39,7 @@
 
 ## ML-Found での対応状況
 
-ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返し, 引数の名前の誤りと必須の引数の不足を出力先を作る前に確かめる PR #4, 引数の種類と Scheduler の範囲を整えた PR #5 と #6, 引数の値の範囲を出力先を作る前に確かめる PR #7, step ごとの学習率を記録する PR #8, `OneCycleLR` の総ステップ数を学習用データから補う PR #9, チェックポイントを軽くする設定を加えた PR #10 を含む `fc2ea75` に更新した.
+ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返し, 引数の名前の誤りと必須の引数の不足を出力先を作る前に確かめる PR #4, 引数の種類と Scheduler の範囲を整えた PR #5 と #6, 引数の値の範囲を出力先を作る前に確かめる PR #7, step ごとの学習率を記録する PR #8, `OneCycleLR` の総ステップ数を学習用データから補う PR #9, チェックポイントを軽くする設定を加えた PR #10, エポックの途中で止める PR #11 を含む `5c33ee4` に更新した.
 
 | まとめの項目 | 対応 | 内容 |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目�
 | 8 失敗したときの後始末 | 一部対応 | Optimizer と Scheduler のクラス名と組み合わせ, 学習の設定の組み合わせ, 存在しない `resume_from` を出力先を作る前に確認. `fit` の中のエラーを `train.log` に記録. PR #4 で, Optimizer と Scheduler の引数の名前の誤りと必須の引数の不足も出力先を作る前に確かめるようになった. PR #7 で, Optimizer と Scheduler の引数の値が登録簿の範囲の外 (負の学習率など) の場合も出力先を作る前にエラーになった. 配列の値 (Adam の `betas` など) と自作のクラスの値は確かめないので, 誤りは `Trainer` の作成でエラーになり出力先が残る. `Trainer` の作成で起きたエラーは `train.log` に書かれない |
 | 9 再開で通しの学習と一致しない場合 | 警告で対応 | Scheduler の引数の食い違いと `persistent_workers` の DataLoader を再開時に警告 |
 | 10 ML-Found の外の状態 | 一部対応 | `extra_state_dict` と `load_extra_state_dict` で継承したクラスがチェックポイントに状態を加えられる. 外部ライブラリの乱数は未対応 |
-| 11 進捗の見え方 | 対応 | Early Stopping で止めたエポックも進捗バーで数える. `trainer.progress_bar_batches` でエポックの中のバッチ単位の進捗バーも出せる. PR #2 で, 学習中の進み具合を `progress.json` に書き出し, 外から読めるようにした (ML-Dashboard で表示) |
+| 11 進捗の見え方 | 対応 | Early Stopping で止めたエポックも進捗バーで数える. `trainer.progress_bar_batches` でエポックの中のバッチ単位の進捗バーも出せる. PR #2 で, 学習中の進み具合を `progress.json` に書き出し, 外から読めるようにした (ML-Dashboard で表示). PR #11 で, 実験のディレクトリの `STOP` に `now` と書くと, 1 エポックが長い学習 (04 の 17.5 分など) でもエポックの途中で止め, 途中のエポックを捨てて最後に終えたエポックの状態に戻すようになった (ML-Dashboard の「エポックの途中で止める」) |
 | 12 ドキュメント | 対応 | README に継承の `__init__` の例, `on_epoch_end` の使い方, cpu の明示, `final_model.pt` (cpu で保存するよう変更) などを記載 |
 | 13 その他 | 一部対応 | 勾配のノルムの記録 (`trainer.log_grad_norm`), `on_epoch_end` と `step` の同じ名前の指標をエラーに, 未コミットの変更をファイルごとに数える. モデルの構造のログは README で `extra_repr` を勧め, 残す仕組みは TODO に記載. PR #8 で, `scheduler.interval: step` の場合に更新ごとの学習率を `lr_steps.csv` と `lr_steps.png` に残すようになった. 他 (コマンドラインからの上書き, 学習用データの推論モードでの評価) は ML-Found の TODO に記載 |
 

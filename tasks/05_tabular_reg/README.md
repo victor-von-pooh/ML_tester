@@ -95,7 +95,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 
 - [x] ReduceLROnPlateau が `valid/loss` を見て学習率を下げ, `lr_curve.png` に階段状に出る
 - [x] ReduceLROnPlateau の `mode` を省略すると `trainer.mode` に合わせられる (`training/optim.py` の `build_scheduler` で確認. 実験 1 は `trainer.mode` も torch の既定値も `min` なので, 実験では区別できない)
-- [x] `mode` や `interval` が食い違うと分かりやすいエラーになる. ただしエラーになるのは出力先を作った後なので, 学習結果の無い出力先が残る (下の「気付いたこと」)
+- [x] `mode` や `interval` が食い違うと分かりやすいエラーになる. ML-Found `3aca743` ではエラーになるのが出力先を作った後で, 学習結果の無い出力先が残った (下の「気付いたこと」). その後 ML-Found の PR #1 で, 出力先を作る前にエラーになるようになった
 - [x] `custom_optim.Lion` のように `.` を含む名前で自作の Optimizer を読み込める. `train.py` のあるディレクトリは Python が自動で import の探索先に入れるので, 別のディレクトリから実行しても読み込めた
 - [x] `on_epoch_end` で求めた RMSE と, `step` で求めた RMSE の違い (下の結果を参照)
 
@@ -125,7 +125,7 @@ python tasks/05_tabular_reg/train.py --experiment configs/experiment/examples/pl
 
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
 - 実験 1 と 2 の出力先には, `config.yaml`, `diff.yaml`, `train.log`, `history.csv`, 学習曲線 (`loss`, `mae`, `rmse`, `rmse_batch`, `lr`), `best.pt`, `last.pt`, `final_model.pt` (未コミットの変更があれば `git_diff.patch`) が入る
-- 実験 3 と 4 はエラーで止まるが, `config.yaml`, `diff.yaml`, `train.log` (未コミットの変更があれば `git_diff.patch`) だけを含む出力先が残る
+- 実験 3 と 4 は, 出力先を作る前にエラーで止まる (出力先は作られない. ML-Found `3aca743` では `config.yaml`, `diff.yaml`, `train.log` だけを含む出力先が残った)
 - 学習時間は `train.log` の最後の「学習時間」に出る
 
 ## 結果のメモ

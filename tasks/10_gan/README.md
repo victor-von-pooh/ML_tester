@@ -3,7 +3,7 @@
 ## 目的
 
 生成器 (Generator) と識別器 (Discriminator) の 2 つのモデルを, 2 つの Optimizer で交互に更新する学習が ML-Found で書けるかを確かめる.
-実験した時点 (ML-Found `3aca743`) の ML-Found は Optimizer が 1 つで更新手順も固定だったので, **書ける方法を探り, どこで無理が出るかを記録する** のが主な目的だった. ML-Found の PR #1 で, `trainer.manual_optimization` で `step` の中で自分で更新できるようになり, `extra_state_dict` と `load_extra_state_dict` で 2 つ目の Optimizer の状態をチェックポイントに加えられるようになった. 2 つ目の Optimizer を config から作る仕組みはまだ無い.
+実験した時点 (ML-Found `3aca743`) の ML-Found は Optimizer が 1 つで更新手順も固定だったので, **書ける方法を探り, どこで無理が出るかを記録する** のが主な目的だった. ML-Found の PR #1 で, `trainer.manual_optimization` で `step` の中で自分で更新できるようになり, `extra_state_dict` と `load_extra_state_dict` で 2 つ目の Optimizer の状態をチェックポイントに加えられるようになった. 2 つ目の Optimizer を config から作る仕組みはまだ無い. また `trainer.restore_best: false` で, 学習後にベストモデルへ戻さず最後のエポックの重みを残せるようになった (ベストモデルの判定自体を止める設定は無い).
 
 ## ディレクトリ構成
 

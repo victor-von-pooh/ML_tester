@@ -102,7 +102,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 ## 期待する結果
 
 - Adam: 検証用データの MSE が 1e-4 程度
-- LBFGS: 現状は失敗する. 対応後は Adam より少ないエポックで MSE が 1e-5 程度まで下がる
+- LBFGS: ML-Found `3aca743` では失敗した. 対応後 (PR #1 以降) は Adam より少ないエポックで MSE が 1e-5 程度まで下がる
 
 ## 予想される問題
 
@@ -118,14 +118,14 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 ```bash
 # リポジトリのルートから
 python tasks/06_func_approx/train.py                                                            # 実験 1 (約 45 秒)
-python tasks/06_func_approx/train.py --experiment configs/experiment/examples/lbfgs.yaml          # 実験 2 (エラー)
+python tasks/06_func_approx/train.py --experiment configs/experiment/examples/lbfgs.yaml          # 実験 2 (ML-Found 3aca743 ではエラー, 今は学習できる)
 python tasks/06_func_approx/train.py --experiment configs/experiment/examples/lbfgs_closure.yaml  # 実験 3
 python tasks/06_func_approx/train.py --experiment configs/experiment/examples/adam_closure.yaml   # 実験 4 (約 45 秒)
 ```
 
 - `.venv` を有効にしない場合は, リポジトリの `.venv/bin/python` を絶対パスか, 実行した場所からの相対パスで指定する
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
-- 実験 2 はエラーで止まり, `config.yaml`, `diff.yaml`, `train.log` (未コミットの変更があれば `git_diff.patch`) だけを含む出力先が残る. エラーの内容は端末にだけ出る. この出力先は消してよい
+- 実験 2 は, ML-Found `3aca743` では最初の更新でエラーになり, 学習結果の無い出力先が残った. 今は ML-Found が closure を渡すので学習でき, 結果は実験 3 と一致する
 - 進捗バーは表示しない設定にしている. 学習時間は `train.log` の最後の「学習時間」に出る. 時間の目安は Apple Silicon の Mac での値
 
 ## PINN (実験 5 と 6)
@@ -150,7 +150,7 @@ python tasks/06_func_approx/train_pinn.py --experiment configs/experiment/exampl
 | 5 回避策なし | ML-Found のまま (無効) | エポック 1 の検証で `RuntimeError` | - | - | - | - |
 | 6 `pinn_force_grad` | `step` の中で `torch.enable_grad()` | 3000 エポック学習 | 2988 | 1.11e-5 | **2.47e-4** | 3.2 秒 |
 
-- 実験 5 は学習のエポック 1 は通り, 検証 (`fit` から呼ばれる 2 回目の `run_epoch`) の `step` で失敗した. `x` は `requires_grad_(True)` にしているが, 勾配の計算が止まった中で求めた `u` が計算グラフを持たないので, `torch.autograd.grad(u.sum(), x)` が失敗する. 学習結果の無い出力先が残り, エラーは端末にだけ出る (`train.log` には残らない). この出力先は消してよい
+- 実験 5 は学習のエポック 1 は通り, 検証 (`fit` から呼ばれる 2 回目の `run_epoch`) の `step` で失敗した. `x` は `requires_grad_(True)` にしているが, 勾配の計算が止まった中で求めた `u` が計算グラフを持たないので, `torch.autograd.grad(u.sum(), x)` が失敗する. 学習結果の無い出力先が残る. エラーは `train.log` の最後と `run.json` (`failed`) にも残る (ML-Found `3aca743` では端末にだけ出た). この出力先は消してよい. 今は ML-Found の `trainer.valid_grad: true` を書けば, 回避策なしで学習できる (PR #1)
 - 実験 6 は, `step` の中で順伝播と微分を `torch.enable_grad()` で囲めば, 検証でも 2 階微分を計算できた. ML-Found の `run_epoch` が `step` を `torch.set_grad_enabled(False)` で囲んでいても, 内側で有効にし直せる. 検証では `x` に対する微分だけを求めて `backward` はしないので, パラメータの勾配には影響しない
 - 実験 6 の最大誤差は `valid/loss` で選んだベストのエポック (2988) の値で, 最後のエポック (3000) では 1.55e-4 だった
 

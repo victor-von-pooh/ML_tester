@@ -172,7 +172,7 @@ trainer:
 python tasks/07_weather_forecast/train.py --experiment resume60.yaml
 ```
 
-- `resume_from` の相対パスは, ML-Found の規則でタスクのディレクトリから辿る. リポジトリのルートからのパス (`tasks/07_weather_forecast/outputs/...`) を書くとパスが二重になり, torch の `FileNotFoundError` で止まって学習結果の無い出力先が残る
+- `resume_from` の相対パスは, ML-Found の規則でタスクのディレクトリから辿る. リポジトリのルートからのパス (`tasks/07_weather_forecast/outputs/...`) を書くとパスが二重になり, 出力先を作る前に `resume_from` が無いというエラーになる (ML-Found `3aca743` では torch の `FileNotFoundError` で止まり, 学習結果の無い出力先が残った)
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
 - 実験 2 と 3 は, 実験 1 と同じく cpu で学習すると完全に一致する
 

@@ -29,7 +29,7 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 
 画面から学習を起動する場合の注意.
 
-- 04 の `train_hf.py` と 06 の `train_pinn.py` を選ぶと, experiment の config が `configs/experiment/hf.yaml` (06 は `pinn.yaml`) に切り替わり, 起動の前の確認は `configs/default/hf.yaml` (06 は `pinn.yaml`) を元にする. `examples/hf_smoke.yaml` と `examples/pinn_force_grad.yaml` も, それぞれのスクリプトを選んでから使う
+- 04 の `train_hf.py` と 06 の `train_pinn.py` を選ぶと, experiment の config が `configs/experiment/hf.yaml` (06 は `pinn.yaml`) に切り替わり, 起動の前の確認は `configs/default/hf.yaml` (06 は `pinn.yaml`) を元にする. `examples/hf_smoke.yaml` と `examples/pinn_force_grad.yaml` も, それぞれのスクリプトを選んでから使う. 06 の `train_pinn.py` の既定 (`pinn.yaml`) は検証で失敗することを確かめる例なので, エポック 1 の検証でエラーになる (起動の前の確認では止まらない)
 - 04 と 07 はデータの用意が要るので, 先に各タスクの README の手順で用意する. 02, 05, 08 から 11 と 04 の `train_hf.py` は, 初回にデータやモデルをダウンロードする (ネットワークが必要)
 - 01 の `invalid_key.yaml` と 05 の `plateau_max.yaml`, `plateau_step.yaml` はエラーになることを確かめる例なので, 起動の前の確認で止まる
 - 手早く試すなら 01 の `examples/cpu.yaml` (Python の起動を含めて数秒で終わる)

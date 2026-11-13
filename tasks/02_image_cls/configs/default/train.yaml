@@ -10,7 +10,7 @@ optimizer:
     weight_decay: 0.0001
 
 # バッチごとに学習率を更新
-# steps_per_epoch はバッチ数で決まるので train.py で書き込む
+# steps_per_epoch はバッチ数で決まるので, 学習を始めるときに ML-Found が補う
 scheduler:
   name: OneCycleLR
   params:

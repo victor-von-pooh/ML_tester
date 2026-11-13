@@ -1,7 +1,6 @@
 import argparse
 from pathlib import Path
 
-from omegaconf import DictConfig
 from torch import nn
 
 from data import make_loader, make_train_valid
@@ -67,27 +66,6 @@ def resolve_experiment_path(path: str) -> Path:
     return resolved
 
 
-def fill_scheduler_steps(cfg: DictConfig, n_batches: int) -> DictConfig:
-    """
-    データの量で決まる Scheduler の引数を config に書き込む関数
-
-    Parameters
-    ----------
-    cfg: DictConfig
-        学習に使う config
-    n_batches: int
-        1 エポックあたりのバッチ数
-
-    Returns
-    ----------
-    cfg: DictConfig
-        OneCycleLR の場合は steps_per_epoch を書き込んだ config
-    """
-    # torch.optim.lr_scheduler.OneCycleLR のような完全な名前も対象
-    name = cfg.scheduler.name
-    if name is None or name.rsplit(".", 1)[-1] != "OneCycleLR":
-        return cfg
-
     # 学習率の山の位置を決めるのに全体のステップ数が必要
     # エポックごとに更新する場合は 1 エポックを 1 ステップとして数え,
     # config に書かれた値があっても実際の更新回数で上書き
@@ -149,11 +127,11 @@ def main() -> None:
         str(resolve_experiment_path(args.experiment))
     )
 
-    # バッチ数が決まらないと Scheduler の引数が決まらないので, 実験の開始前にデータを用意
+    # データを用意 (OneCycleLR の steps_per_epoch は, ML-Found が学習を始める
+    # ときにバッチ数から補う)
     train_dataset, valid_dataset, stats = make_train_valid(cfg)
     train_loader = make_loader(train_dataset, cfg, shuffle=True)
     valid_loader = make_loader(valid_dataset, cfg, shuffle=False)
-    cfg = fill_scheduler_steps(cfg, len(train_loader))
 
     # 実験を開始し, 標準化の基準を記録
     experiment = start_experiment(cfg, diff, str(TASK_DIR))

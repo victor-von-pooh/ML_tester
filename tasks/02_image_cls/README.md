@@ -73,7 +73,7 @@ scheduler:
   params:
     max_lr: 0.01
     epochs: ${trainer.epochs}   # trainer.epochs に合わせる
-    # steps_per_epoch はバッチ数で決まるので train.py で書き込む
+    # steps_per_epoch はバッチ数で決まるので, 学習を始めるときに ML-Found が補う
   interval: step
 trainer:
   epochs: 15
@@ -91,9 +91,8 @@ model:
 ```
 
 `OneCycleLR` は全体のステップ数 (`epochs × steps_per_epoch`) が必要だが, `steps_per_epoch` はバッチ数で決まるので config だけでは書けない.
-そこで `train.py` で, `load_config` の後, `start_experiment` の前に DataLoader を作り, `cfg.scheduler.params.steps_per_epoch` に `len(train_loader)` (= 422) を書き込む.
-`start_experiment` より前に書き込むので, 保存される `config.yaml` にもこの値が残る.
-`scheduler.interval: epoch` で OneCycleLR を使う場合は, 1 エポックを 1 ステップとして `steps_per_epoch: 1` を書き込む. config に `steps_per_epoch` を書いても, 実際の更新回数で上書きされる.
+下の結果のときは, `train.py` で `load_config` の後, `start_experiment` の前に DataLoader を作り, `cfg.scheduler.params.steps_per_epoch` に `len(train_loader)` (= 422) を書き込んでいた (`scheduler.interval: epoch` の場合は 1).
+その後 ML-Found が, `OneCycleLR` の総ステップ数を書かない場合に `fit` で学習用データのバッチ数から補うようになったので (`interval: epoch` なら 1), `train.py` の書き込みはやめた. 補った値は `config.yaml` と `train.log` に残る.
 
 experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples/` に置き, `--experiment` で切り替える.
 

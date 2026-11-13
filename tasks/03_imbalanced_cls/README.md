@@ -13,7 +13,7 @@
 │   ├── default/train.yaml          # 基準の config
 │   └── experiment/
 │       ├── train.yaml              # 普段使う差分 (空)
-│       └── examples/               # 下の「config」の実験 2 と 3 の差分
+│       └── examples/               # 下の「config」の実験 2 から 4 の差分
 │           ├── eval_train.yaml
 │           ├── no_pos_weight.yaml
 │           └── pos1.yaml
@@ -90,7 +90,7 @@ loss:
   use_pos_weight: true
 ```
 
-experiment で次の差分を試す. 2 と 3 は `configs/experiment/examples/` に置き, `--experiment` で切り替える.
+experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples/` に置き, `--experiment` で切り替える.
 
 1. 差分なし (`configs/experiment/train.yaml`, 空のファイル)
 2. `loss.use_pos_weight: false` で AP がどう変わるか (`no_pos_weight.yaml`)

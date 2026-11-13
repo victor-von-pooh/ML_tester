@@ -166,7 +166,7 @@ python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples
 
 ### 学習用データの評価し直し (2026-11-13)
 
-ML-Found の PR #25 で, 各エポックの学習の後に学習用データを推論モードで評価し直し, `train_eval/` を付けて記録する `trainer.eval_train` が加わった. 実験 1 にこれを加えた実験 4 を ML-Found `a9c12ce` で流した. `DiffusionTrainer` のような書き換えは要らず, `on_epoch_start`, `step`, `on_epoch_end` は `phase` が `train_eval` でもそのまま AUC と AP を求めた.
+ML-Found の PR #25 で, 各エポックの学習の後に学習用データを推論モードで評価し直し, `train_eval/` を付けて記録する `trainer.eval_train` が加わった. 実験 1 にこれを加えた実験 4 を ML-Found `a9c12ce` で流した. このタスクの `AUCTrainer` は書き換えずに済み, `on_epoch_start`, `step`, `on_epoch_end` は `phase` が `train_eval` でもそのまま AUC と AP を求めた.
 
 - 同じ ML-Found で流し直した実験 1 は, 以前の `history.csv` と完全に一致した. 実験 4 の `train/`, `valid/`, `lr` の列は実験 1 と完全に一致し, 評価し直しは学習に影響しなかった
 - `train/auc` が `valid/auc` より低いエポックは 50 のうち 8 (エポック 1 から 7 と 11) だったが, `train_eval/auc` は全てのエポックで `valid/auc` 以上だった

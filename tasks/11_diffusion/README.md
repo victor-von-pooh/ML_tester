@@ -181,3 +181,5 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直した. 2 つの実験の `history.csv`, EMA の重み, 生成した画像は全て一致し, 実験 1 と 2 の `history.csv`, `final_model.pt`, `best_model.png` がバイト単位で一致することも確かめた.
 
 - 学習時間 (`24f18c2`, 他の学習を並べずに流した): 2016 秒 (EMA あり), 2085 秒 (EMA なし). EMA なしの方は一部のエポックだけ遅く, 時間の差は EMA ではないという結論を裏付ける
+
+「学習の再開」の確認も `e2df46e` で流し直した. 結果は以前と同じで, `T_max: ${trainer.epochs}` ではエポック 2 から異なり (再開した学習の学習率は 0.0), `T_max` を 2 に固定すると `history.csv`, `ema_model.pt`, `ema_model.png` が完全に一致した. 今は前者の再開で, `train.log` に「再開元の Scheduler の引数が config と違うので, 再開元の値を使います: T_max (再開元 1, config 2)」の警告が出る.

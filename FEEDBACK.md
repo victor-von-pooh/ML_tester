@@ -19,7 +19,7 @@
 
 7. **指標の平均の扱い** (04, 05, 09). `step` の戻り値はサンプル数で重み付けして平均されるので, RMSE のように平均してはいけない指標は小さめに出る. `BatchEncoding` のような `dict` の子クラスでない Mapping のバッチはサンプル数が 1 と推定される. 記録だけしたい値 (スケジュールの値など) も平均されて学習曲線が描かれる
 8. **失敗したときの後始末** (05, 06, 07). Scheduler の組み合わせの誤り, closure の不足, 存在しない `resume_from` は, 出力先を作った後に失敗し, 学習結果の無い出力先が残る. エラーの内容は `train.log` に書かれない
-9. **再開で通しの学習と一致しない場合がある** (09, 11). `persistent_workers=True` の DataLoader はワーカーの乱数の種を引く時点がずれ, Scheduler の引数は再開元の値が使われて config の変更が効かない. どちらも黙って起きる
+9. **再開で通しの学習と一致しない場合がある** (09, 11). `persistent_workers=True` の DataLoader はワーカーの乱数の種を引く時点がずれ, Scheduler の引数は再開元の値が使われて config の変更が効かない. どちらも黙って起きる (その後, どちらも警告が出るようになり, Scheduler は PR #26 の `trainer.resume_scheduler: config` で config の値にできる)
 10. **ML-Found の外の状態** (10, 11, 12). 2 つ目の Optimizer, EMA の重み, 外部ライブラリ (qiskit) の乱数は, チェックポイントと乱数の固定の対象外. `resume` が読み込んだ状態を外に出さないので, 継承して足すにもパスの解決を写す必要があった
 11. **進捗の見え方** (01, 04). 進捗バーがエポック単位なので, 1 エポックが 17.5 分かかる学習では中の進み具合が分からない. Early Stopping で止まると最後の表示が 1 エポック少ない. ML-Found の TODO の項目 3 (進捗を渡すコールバック) を作るときに合わせて見直すと良い
 
@@ -30,7 +30,7 @@
 
 ### うまく動いたこと
 
-- **学習の再開**: モデル, Optimizer, Scheduler, 記録, Early Stopping, 乱数 (DataLoader の並べ替えを含む) が全て戻り, 途中で止めて再開した学習と通しの学習の結果が完全に一致した (07, 09, 11, 12). ただし `persistent_workers=True` の DataLoader (09) と, `T_max: ${trainer.epochs}` のように再開で変わる Scheduler の引数 (11) では一致しない
+- **学習の再開**: モデル, Optimizer, Scheduler, 記録, Early Stopping, 乱数 (DataLoader の並べ替えを含む) が全て戻り, 途中で止めて再開した学習と通しの学習の結果が完全に一致した (07, 09, 11, 12). ただし `persistent_workers=True` の DataLoader (09) と, `T_max: ${trainer.epochs}` のように再開で変わる Scheduler の引数 (11) では一致しない (後者は PR #26 の `trainer.resume_scheduler: config` で一致するようになった)
 - **再現性**: 同じ環境で学習し直すと `history.csv` が完全に一致した (01, 03, 05, 06, 07, 08, 09, 11, 12). 別のディレクトリから実行しても一致した (03, 04, 05, 06, 07, 08, 09, 10, 12, 11 は短い動作確認の設定). mps でも一致した (01, 08, 09, 10, 11 は短い動作確認の設定). 12 は qiskit の乱数を固定した場合 (以前は自分で, ML-Found の PR #24 の後は `register_rng` で)
 - **config の 2 段構え**: default に無い項目のエラー, クラスを変えたときの引数の切り替え, `diff.yaml` の差分の記録, `${trainer.epochs}` の参照が README の通りに動いた (01, 02)
 - **継承のフック**: `step`, `on_epoch_start`, `on_epoch_end`, `update_parameters`, `state_dict`, `resume` を上書きして, AUC (03), 複数ラベルの F1 (04), RMSE (05), closure による更新 (06), KL annealing (09), GAN の 3 通りの書き分け (10), EMA (11) を書けた
@@ -50,8 +50,8 @@ ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目�
 | 5 データの量で決まる Scheduler の引数 | 一部対応 | `load_config` と `start_experiment` の間で書き込む方法を README に記載. 自分で渡した Scheduler の状態を `train.log` に記録. PR #9 で, `OneCycleLR` の総ステップ数を書かなければ `fit` で学習用データのバッチ数から補い, `config.yaml` と `train.log` に残すようになった (02 の `train.py` の書き込みはやめた). 総ステップ数が `trainer.epochs` とバッチ数から求めた予定と合わない場合 (再開で `trainer.epochs` を変えた場合など) は学習の前にエラーか警告. `OneCycleLR` 以外 (warmup 付きの Scheduler, step ごとに使う `CosineAnnealingLR` の `T_max` など) は補わず (ML-Found の TODO に記載), 自分で作った Scheduler は `config.yaml` に残らないまま |
 | 6 最良値と同じ値を改善とみなさない | 対応 | `trainer.monitor_tiebreak` で, 同じ値の場合に別の指標 (例: `valid/loss`) で比べる. ベストモデルの判定と Early Stopping の両方に使う |
 | 7 指標の平均の扱い | 一部対応 | `dict` 以外の Mapping のバッチのサンプル数を推定. 平均してよい指標の注意を README に記載. PR #20 で, `step` の `extra` で返した値を平均せずに記録だけするようになった (09 の `beta` を移した). サンプル数を推定できずに 1 とした場合の警告は ML-Found の TODO に記載 |
-| 8 失敗したときの後始末 | 一部対応 | Optimizer と Scheduler のクラス名と組み合わせ, 学習の設定の組み合わせ, 存在しない `resume_from` を出力先を作る前に確認. `fit` の中のエラーを `train.log` に記録. PR #2 で, `fit` の中で失敗した実験は `run.json` の状態が `failed` になり, エラーの内容も残るようになった (05 の「`FAILED` のような印」). PR #4 で, Optimizer と Scheduler の引数の名前の誤りと必須の引数の不足も出力先を作る前に確かめるようになった. PR #7 で, Optimizer と Scheduler の引数の値が登録簿の範囲の外 (負の学習率など) の場合も出力先を作る前にエラーになった. 配列の値 (Adam の `betas` など) と自作のクラスの値は確かめないので, 誤りは `Trainer` の作成でエラーになり出力先が残る. `Trainer` の作成で起きたエラーは `train.log` に書かれない (どちらも ML-Found の TODO に記載) |
-| 9 再開で通しの学習と一致しない場合 | 対応 | Scheduler の引数の食い違いと `persistent_workers` の DataLoader を再開時に警告. PR #26 で `trainer.resume_scheduler: config` にすると, config の引数で Scheduler を作り直して再開元と同じステップ数まで進めるようになった (11 で, `T_max: ${trainer.epochs}` の再開が通しの学習と完全に一致することを確認) |
+| 8 失敗したときの後始末 | 対応 | Optimizer と Scheduler のクラス名と組み合わせ, 学習の設定の組み合わせ, 存在しない `resume_from` を出力先を作る前に確認. `fit` の中のエラーを `train.log` に記録. PR #2 で, `fit` の中で失敗した実験は `run.json` の状態が `failed` になり, エラーの内容も残るようになった (05 の「`FAILED` のような印」). PR #4 で, Optimizer と Scheduler の引数の名前の誤りと必須の引数の不足も出力先を作る前に確かめるようになった. PR #7 で, Optimizer と Scheduler の引数の値が登録簿の範囲の外 (負の学習率など) の場合も出力先を作る前にエラーになった. PR #16 で, 配列の値 (Adam の `betas` など) も要素ごとに確かめ, `Trainer` の作成で起きたエラーも `train.log` と `run.json` に残るようになった. PR #27 で, 仮のパラメータで Optimizer と Scheduler を作ってみて, 範囲を持たない引数や自作のクラスの値の誤りも出力先を作る前にエラーにするようになった |
+| 9 再開で通しの学習と一致しない場合 | Scheduler は対応, `persistent_workers` は警告 | Scheduler の引数の食い違いと `persistent_workers` の DataLoader を再開時に警告. PR #26 で `trainer.resume_scheduler: config` にすると, config の引数で Scheduler を作り直して再開元と同じステップ数まで進めるようになった (11 で, `T_max: ${trainer.epochs}` の再開が通しの学習と完全に一致することを確認) |
 | 10 ML-Found の外の状態 | 一部対応 | `extra_state_dict` と `load_extra_state_dict` で継承したクラスがチェックポイントに状態を加えられる. 勾配クリッピングは `Trainer` の Optimizer が更新するパラメータだけに掛けるようにした (10). PR #23 で, 検証, ベストモデル, `final_model.pt` に使うモデルを差し替える `eval_model` が加わった (11 の EMA). PR #24 で, 外部ライブラリの乱数を `register_rng` で固定と再開時の保存の対象に加えられるようになった (12 の qiskit, 結果が以前と一致することを確認). 2 つ目の Optimizer を config から作る仕組みは未対応 (ML-Found の TODO に記載) |
 | 11 進捗の見え方 | 対応 | Early Stopping で止めたエポックも進捗バーで数える. `trainer.progress_bar_batches` でエポックの中のバッチ単位の進捗バーも出せる. PR #2 で, 学習中の進み具合を `progress.json` に書き出し, 外から読めるようにした (ML-Dashboard で表示). PR #11 で, 実験のディレクトリの `STOP` に `now` と書くと, 1 エポックが長い学習 (04 の 17.5 分など) でもエポックの途中で止め, 途中のエポックを捨てて最後に終えたエポックの状態に戻すようになった (ML-Dashboard の「エポックの途中で止める」). Python のコードからエポックごとの指標を受け取るコールバックは ML-Found の TODO に記載 |
 | 12 ドキュメント | 対応 | README に継承の `__init__` の例, `on_epoch_end` の使い方, cpu の明示, `final_model.pt` (cpu で保存するよう変更) などを記載 |

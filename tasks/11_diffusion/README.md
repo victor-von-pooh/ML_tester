@@ -205,5 +205,5 @@ ML-Found の PR #23 で, 検証, ベストモデルの判定, `final_model.pt` �
 
 ML-Found の PR #26 で, 再開時に Scheduler の引数が config と違う場合に, config の引数で作り直して再開元と同じステップ数まで進める `trainer.resume_scheduler: config` が加わった. 上の「学習の再開」と同じ条件 (`T_max: ${trainer.epochs}` のまま, 時刻 50, 生成を毎エポック, `data.num_workers: 0`) で, 1 エポックで止めて 2 エポックまで再開した (ML-Found `128edab`).
 
-- `train.log` に「config の引数で作り直して 1 ステップ進めました: T_max (再開元 1, config 2)」が出て, エポック 2 の学習率は 0.0001 (通しの学習と同じ) になった
-- `history.csv`, `ema_model.pt`, `ema_model.png`, `best_model.png`, `final_model.pt` が, 通しで 2 エポック学習した結果と完全に一致した. 以前はエポック 2 から異なっていた (学習率が 0 になったため)
+- `train.log` に「再開元と config で Scheduler の引数が違うので, config の引数で作り直して 1 ステップ進めました: T_max (再開元 1, config 2)」が出て, エポック 2 の学習率は 0.0001 (通しの学習と同じ) になった
+- `history.csv`, `ema_model.pt`, `ema_model.png`, `best_model.png`, `final_model.pt` が, 通しで 2 エポック学習した結果 (上の「EMA の重みで検証する」の動作確認の通しの学習. ML-Found `f008bc1` で `scheduler.params.T_max=2` を指定して流したもので, `T_max` の値は同じ 2) と完全に一致した. 以前はエポック 2 から異なっていた (学習率が 0 になったため)

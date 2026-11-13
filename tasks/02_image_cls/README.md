@@ -105,9 +105,9 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 ## 確かめる ML-Found の機能
 
 - [x] `experiment.device: auto` で cuda または mps が選ばれ, バッチが自動でデバイスに移る (この環境では mps)
-- [x] `scheduler.interval: step` で学習率がバッチごとに更新される. ただし `lr_curve.png` にはエポックの開始時点の値しか出ない (下の「気付いたこと」)
+- [x] `scheduler.interval: step` で学習率がバッチごとに更新される. ただし `lr_curve.png` にはエポックの開始時点の値しか出ない (下の「気付いたこと」. その後 ML-Found の PR #8 で, 更新ごとの学習率が `lr_steps.csv` と `lr_steps.png` に残るようになった)
 - [x] `OneCycleLR` の `steps_per_epoch` を config で無理なく指定できるか → config だけでは書けず, `train.py` で書き込む必要があった (その後 ML-Found の PR #9 で, 書かなければ自動で補われるようになった)
-- [ ] 勾配クリッピングが効いている → ML-Found は勾配のノルムを記録しないので確かめられなかった. 実験 3 と比べても結果の差は小さい
+- [ ] 勾配クリッピングが効いている → ML-Found は勾配のノルムを記録しないので確かめられなかった (その後 ML-Found の PR #1 で `trainer.log_grad_norm: true` により `train/grad_norm` を記録できるようになった). 実験 3 と比べても結果の差は小さい
 - [x] `final_model.pt` を別のスクリプト (`evaluate.py`) から読み込んでテスト用データで評価できる
 - [x] `DataLoader` の `num_workers > 0` で問題が起きない (macOS の spawn を含む). `train.py` は `if __name__ == "__main__":` で守っているので問題なかった
 - [x] 検証時に `model.eval()` になっている. ベストモデルを推論モードで検証用データに使った正解率 0.9300 が `history.csv` の `valid/acc` と一致し, 学習モード (BatchNorm がバッチの統計を使う) では 0.9282 と異なった

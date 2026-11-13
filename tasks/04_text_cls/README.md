@@ -116,7 +116,7 @@ model:
 ## 確かめる ML-Found の機能
 
 - [x] 辞書のバッチが `move_to_device` で丸ごとデバイスに移る → 段階 1 は cpu なので移動は起きていない. 段階 2 の `BatchEncoding` は `.to` を持つので, `move_to_device` の `.to` の分岐で mps に丸ごと移った. `dict` の分岐を GPU で通す確認はしていない
-- [x] 辞書のバッチから `get_batch_size` がサンプル数を正しく推定する (最初に見つかったテンソルの 0 次元目) → 段階 1 の `dict` では推定できる. 段階 2 の `BatchEncoding` は `dict` の子クラスではない (`UserDict`) ので推定できず, 1 として扱われる. そのため段階 2 では `step` で `batch_size` を明示した
+- [x] 辞書のバッチから `get_batch_size` がサンプル数を正しく推定する (最初に見つかったテンソルの 0 次元目) → 段階 1 の `dict` では推定できる. 段階 2 の `BatchEncoding` は `dict` の子クラスではない (`UserDict`) ので推定できず, 1 として扱われる. そのため段階 2 では `step` で `batch_size` を明示した (その後 ML-Found の PR #1 で `dict` 以外の Mapping も推定するようになった)
 - [x] Hugging Face のモデルを `Trainer` にそのまま渡せる
 - [x] `transformers.get_linear_schedule_with_warmup` で作った Scheduler (中身は `LambdaLR`) を `Trainer` に渡せる. `train.log` には `Scheduler: LambdaLR` と出る
 - [x] Hugging Face の warmup に必要な総ステップ数を config から決めにくくないか → 決められなかった. 02 の `OneCycleLR` と同じく, バッチ数から `train_hf.py` で計算した. 02 と違い Scheduler を自分で作って渡したので, `config.yaml` には Scheduler の名前も引数も残らない
@@ -146,7 +146,7 @@ pip install transformers==5.22.2
 `train.py` と `train_hf.py` はどこから実行してもよく, 出力先は `tasks/04_text_cls/outputs/arxiv_cls/` (段階 1) と `tasks/04_text_cls/outputs/arxiv_hf/` (段階 2) になる.
 データは `data/arxiv/arXiv.csv` に置く (別の場所に置く場合は config の `data.path` を変える).
 段階 2 は初回に DistilBERT (約 270 MB) を Hugging Face からダウンロードする (ネットワークが必要, トークンは不要). 読み込むときに, 分類の出力層の重みが無いという表 (LOAD REPORT) が出るが, 新しく出力層を付けるので想定通り.
-段階 2 は 1 回の実行で出力先に約 2.3 GB (`best.pt` と `last.pt` が 1 GB ずつ, `final_model.pt` が 270 MB) を書くので, 空き容量に注意する.
+段階 2 は 1 回の実行で出力先に約 2.1 GB (`best.pt` が約 0.8 GB, `last.pt` が約 1.07 GB, `final_model.pt` が 270 MB) を書くので, 空き容量に注意する. `trainer.checkpoint.best_weights_only: true` と `last_with_best: false` にすると約 1.3 GB (`best.pt` 268 MB, `last.pt` 804 MB). 下の結果のときは `best.pt` と `last.pt` が 1.07 GB ずつだった.
 
 ```bash
 # リポジトリのルートから

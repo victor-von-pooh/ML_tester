@@ -1,4 +1,5 @@
-# 実験 2: LBFGS を ML-Found の Trainer のまま使う, closure が渡らずエラーになる見込み
+# 実験 2: LBFGS を ML-Found の Trainer のまま使う
+# ML-Found 3aca743 では closure が渡らずエラーになった, 今は ML-Found が closure を渡すので学習できる
 optimizer:
   name: LBFGS
   params:

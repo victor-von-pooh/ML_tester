@@ -3,12 +3,10 @@ from typing import Any, Optional
 
 import torch
 from torch import nn, optim
-from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torchvision.utils import save_image
 
 from data import make_loader, make_train_valid
 from ml_found import Experiment, Trainer, load_project_config, start_experiment
-from ml_found.training import load_checkpoint
 from model import Diffusion, UNet
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
@@ -18,8 +16,8 @@ TASK_DIR = Path(__file__).resolve().parent
 class DiffusionTrainer(Trainer):
     def __init__(
         self, model: nn.Module, experiment: Experiment, diffusion: Diffusion,
-        ema_decay: Optional[float], image_size: int, n_images: int,
-        sample_every: int,
+        ema_decay: Optional[float], ema_eval: bool, image_size: int,
+        n_images: int, sample_every: int,
         optimizer: Optional[optim.Optimizer] = None,
         scheduler: Optional[optim.lr_scheduler.LRScheduler] = None
     ):
@@ -32,10 +30,17 @@ class DiffusionTrainer(Trainer):
         self.diffusion = diffusion
 
         # EMA を使う場合は重みの指数移動平均を持つモデルを作成
+        # 検証とベストモデルの判定に EMA の重みを使うかも保存
         self.ema = None
         if ema_decay is not None:
-            self.ema = AveragedModel(
-                self.model, multi_avg_fn=get_ema_multi_avg_fn(ema_decay)
+            self.ema = optim.swa_utils.AveragedModel(
+                self.model,
+                multi_avg_fn=optim.swa_utils.get_ema_multi_avg_fn(ema_decay)
+            )
+        self.ema_eval = ema_eval and self.ema is not None
+        if ema_eval and self.ema is None:
+            self.logger.warning(
+                "ema.use: false なので, ema.eval: true は無視します"
             )
 
         # 生成画像の大きさ, 枚数, 保存する間隔, 保存先を保存
@@ -70,13 +75,16 @@ class DiffusionTrainer(Trainer):
             self.valid_generator.manual_seed(self.valid_seed)
 
     def noise_loss(
-        self, x0: torch.Tensor, t: torch.Tensor, noise: torch.Tensor
+        self, model: nn.Module, x0: torch.Tensor, t: torch.Tensor,
+        noise: torch.Tensor
     ) -> torch.Tensor:
         """
         ノイズを加えた画像から加えたノイズを予測した誤差を求める関数
 
         Parameters
         ----------
+        model: nn.Module
+            ノイズを予測するモデル
         x0: torch.Tensor
             元の画像
         t: torch.Tensor
@@ -91,7 +99,7 @@ class DiffusionTrainer(Trainer):
         """
         # ノイズを加えてから予測
         x_t = self.diffusion.add_noise(x0, t, noise)
-        loss = self.mse(self.model(x_t, t), noise)
+        loss = self.mse(model(x_t, t), noise)
 
         return loss
 
@@ -104,13 +112,16 @@ class DiffusionTrainer(Trainer):
         batch: Any
             画像と正解ラベル, 正解ラベルは使わない
         phase: str
-            train または valid
+            train, valid, 学習用データの評価し直しでは train_eval
 
         Returns
         ----------
         outputs: dict
             学習に使う損失と, 毎回違う乱数で求めた損失
         """
+        # 学習時は学習するモデル, 検証時は評価に使うモデル (EMA など) で予測
+        model = self.model if phase == "train" else self.eval_model()
+
         # 毎回違う乱数で時刻とノイズを選んだ損失
         x0, _ = batch
         n = len(x0)
@@ -118,10 +129,11 @@ class DiffusionTrainer(Trainer):
             0, self.diffusion.timesteps, (n,), device=self.device
         )
         noise = torch.randn_like(x0)
-        loss_random = self.noise_loss(x0, t, noise)
+        loss_random = self.noise_loss(model, x0, t, noise)
 
-        # 学習時はそのまま使い, 検証時は毎エポック同じ乱数で選び直した損失を使用
-        if phase == "train":
+        # 検証時だけ毎エポック同じ乱数で選び直した損失を使用
+        # (学習時と, 学習用データの評価し直しではそのまま)
+        if phase != "valid":
             loss = loss_random
         else:
             t = torch.randint(
@@ -131,7 +143,7 @@ class DiffusionTrainer(Trainer):
             noise = torch.randn(
                 x0.shape, generator=self.valid_generator
             ).to(self.device)
-            loss = self.noise_loss(x0, t, noise)
+            loss = self.noise_loss(model, x0, t, noise)
 
         outputs = {"loss": loss, "loss_random": loss_random.detach()}
 
@@ -188,58 +200,70 @@ class DiffusionTrainer(Trainer):
 
         return metrics
 
-
-    def state_dict(self, epoch: int, monitor: str) -> dict:
+    def extra_state_dict(self) -> dict:
         """
-        チェックポイントに EMA の状態も加える関数
+        チェックポイントに EMA の状態を加える関数
 
         Parameters
         ----------
-        epoch: int
-            今回のエポック
-        monitor: str
-            ベストモデルの判定に使う指標の名前
+        None
 
         Returns
         ----------
         state: dict
-            ML-Found の状態と, EMA の重みと更新回数
+            EMA を使う場合は EMA の重みと更新回数
         """
-        # ML-Found が保存する状態に EMA の状態を追加
-        state = super(DiffusionTrainer, self).state_dict(epoch, monitor)
+        # EMA を使う場合だけ状態を追加
+        state = {}
         if self.ema is not None:
             state["ema"] = self.ema.state_dict()
 
         return state
 
-    def resume(self, path: str, monitor: str) -> None:
+    def load_extra_state_dict(self, state: dict) -> None:
         """
-        チェックポイントから EMA の状態も戻す関数
+        チェックポイントから EMA の状態を戻す関数
 
         Parameters
         ----------
-        path: str
-            チェックポイントのパス, 相対パスはプロジェクトのディレクトリから辿る
-        monitor: str
-            ベストモデルの判定に使う指標の名前
+        state: dict
+            extra_state_dict で加えた状態
 
         Returns
         ----------
         None
         """
-        # ML-Found の状態の復元
-        super(DiffusionTrainer, self).resume(path, monitor)
-
-        # ML-Found は読み込んだ状態を外に出さないので,
-        # 同じ規則でパスを解決して再読み込み
+        # EMA を使わない場合は何もしない
         if self.ema is None:
             return
-        checkpoint_path = Path(path)
-        if not checkpoint_path.is_absolute():
-            checkpoint_path = self.experiment.project_dir / checkpoint_path
-        state = load_checkpoint(str(checkpoint_path), self.device)
+
+        # EMA の状態が無い再開元 (EMA を使わなかった実験など) では作り直しのまま
+        if "ema" not in state:
+            self.logger.warning(
+                "再開元に EMA の状態が無いので, EMA は今の重みから始めます"
+            )
+            return
         self.ema.load_state_dict(state["ema"])
         self.logger.info("EMA の状態を復元")
+
+    def eval_model(self) -> nn.Module:
+        """
+        検証, ベストモデルの判定, final_model.pt に使うモデルを返す関数
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        model: nn.Module
+            ema.eval が true なら EMA の重みのモデル, そうでなければ
+            学習するモデル
+        """
+        # 設定に応じて EMA のモデルを使用
+        model = self.ema.module if self.ema_eval else self.model
+
+        return model
 
 
 def main() -> None:
@@ -274,12 +298,14 @@ def main() -> None:
     )
     ema_decay = cfg.ema.decay if cfg.ema.use else None
     trainer = DiffusionTrainer(
-        model, experiment, diffusion, ema_decay, cfg.data.image_size,
-        cfg.sampling.n_images, cfg.sampling.every_n_epochs
+        model, experiment, diffusion, ema_decay, cfg.ema.eval,
+        cfg.data.image_size, cfg.sampling.n_images,
+        cfg.sampling.every_n_epochs
     )
     history = trainer.fit(train_loader, valid_loader)
 
     # ML-Found が戻したベストモデルの重みで生成して保存
+    # ema.eval が true の場合は EMA のベストモデルの重み
     run_dir = experiment.run_dir
     trainer.model.eval()
     images = diffusion.sample(

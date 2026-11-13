@@ -39,6 +39,8 @@ diffusion:
 ema:
   use: true
   decay: 0.999
+  # true の場合は検証, ベストモデルの判定, final_model.pt に EMA の重みを使う
+  eval: false
 
 sampling:
   # 生成する画像の枚数と, 学習中に生成するエポックの間隔

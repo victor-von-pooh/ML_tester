@@ -328,31 +328,17 @@ def main() -> None:
     )
     history = trainer.fit(train_loader)
 
-    # ML-Found が戻したベストモデルで生成
+    # ベストモデルを選ばない設定なので, 学習後のモデルは最後のエポックの重み
     run_dir = experiment.run_dir
     trainer.model.eval()
     with torch.no_grad():
-        best_images = trainer.model(trainer.fixed_noise).cpu()
-    save_image(best_images * 0.5 + 0.5, run_dir / "best_model.png", nrow=8)
-
-    # 最後のエポックの重みは last.pt にしか残らないので, ある場合は読み込んで生成
-    if cfg.trainer.checkpoint.save_last:
-        last_state = load_checkpoint(
-            str(run_dir / "last.pt"), trainer.device
-        )
-        trainer.model.load_state_dict(last_state["model"])
-        with torch.no_grad():
-            last_images = trainer.model(trainer.fixed_noise).cpu()
-        save_image(
-            last_images * 0.5 + 0.5, run_dir / "last_model.png", nrow=8
-        )
+        last_images = trainer.model(trainer.fixed_noise).cpu()
+    save_image(last_images * 0.5 + 0.5, run_dir / "last_model.png", nrow=8)
 
     # 結果を表示
-    best_epoch = trainer.checkpoint.best_epoch
     print(f"保存先: {run_dir}")
     print(f"書き方: {variant}")
     print(f"学習したエポック数: {len(history.records)}")
-    print(f"ベストモデルのエポック: {best_epoch}")
     keys = ("train/d_loss", "train/g_loss", "train/d_real", "train/d_fake")
     for key in keys:
         print(f"最後のエポックの {key}: {history.get(key)[-1]:.4f}")

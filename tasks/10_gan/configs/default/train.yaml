@@ -15,6 +15,8 @@ trainer:
   # 検証用データは使わないので, 監視できるのは学習用の指標だけ
   monitor: train/loss
   mode: min
+  # GAN の損失は良し悪しの指標にならないので, ベストモデルを選ばず最後の重みを残す
+  select_best: false
 
 # プロジェクト固有の設定
 train:

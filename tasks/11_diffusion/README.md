@@ -175,3 +175,9 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 - 再開すると Scheduler の状態が引数 (`T_max` など) ごとチェックポイントから戻るので, config で引数を変えても効かず, `config.yaml` の記録と実際の設定が食い違う (上の「学習の再開」)
 - 損失に乱数を含む学習では, 検証用の損失がエポックごとに乱数で揺れ, ベストモデルの判定と Early Stopping が乱数に左右される. 検証の乱数を固定する仕組みが無いので, 専用の乱数生成器を自分で用意して `on_epoch_start` で戻した
 - EMA の重みはチェックポイントにも `final_model.pt` にも入らない (`state_dict` と `resume` を上書きすれば加えられる). 検証や判定に EMA の重みを使うフックも無い. EMA は拡散モデルや画像の生成で一般的なので, `trainer.ema_decay` のような設定で, 更新, 保存, 再開, 検証に使うモデルの切り替えまで面倒を見てもらえると良い
+
+### 最新の ML-Found での再実行 (2026-11-13)
+
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直した. 2 つの実験の `history.csv`, EMA の重み, 生成した画像は全て一致し, 実験 1 と 2 の `history.csv`, `final_model.pt`, `best_model.png` がバイト単位で一致することも確かめた.
+
+- 学習時間 (`24f18c2`, 他の学習を並べずに流した): 2016 秒 (EMA あり), 2085 秒 (EMA なし). EMA なしの方は一部のエポックだけ遅く, 時間の差は EMA ではないという結論を裏付ける

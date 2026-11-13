@@ -154,3 +154,9 @@ python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples
 - ML-Found の README には継承したクラスの `__init__` の例が無い. 親クラスの引数の順は `(model, experiment, step_fn, optimizer, scheduler)` なので, `step_fn` を使わない場合は `None` を位置で渡すか, `optimizer=optimizer` のようにキーワードで渡す. このタスクでは `None` を位置で渡した
 - `on_epoch_end` の戻り値と `step` の戻り値に同じ名前の指標があると, `on_epoch_end` の値で黙って上書きされる (`training/trainer.py` の `run_epoch`). 例えば `step` で `acc` を返しつつ `on_epoch_end` でも `acc` を返すと, バッチの平均の方は記録されない
 - `train/` の指標は学習中 (Dropout が効いた状態, パラメータ更新の途中) の予測から求めるので, エポック全体で求める AUC のような指標では `valid/` と比べにくい. 学習用データを推論モードで評価し直す設定があると良い
+
+### 最新の ML-Found での再実行 (2026-11-13)
+
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直し, 学習時間は `e2df46e` でも測り直した. 3 つの実験の `history.csv` は全て一致し, AUC と AP も同じだった.
+
+- 学習時間: 実験 1 は 2.49 秒 (`e2df46e`). `24f18c2` では 3.28 秒, 3.24 秒, 1.31 秒だった (状態のファイルの書き込みの分)

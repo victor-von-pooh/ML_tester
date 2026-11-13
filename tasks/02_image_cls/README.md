@@ -175,3 +175,11 @@ python evaluate.py outputs/fashion_mnist/2026-11-08/17-38-22
 - `lr` はエポックの開始時点の値だけが `history.csv` と `lr_curve.png` に記録されるので, `interval: step` の場合はエポックの中の変化が見えず, 最後のステップの後の学習率も残らない
 - 勾配のノルムが記録されないので, 勾配クリッピングが効いているか (どのくらいの頻度で切られているか) を確かめられない. `nn.utils.clip_grad_norm_` はクリップ前のノルムを返すが, `Trainer.update_parameters` はその値を捨てている
 - ML-Found は `final_model.pt` を学習したデバイスのまま保存する (このタスクでは `mps:0` のテンソル). ML-Found の README の読み込み例 (`torch.load(...)`) には `map_location` が無いので, mps の無い環境ではそのままでは読めない. `evaluate.py` では `map_location="cpu"` を付けた
+
+### 最新の ML-Found での再実行 (2026-11-13)
+
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直した. 5 つの実験の `history.csv` は全て一致し, 実験 1 のテスト用データの正解率 (0.9258) とクラスごとの値も同じだった.
+
+- 学習時間 (`24f18c2`): 80.6 秒 (5.4 秒), 79.2 秒 (5.3 秒), 77.7 秒 (5.2 秒), 99.2 秒 (6.6 秒), 44.4 秒 (14.8 秒). 以前より 1 割ほど (cpu の実験 5 は 2.5 割) 長いが, 他の学習を並べずに流しても差があり, 原因は特定していない
+- 今は `train.py` で `steps_per_epoch` を書き込まず, ML-Found が補う (`train.log` に「OneCycleLR の引数を学習用データから補いました: steps_per_epoch=422」)
+- `interval: step` の実験 (1, 3, 4, 5) は `lr_steps.csv` と `lr_steps.png` が出る. 実験 1 では学習率の最大値 0.01 がエポック 5 の途中 (6330 ステップ中のステップ 1899) に残る

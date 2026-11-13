@@ -167,3 +167,9 @@ python tasks/10_gan/train.py --experiment configs/experiment/examples/variant_c.
 - 勾配クリッピングは `model.parameters()` 全体に掛かるので, Optimizer を分けた場合は Optimizer ごとのパラメータでクリップできない
 - ベストモデルの判定と学習後の巻き戻しを止める設定が無いので, 損失が良し悪しの指標にならない GAN では, 何もしないと最初のエポックの崩れたモデルが `final_model.pt` に残る. 09 の β-VAE と同じ問題で, GAN では最も影響が大きかった
 - `resume` が読み込んだチェックポイントを外に出さないので, 追加の状態を戻すにはパスの解決の規則を写してもう一度読み込む必要があった
+
+### 最新の ML-Found での再実行 (2026-11-13)
+
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, その後の ML-Found (`302ccd6`) で 3 つを流し直した. 3 つの `history.csv` と生成画像 (`samples/`, `best_model.png`, `last_model.png`) は以前と全て一致した. 学習時間は 397 秒 (B), 439 秒 (A), 380 秒 (C) で, 他の作業と並べて流したため長い.
+
+- 最初の流し直し (`24f18c2`) では, 3 つとも学習の後に `last.pt` を mps に読み込む所で失敗した. ML-Found が PR #8 からチェックポイントに float64 の記録を入れ, mps は float64 を扱えないため. ML-Found の PR #17 で直し, 流し直した

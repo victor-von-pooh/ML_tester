@@ -184,3 +184,5 @@ python tasks/09_vae/train.py --experiment configs/experiment/examples/beta4.yaml
 ### 最新の ML-Found での再実行 (2026-11-13)
 
 上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直した. 5 つの実験の `history.csv` は全て一致した. 学習時間は 78.6, 180.8, 76.8, 79.9, 78.2 秒 (`24f18c2`) で, ほぼ同じ (実験 3 と 4 は 1 割ほど長い).
+
+「学習の再開」の確認も `e2df46e` で流し直した. 結果は以前と同じで, `data.num_workers: 2` では再開した直後のエポック 6 から異なり, `0` では `history.csv` が完全に一致した. 今は `persistent_workers=True` の DataLoader で再開すると, `train.log` に「通しで学習した場合と結果が一致しません」の警告が出る.

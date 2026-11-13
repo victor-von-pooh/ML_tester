@@ -51,7 +51,8 @@
     - 学習時はこの損失を `loss` とし, `loss_random` にも同じ値を入れる (`train/loss_random` は `train/loss` と常に同じ)
     - 検証時は, 毎エポック同じ乱数 (専用の乱数生成器を `on_epoch_start` で `experiment.seed` に戻す) で `t` と `eps` を選び直した損失を `loss` とし, 毎回違う乱数で求めた損失を `loss_random` として比較用に記録する
 - `update_parameters`: `super().update_parameters(loss)` の後に EMA の重みを更新する (`torch.optim.swa_utils.AveragedModel` と `get_ema_multi_avg_fn(0.999)`)
-- `state_dict` と `resume`: 10 と同じく, EMA の重みと更新回数をチェックポイントに加え, 再開時に戻す
+- `extra_state_dict` と `load_extra_state_dict`: EMA の重みと更新回数をチェックポイントに加え, 再開時に戻す (`3aca743` の時点では `state_dict` と `resume` を上書きしていた)
+- `eval_model`: `ema.eval: true` の場合は EMA のモデルを返し, 検証, ベストモデルの判定, `final_model.pt` に EMA の重みを使う (ML-Found の PR #23 で加わったフック). `step` の検証でもこのモデルで予測する
 - `on_epoch_end`: 検証の後, 10 エポックごとと最後のエポックに, EMA の重み (EMA を使わない場合は学習中の重み) で 64 枚を生成して `samples/epoch_XXX.png` に保存する
 - 学習後に, ML-Found が戻したベストモデルの重みで生成して `best_model.png` に, EMA を使う場合は最後の EMA の重みを `ema_model.pt` に保存し, それで生成して `ema_model.png` に保存する. EMA が一度も更新されていない場合 (学習が終わった状態から再開した場合など) は保存しない
 
@@ -89,6 +90,7 @@ diffusion:
 ema:
   use: true
   decay: 0.999
+  eval: false
 sampling:
   n_images: 64
   every_n_epochs: 10
@@ -98,13 +100,14 @@ experiment で次の差分を試す.
 
 1. 差分なし (`configs/experiment/train.yaml`, EMA あり)
 2. `ema.use: false` (`no_ema.yaml`)
+3. `ema.eval: true` (`ema_eval.yaml`, EMA の重みで検証し, ベストモデルを選ぶ. 後から追加)
 
 ## 確かめる ML-Found の機能
 
 - [x] 検証用の損失が `t` と `eps` の乱数によってばらつき, ベストモデルの判定が不安定にならないか. 検証時だけ乱数を固定する方法があるか → 毎回違う乱数の `loss_random` は 29 回のエポック間の変化のうち 10 回で上がり, それで判定するとベストはエポック 24 になった. 毎エポック同じ乱数の `loss` は上がったのが 3 回で, ベストは最後のエポック 30 だった. ML-Found `3aca743` には検証の乱数を固定する仕組みが無いので, 専用の乱数生成器を `on_epoch_start` で戻して自分で固定した (その後 ML-Found の PR #1 で `trainer.valid_seed` が加わった)
 - [x] `update_parameters` を上書きして EMA を更新できる
 - [x] EMA のモデルがチェックポイントに入らず, 再開すると失われる. ベストモデルとして保存されるのも EMA でない方の重みになる → その通り. `state_dict` と `resume` を上書きして EMA をチェックポイントに加えた (コードのレビューで指摘を受けて追加). 学習用 256 枚, 時刻 50 の小さな設定で, 1 エポック学習した後に 2 エポック目まで再開し, EMA の更新回数が 4 から 8 に続くことを確かめた. ベストモデルと `final_model.pt` は EMA でない方の重みのまま
-- [x] 検証を EMA のモデルで行いたいが, `run_epoch` は `self.model` を使うので差し替えが必要 → 差し替えなかった. 検証の損失は EMA でない方の重みのもので, EMA の重みは生成画像にだけ使った
+- [x] 検証を EMA のモデルで行いたいが, `run_epoch` は `self.model` を使うので差し替えが必要 → 差し替えなかった. 検証の損失は EMA でない方の重みのもので, EMA の重みは生成画像にだけ使った (`3aca743` の時点. その後 ML-Found の PR #23 の `eval_model` で差し替え, 実験 3 で確かめた. 下の「EMA の重みで検証する」を参照)
 - [x] 生成に時間がかかる処理を `on_epoch_end` に入れたときに, 進捗バーやログが分かりにくくならないか → 1 回の生成 (1,000 ステップ, 64 枚) は約 20 から 22 秒で, 実験 2 では生成するエポックが約 85 秒, しないエポックが約 65 秒だった. ML-Found の進捗バーはエポック単位なので, 生成の間に限らずエポックの途中は止まって見える. 生成は 3 回だけなので問題にならなかった
 - [x] 学習時間が長い (MPS で数十分から 1 時間程度) ので, 途中で止めて再開する流れ → 短い設定で確かめた (下の「学習の再開」)
 
@@ -117,7 +120,7 @@ experiment で次の差分を試す.
 
 - EMA の重み, 生成用の状態など, モデル以外に保存したい状態をチェックポイントに加える仕組みが無い → その通り. 10 と同じく `state_dict` と `resume` を上書きして加えた (その後 ML-Found の PR #1 で `extra_state_dict` と `load_extra_state_dict` が加わった)
 - 検証用の損失が乱数に依存するので, そのままでは `valid/loss` でのベストモデルの判定や Early Stopping の信頼性が低い → その通り (上のチェックボックスを参照)
-- 検証に使うモデルを差し替える (EMA で検証する) フックが無い → その通り
+- 検証に使うモデルを差し替える (EMA で検証する) フックが無い → その通り (`3aca743` の時点. ML-Found の PR #23 で `eval_model` が加わった)
 
 ## 実行方法
 
@@ -129,6 +132,7 @@ MNIST が `data/torchvision/` に無い場合は, 初回にダウンロードが
 # リポジトリのルートから (時間は Apple Silicon の mps で, 他の学習と並行した場合の目安)
 python tasks/11_diffusion/train.py                                                       # 実験 1 (約 35 分)
 python tasks/11_diffusion/train.py --experiment configs/experiment/examples/no_ema.yaml   # 実験 2 (約 35 分)
+python tasks/11_diffusion/train.py --experiment configs/experiment/examples/ema_eval.yaml # 実験 3 (約 35 分)
 python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smoke.yaml    # 動作確認 (2 から 6 分)
 ```
 
@@ -183,3 +187,16 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 - 学習時間 (`24f18c2`, 他の学習を並べずに流した): 2016 秒 (EMA あり), 2085 秒 (EMA なし). EMA なしの方は一部のエポックだけ遅く, 時間の差は EMA ではないという結論を裏付ける
 
 「学習の再開」の確認も `e2df46e` で流し直した. 結果は以前と同じで, `T_max: ${trainer.epochs}` ではエポック 2 から異なり (再開した学習の学習率は 0.0), `T_max` を 2 に固定すると `history.csv`, `ema_model.pt`, `ema_model.png` が完全に一致した. 今は前者の再開で, `train.log` に「再開元の Scheduler の引数が config と違うので, 再開元の値を使います: T_max (再開元 1, config 2)」の警告が出る.
+
+### EMA の重みで検証する (2026-11-13)
+
+ML-Found の PR #23 で, 検証, ベストモデルの判定, `final_model.pt` に使うモデルを差し替える `eval_model` が加わった. `DiffusionTrainer` で `ema.eval: true` の場合に EMA のモデルを返すようにし, 実験 3 (`ema_eval.yaml`) を ML-Found `f008bc1` で流した. 合わせて, EMA の保存と再開を `state_dict` と `resume` の上書きから `extra_state_dict` と `load_extra_state_dict` に置き換えた.
+
+- 学習 (`train/loss`), EMA の重み (`ema_model.pt`), 生成画像 (`samples/`, `ema_model.png`) は実験 1 と完全に一致した. 違うのは検証の損失と, ベストモデルの重み (`final_model.pt`, `best_model.png`) だけ
+- 検証の損失 (`valid/loss`) は EMA の重みのもので, エポック 1 は 0.344 (実験 1 は 0.0325) と大きい. EMA の減衰率 0.999 では, 1 エポック (422 回の更新) の時点では初期の重みが多く残るため. その後は 30 エポックで一度も上がらず (実験 1 は 29 回の変化のうち 3 回上がった), 最後は 0.01757 (実験 1 は 0.01756) になった
+- ベストモデルはエポック 30 で, `final_model.pt` は最後の EMA の重み (`ema_model.pt`) と一致した. 実験 1 の `final_model.pt` (学習中の重みのベストモデル) とは違う
+- 学習時間は 2062 秒 (他の学習と並べて流した)
+- 動作確認の設定 (時刻 50, 生成を毎エポック, `scheduler.params.T_max=2`, `data.num_workers=0`) で次を確かめた (ML-Found `f008bc1`)
+    - `ema.eval: false` の 2 エポックの通しの学習, 1 エポックで止めて 2 エポックまで再開した学習: どちらも以前の結果と `history.csv`, `ema_model.pt`, `ema_model.png`, `best_model.png`, `final_model.pt` が全て一致した. 置き換えた `extra_state_dict` でも EMA の状態が戻る
+    - `ema.eval: true`: 通しの学習と再開した学習が完全に一致した
+- この PR で ML-Found を `a9c12ce` (PR #24, #25 を含む) に更新した. 増えた機能はこのタスクで使わない設定だけ (`register_rng` の登録なし, `eval_train: false`)

@@ -172,6 +172,12 @@ trainer:
 python tasks/07_weather_forecast/train.py --experiment resume60.yaml
 ```
 
+ML-Found の PR #19 からは, ファイルを作らずに上書きでも渡せる (2026-11-13 に確かめ, `history.csv` は上の書き方と一致).
+
+```bash
+python tasks/07_weather_forecast/train.py trainer.epochs=60 trainer.resume_from=outputs/tokyo_temp/<日付>/<時刻>/last.pt
+```
+
 - `resume_from` の相対パスは, ML-Found の規則でタスクのディレクトリから辿る. リポジトリのルートからのパス (`tasks/07_weather_forecast/outputs/...`) を書くとパスが二重になり, 出力先を作る前に `resume_from` が無いというエラーになる (ML-Found `3aca743` では torch の `FileNotFoundError` で止まり, 学習結果の無い出力先が残った)
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
 - 実験 2 と 3 は, 実験 1 と同じく cpu で学習すると完全に一致する
@@ -195,7 +201,7 @@ python tasks/07_weather_forecast/train.py --experiment resume60.yaml
 ### ML-Found について気付いたこと
 
 - 学習の再開は, 乱数の状態まで含めて正しく働いた. 新しい FB は無い
-- 再開には `resume_from` に再開元のパスを書いた experiment の config が要る. 再開元は実行ごとに違うので, `examples/` に置いておけない. コマンドラインから `resume_from` を渡せると良い (01 の「experiment の config の切り替え」の FB と同じ)
+- 再開には `resume_from` に再開元のパスを書いた experiment の config が要る. 再開元は実行ごとに違うので, `examples/` に置いておけない. コマンドラインから `resume_from` を渡せると良い (01 の「experiment の config の切り替え」の FB と同じ) → ML-Found の PR #19 で `trainer.resume_from=...` と渡せるようになった (上の「実行方法」)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

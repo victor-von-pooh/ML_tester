@@ -1,4 +1,3 @@
-import argparse
 import math
 from pathlib import Path
 from typing import Callable, Optional
@@ -12,66 +11,11 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from ml_found import Trainer, load_config, start_experiment
+from ml_found import Trainer, load_project_config, start_experiment
 from model import ClassicalMLP, HybridQNN, QuantumNeuralNetwork
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
 TASK_DIR = Path(__file__).resolve().parent
-
-
-def parse_args() -> argparse.Namespace:
-    """
-    コマンドライン引数を読み込む関数
-
-    Parameters
-    ----------
-    None
-
-    Returns
-    ----------
-    args: argparse.Namespace
-        コマンドライン引数, experiment の config のパスを持つ
-    """
-    # README の実験を順に試せるように experiment の config を切り替え可能に設定
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--experiment", default="configs/experiment/train.yaml",
-        help=(
-            "experiment の config のパス, 相対パスはタスクのディレクトリから辿り, "
-            "無い場合は実行した場所から辿る"
-        )
-    )
-    args = parser.parse_args()
-
-    return args
-
-
-def resolve_experiment_path(path: str) -> Path:
-    """
-    experiment の config のパスを解決する関数
-
-    Parameters
-    ----------
-    path: str
-        コマンドライン引数で指定されたパス
-
-    Returns
-    ----------
-    resolved: Path
-        experiment の config の絶対パス
-    """
-    # 絶対パスの場合はそのまま使用
-    given = Path(path).expanduser()
-    if given.is_absolute():
-        resolved = given
-        return resolved
-
-    # タスクのディレクトリから辿り, 無い場合は実行した場所から探索
-    resolved = TASK_DIR / given
-    if not resolved.exists() and given.exists():
-        resolved = given.resolve()
-
-    return resolved
 
 
 def make_data(cfg: DictConfig) -> tuple[TensorDataset, TensorDataset]:
@@ -250,11 +194,7 @@ def main() -> None:
     None
     """
     # config を読み込んで実験を開始
-    args = parse_args()
-    cfg, diff = load_config(
-        str(TASK_DIR / "configs/default/train.yaml"),
-        str(resolve_experiment_path(args.experiment))
-    )
+    cfg, diff = load_project_config(str(TASK_DIR))
     experiment = start_experiment(cfg, diff, str(TASK_DIR))
 
     # データを用意

@@ -39,7 +39,7 @@
 
 ## ML-Found での対応状況
 
-ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返し, 引数の名前の誤りと必須の引数の不足を出力先を作る前に確かめる PR #4, 引数の種類と Scheduler の範囲を整えた PR #5 と #6, 引数の値の範囲を出力先を作る前に確かめる PR #7, step ごとの学習率を記録する PR #8, `OneCycleLR` の総ステップ数を学習用データから補う PR #9, チェックポイントを軽くする設定を加えた PR #10, エポックの途中で止める PR #11, 文書と TODO を整えた PR #12, #14, #15, 警告の読み込みを直した PR #13, `Trainer` の作成のエラーを記録する PR #16, 下の流し直しで見つけた不具合を直した PR #17 と #18 を含む `e2df46e` に更新した.
+ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返し, 引数の名前の誤りと必須の引数の不足を出力先を作る前に確かめる PR #4, 引数の種類と Scheduler の範囲を整えた PR #5 と #6, 引数の値の範囲を出力先を作る前に確かめる PR #7, step ごとの学習率を記録する PR #8, `OneCycleLR` の総ステップ数を学習用データから補う PR #9, チェックポイントを軽くする設定を加えた PR #10, エポックの途中で止める PR #11, 文書と TODO を整えた PR #12, #14, #15, 警告の読み込みを直した PR #13, `Trainer` の作成のエラーを記録する PR #16, 下の流し直しで見つけた不具合を直した PR #17 と #18, コマンドラインからの上書きを受け取る PR #19 を含む `1128a63` に更新した.
 
 | まとめの項目 | 対応 | 内容 |
 | --- | --- | --- |
@@ -55,7 +55,7 @@ ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目�
 | 10 ML-Found の外の状態 | 一部対応 | `extra_state_dict` と `load_extra_state_dict` で継承したクラスがチェックポイントに状態を加えられる. 勾配クリッピングは `Trainer` の Optimizer が更新するパラメータだけに掛けるようにした (10). 外部ライブラリの乱数と, 検証に使うモデルを差し替えるフック (11 の EMA) は未対応 (ML-Found の TODO に記載) |
 | 11 進捗の見え方 | 対応 | Early Stopping で止めたエポックも進捗バーで数える. `trainer.progress_bar_batches` でエポックの中のバッチ単位の進捗バーも出せる. PR #2 で, 学習中の進み具合を `progress.json` に書き出し, 外から読めるようにした (ML-Dashboard で表示). PR #11 で, 実験のディレクトリの `STOP` に `now` と書くと, 1 エポックが長い学習 (04 の 17.5 分など) でもエポックの途中で止め, 途中のエポックを捨てて最後に終えたエポックの状態に戻すようになった (ML-Dashboard の「エポックの途中で止める」). Python のコードからエポックごとの指標を受け取るコールバックは ML-Found の TODO に記載 |
 | 12 ドキュメント | 対応 | README に継承の `__init__` の例, `on_epoch_end` の使い方, cpu の明示, `final_model.pt` (cpu で保存するよう変更) などを記載 |
-| 13 その他 | 一部対応 | 勾配のノルムの記録 (`trainer.log_grad_norm`), `on_epoch_end` と `step` の同じ名前の指標をエラーに, 未コミットの変更をファイルごとに数える. モデルの構造のログは README で `extra_repr` を勧め, 残す仕組みは TODO に記載. PR #8 で, `scheduler.interval: step` の場合に更新ごとの学習率を `lr_steps.csv` と `lr_steps.png` に残すようになった. 他 (コマンドラインからの上書き, 学習用データの推論モードでの評価) は ML-Found の TODO に記載 |
+| 13 その他 | 一部対応 | 勾配のノルムの記録 (`trainer.log_grad_norm`), `on_epoch_end` と `step` の同じ名前の指標をエラーに, 未コミットの変更をファイルごとに数える. モデルの構造のログは README で `extra_repr` を勧め, 残す仕組みは TODO に記載. PR #8 で, `scheduler.interval: step` の場合に更新ごとの学習率を `lr_steps.csv` と `lr_steps.png` に残すようになった. PR #19 で, `load_project_config` が `--experiment` と「項目=値」の上書き (`trainer.epochs=10` など) を受け取るようになり, 各タスクの `train.py` もこれを使う形に書き換えた. 学習用データの推論モードでの評価は ML-Found の TODO に記載 |
 
 PR #1 の途中の内容 (`monitor_tiebreak` と `progress_bar_batches` を加える前) で, このリポジトリのタスクを流し, 次を確かめた. 01 (cpu), 03, 05 (Lion), 06 (`ClosureTrainer`), 07 (再開を含む), 12 (古典の MLP) の `history.csv` が `3aca743` の結果と完全に一致した (回帰が無い). 10 の書き方 B と C と, 04 の段階 2 の動作確認の設定はエラーなく動いた. 06 の LBFGS は回避策なしで学習でき, 結果は回避策の `ClosureTrainer` と完全に一致した. 06 の PINN は `valid_grad: true` で回避策なしで学習でき, 結果は回避策の `torch.enable_grad()` と完全に一致した. 05 の ReduceLROnPlateau の設定の誤りは, 出力先を作る前にエラーになった.
 

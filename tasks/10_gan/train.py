@@ -329,11 +329,13 @@ def main() -> None:
     history = trainer.fit(train_loader)
 
     # ベストモデルを選ばない設定なので, 学習後のモデルは最後のエポックの重み
+    # 上書きで選ぶ設定にした場合はベストモデルになるので, 画像の名前を変更
     run_dir = experiment.run_dir
+    name = "best_model.png" if cfg.trainer.select_best else "last_model.png"
     trainer.model.eval()
     with torch.no_grad():
         last_images = trainer.model(trainer.fixed_noise).cpu()
-    save_image(last_images * 0.5 + 0.5, run_dir / "last_model.png", nrow=8)
+    save_image(last_images * 0.5 + 0.5, run_dir / name, nrow=8)
 
     # 結果を表示
     print(f"保存先: {run_dir}")

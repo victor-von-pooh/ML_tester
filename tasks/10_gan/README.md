@@ -87,6 +87,7 @@ trainer:
   epochs: 20
   monitor: train/loss       # 検証用データが無いので学習用の指標だけ
   mode: min
+  select_best: false        # GAN の損失は良し悪しの指標にならないので, ベストモデルを選ばない
 train:
   variant: B                # A, B, C
 discriminator_optimizer:    # B と C で識別器に使う 2 つ目の Optimizer (ML-Found の外の設定)
@@ -181,4 +182,4 @@ ML-Found の PR #22 で `trainer.select_best: false` (ベストモデルを選�
 
 - 3 つとも `history.csv` と生成画像 (`samples/`, `last_model.png`) が以前と全て一致した. 学習時間は 328 秒 (B), 331 秒 (A), 302 秒 (C)
 - `best.pt` は作られず, `run.json` は `select_best: false`, `best_epoch: null`, `final_weights: last` になった. `final_model.pt` は `last.pt` の `model` と一致した (B で確認)
-- 上の「確かめる機能」と「ML-Found について気付いたこと」の, ベストモデルの判定を止める設定が無いという点は, この設定で解消した
+- 上の「確かめる機能」, 「予想される問題」, 「ML-Found について気付いたこと」の, ベストモデルの判定と学習後の巻き戻しを止める設定が無いという点 (`3aca743` の時点の結果) は, この設定で解消した. 巻き戻しだけを止める `trainer.restore_best: false` も PR #1 で加わっている

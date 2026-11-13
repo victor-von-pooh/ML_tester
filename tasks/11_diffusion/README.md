@@ -106,7 +106,7 @@ experiment で次の差分を試す.
 
 - [x] 検証用の損失が `t` と `eps` の乱数によってばらつき, ベストモデルの判定が不安定にならないか. 検証時だけ乱数を固定する方法があるか → 毎回違う乱数の `loss_random` は 29 回のエポック間の変化のうち 10 回で上がり, それで判定するとベストはエポック 24 になった. 毎エポック同じ乱数の `loss` は上がったのが 3 回で, ベストは最後のエポック 30 だった. ML-Found `3aca743` には検証の乱数を固定する仕組みが無いので, 専用の乱数生成器を `on_epoch_start` で戻して自分で固定した (その後 ML-Found の PR #1 で `trainer.valid_seed` が加わった)
 - [x] `update_parameters` を上書きして EMA を更新できる
-- [x] EMA のモデルがチェックポイントに入らず, 再開すると失われる. ベストモデルとして保存されるのも EMA でない方の重みになる → その通り. `state_dict` と `resume` を上書きして EMA をチェックポイントに加えた (コードのレビューで指摘を受けて追加). 学習用 256 枚, 時刻 50 の小さな設定で, 1 エポック学習した後に 2 エポック目まで再開し, EMA の更新回数が 4 から 8 に続くことを確かめた. ベストモデルと `final_model.pt` は EMA でない方の重みのまま
+- [x] EMA のモデルがチェックポイントに入らず, 再開すると失われる. ベストモデルとして保存されるのも EMA でない方の重みになる → その通り. `state_dict` と `resume` を上書きして EMA をチェックポイントに加えた (`3aca743` の時点. その後 `extra_state_dict` と `load_extra_state_dict` に置き換え, `ema.eval: true` ではベストモデルと `final_model.pt` も EMA の重みになる. 下の「EMA の重みで検証する」を参照) (コードのレビューで指摘を受けて追加). 学習用 256 枚, 時刻 50 の小さな設定で, 1 エポック学習した後に 2 エポック目まで再開し, EMA の更新回数が 4 から 8 に続くことを確かめた. ベストモデルと `final_model.pt` は EMA でない方の重みのまま
 - [x] 検証を EMA のモデルで行いたいが, `run_epoch` は `self.model` を使うので差し替えが必要 → 差し替えなかった. 検証の損失は EMA でない方の重みのもので, EMA の重みは生成画像にだけ使った (`3aca743` の時点. その後 ML-Found の PR #23 の `eval_model` で差し替え, 実験 3 で確かめた. 下の「EMA の重みで検証する」を参照)
 - [x] 生成に時間がかかる処理を `on_epoch_end` に入れたときに, 進捗バーやログが分かりにくくならないか → 1 回の生成 (1,000 ステップ, 64 枚) は約 20 から 22 秒で, 実験 2 では生成するエポックが約 85 秒, しないエポックが約 65 秒だった. ML-Found の進捗バーはエポック単位なので, 生成の間に限らずエポックの途中は止まって見える. 生成は 3 回だけなので問題にならなかった
 - [x] 学習時間が長い (MPS で数十分から 1 時間程度) ので, 途中で止めて再開する流れ → 短い設定で確かめた (下の「学習の再開」)
@@ -118,7 +118,7 @@ experiment で次の差分を試す.
 
 ## 予想される問題
 
-- EMA の重み, 生成用の状態など, モデル以外に保存したい状態をチェックポイントに加える仕組みが無い → その通り. 10 と同じく `state_dict` と `resume` を上書きして加えた (その後 ML-Found の PR #1 で `extra_state_dict` と `load_extra_state_dict` が加わった)
+- EMA の重み, 生成用の状態など, モデル以外に保存したい状態をチェックポイントに加える仕組みが無い → その通り. 10 と同じく `state_dict` と `resume` を上書きして加えた (その後 ML-Found の PR #1 で `extra_state_dict` と `load_extra_state_dict` が加わり, このタスクもそれを使う形に置き換えた)
 - 検証用の損失が乱数に依存するので, そのままでは `valid/loss` でのベストモデルの判定や Early Stopping の信頼性が低い → その通り (上のチェックボックスを参照)
 - 検証に使うモデルを差し替える (EMA で検証する) フックが無い → その通り (`3aca743` の時点. ML-Found の PR #23 で `eval_model` が加わった)
 
@@ -182,7 +182,7 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直した. 2 つの実験の `history.csv`, EMA の重み, 生成した画像は全て一致し, 実験 1 と 2 の `history.csv`, `final_model.pt`, `best_model.png` がバイト単位で一致することも確かめた.
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 実験 1 と 2 をその後の ML-Found (`24f18c2`) で流し直した. 2 つの実験の `history.csv`, EMA の重み, 生成した画像は全て一致し, 実験 1 と 2 の `history.csv`, `final_model.pt`, `best_model.png` がバイト単位で一致することも確かめた.
 
 - 学習時間 (`24f18c2`, 他の学習を並べずに流した): 2016 秒 (EMA あり), 2085 秒 (EMA なし). EMA なしの方は一部のエポックだけ遅く, 時間の差は EMA ではないという結論を裏付ける
 
@@ -190,7 +190,7 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 
 ### EMA の重みで検証する (2026-11-13)
 
-ML-Found の PR #23 で, 検証, ベストモデルの判定, `final_model.pt` に使うモデルを差し替える `eval_model` が加わった. `DiffusionTrainer` で `ema.eval: true` の場合に EMA のモデルを返すようにし, 実験 3 (`ema_eval.yaml`) を ML-Found `f008bc1` で流した. 合わせて, EMA の保存と再開を `state_dict` と `resume` の上書きから `extra_state_dict` と `load_extra_state_dict` に置き換えた.
+ML-Found の PR #23 で, 検証, ベストモデルの判定, `final_model.pt` に使うモデルを差し替える `eval_model` が加わった. `DiffusionTrainer` で `ema.eval: true` の場合に EMA のモデルを返すようにし, 実験 3 (`ema_eval.yaml`) を ML-Found `f008bc1` で流した. 合わせて, EMA の保存と再開を `state_dict` と `resume` の上書きから `extra_state_dict` と `load_extra_state_dict` に置き換えた. チェックポイントの中の EMA の場所が変わったので, 置き換える前の `last.pt` から再開すると, 警告が出て EMA は作り直しになる. `ema.use: false` と `ema.eval: true` を一緒に指定した場合は, 警告を出して `ema.eval` を無視する.
 
 - 学習 (`train/loss`), EMA の重み (`ema_model.pt`), 生成画像 (`samples/`, `ema_model.png`) は実験 1 と完全に一致した. 違うのは検証の損失と, ベストモデルの重み (`final_model.pt`, `best_model.png`) だけ
 - 検証の損失 (`valid/loss`) は EMA の重みのもので, エポック 1 は 0.344 (実験 1 は 0.0325) と大きい. EMA の減衰率 0.999 では, 1 エポック (422 回の更新) の時点では初期の重みが多く残るため. その後は 30 エポックで一度も上がらず (実験 1 は 29 回の変化のうち 3 回上がった), 最後は 0.01757 (実験 1 は 0.01756) になった

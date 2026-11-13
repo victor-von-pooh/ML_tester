@@ -38,6 +38,10 @@ class DiffusionTrainer(Trainer):
                 multi_avg_fn=optim.swa_utils.get_ema_multi_avg_fn(ema_decay)
             )
         self.ema_eval = ema_eval and self.ema is not None
+        if ema_eval and self.ema is None:
+            self.logger.warning(
+                "ema.use: false なので, ema.eval: true は無視します"
+            )
 
         # 生成画像の大きさ, 枚数, 保存する間隔, 保存先を保存
         self.image_size = image_size
@@ -108,7 +112,7 @@ class DiffusionTrainer(Trainer):
         batch: Any
             画像と正解ラベル, 正解ラベルは使わない
         phase: str
-            train または valid
+            train, valid, 学習用データの評価し直しでは train_eval
 
         Returns
         ----------
@@ -127,8 +131,9 @@ class DiffusionTrainer(Trainer):
         noise = torch.randn_like(x0)
         loss_random = self.noise_loss(model, x0, t, noise)
 
-        # 学習時はそのまま使い, 検証時は毎エポック同じ乱数で選び直した損失を使用
-        if phase == "train":
+        # 検証時だけ毎エポック同じ乱数で選び直した損失を使用
+        # (学習時と, 学習用データの評価し直しではそのまま)
+        if phase != "valid":
             loss = loss_random
         else:
             t = torch.randint(
@@ -195,7 +200,6 @@ class DiffusionTrainer(Trainer):
 
         return metrics
 
-
     def extra_state_dict(self) -> dict:
         """
         チェックポイントに EMA の状態を加える関数
@@ -260,6 +264,7 @@ class DiffusionTrainer(Trainer):
         model = self.ema.module if self.ema_eval else self.model
 
         return model
+
 
 def main() -> None:
     """

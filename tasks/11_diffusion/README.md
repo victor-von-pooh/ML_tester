@@ -177,8 +177,8 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
 - 再開すると Scheduler の状態が引数 (`T_max` など) ごとチェックポイントから戻るので, config で引数を変えても効かず, `config.yaml` の記録と実際の設定が食い違う (上の「学習の再開」) (`3aca743` の時点. ML-Found の PR #26 の `trainer.resume_scheduler: config` で解消, 下の「Scheduler を config の引数で作り直す再開」を参照)
-- 損失に乱数を含む学習では, 検証用の損失がエポックごとに乱数で揺れ, ベストモデルの判定と Early Stopping が乱数に左右される. 検証の乱数を固定する仕組みが無いので, 専用の乱数生成器を自分で用意して `on_epoch_start` で戻した
-- EMA の重みはチェックポイントにも `final_model.pt` にも入らない (`state_dict` と `resume` を上書きすれば加えられる). 検証や判定に EMA の重みを使うフックも無い. EMA は拡散モデルや画像の生成で一般的なので, `trainer.ema_decay` のような設定で, 更新, 保存, 再開, 検証に使うモデルの切り替えまで面倒を見てもらえると良い
+- 損失に乱数を含む学習では, 検証用の損失がエポックごとに乱数で揺れ, ベストモデルの判定と Early Stopping が乱数に左右される. 検証の乱数を固定する仕組みが無いので, 専用の乱数生成器を自分で用意して `on_epoch_start` で戻した (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.valid_seed` が加わった)
+- EMA の重みはチェックポイントにも `final_model.pt` にも入らない (`state_dict` と `resume` を上書きすれば加えられる). 検証や判定に EMA の重みを使うフックも無い. EMA は拡散モデルや画像の生成で一般的なので, `trainer.ema_decay` のような設定で, 更新, 保存, 再開, 検証に使うモデルの切り替えまで面倒を見てもらえると良い (`3aca743` の時点. その後 ML-Found の PR #1 で `extra_state_dict` と `load_extra_state_dict` が, PR #23 で検証, ベストモデル, `final_model.pt` に使うモデルを差し替える `eval_model` が加わった. 下の「EMA の重みで検証する」を参照)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

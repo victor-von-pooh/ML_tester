@@ -180,10 +180,10 @@ python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
-- Hugging Face のトークナイザの出力 (`BatchEncoding`) は `dict` の子クラスではないので, ML-Found の `get_batch_size` がサンプル数を見つけられず 1 として扱う. `step` で返す指標 (`loss`, `exact`) がバッチ数の平均になり, 小さなバッチがサンプル数の割に重く効く (段階 2 の検証用では 8 件のバッチが 32 件のバッチと同じ重み). `on_epoch_end` で求める F1 には影響しない. `move_to_device` は `BatchEncoding` が `.to` を持つので正しく動く
+- Hugging Face のトークナイザの出力 (`BatchEncoding`) は `dict` の子クラスではないので, ML-Found の `get_batch_size` がサンプル数を見つけられず 1 として扱う. `step` で返す指標 (`loss`, `exact`) がバッチ数の平均になり, 小さなバッチがサンプル数の割に重く効く (段階 2 の検証用では 8 件のバッチが 32 件のバッチと同じ重み). `on_epoch_end` で求める F1 には影響しない. `move_to_device` は `BatchEncoding` が `.to` を持つので正しく動く (`3aca743` の時点. その後 ML-Found の PR #1 で `dict` 以外の Mapping のバッチもサンプル数を推定するようになり, PR #21 で推定できずに 1 とした場合は `train.log` に警告が 1 回出るようになった)
 - warmup 付きの Scheduler の総ステップ数がバッチ数で決まるので, Scheduler を自分で作って `Trainer` に渡した. この場合 `config.yaml` の `scheduler` は `name: null` のままで, ML-Found が残す記録は `train.log` の `Scheduler: LambdaLR` だけになる. このタスクでは `warmup_ratio` を自分の config の項目にしたので, 引数は `config.yaml` に残った
-- 事前学習済みモデルでは `best.pt` と `last.pt` がそれぞれ 1 GB を超える. ベストモデルの重みを `last.pt` にも入れるので, 2 つで 2 GB を超える
-- 進捗バーがエポック単位なので, 1 エポックが 17.5 分かかった段階 2 では, エポックの中の進み具合が全く分からない (02 で予想した問題が実際に起きた)
+- 事前学習済みモデルでは `best.pt` と `last.pt` がそれぞれ 1 GB を超える. ベストモデルの重みを `last.pt` にも入れるので, 2 つで 2 GB を超える (`3aca743` の時点. その後 ML-Found の PR #10 で `best.pt` がベストモデルの重みを重ねて持たなくなり, `trainer.checkpoint.last_with_best: false` で `last.pt` からベストモデルの重みを外し, `best_weights_only: true` で `best.pt` を重みだけにできるようになった)
+- 進捗バーがエポック単位なので, 1 エポックが 17.5 分かかった段階 2 では, エポックの中の進み具合が全く分からない (02 で予想した問題が実際に起きた) (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.progress_bar_batches` でバッチ単位の進捗バーを出せるようになり, PR #11 で `STOP` に `now` と書くとエポックの途中でも止められるようになった)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

@@ -154,8 +154,8 @@ python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
 - `Trainer` を継承する書き方は README の説明通りで, `step`, `on_epoch_start`, `on_epoch_end` の上書きと `self.epoch` の参照に問題は無かった
-- ML-Found の README には継承したクラスの `__init__` の例が無い. 親クラスの引数の順は `(model, experiment, step_fn, optimizer, scheduler)` なので, `step_fn` を使わない場合は `None` を位置で渡すか, `optimizer=optimizer` のようにキーワードで渡す. このタスクでは `None` を位置で渡した
-- `on_epoch_end` の戻り値と `step` の戻り値に同じ名前の指標があると, `on_epoch_end` の値で黙って上書きされる (`training/trainer.py` の `run_epoch`). 例えば `step` で `acc` を返しつつ `on_epoch_end` でも `acc` を返すと, バッチの平均の方は記録されない
+- ML-Found の README には継承したクラスの `__init__` の例が無い. 親クラスの引数の順は `(model, experiment, step_fn, optimizer, scheduler)` なので, `step_fn` を使わない場合は `None` を位置で渡すか, `optimizer=optimizer` のようにキーワードで渡す. このタスクでは `None` を位置で渡した (`3aca743` の時点. その後 ML-Found の PR #1 で, README に `__init__` を上書きする例が加わった)
+- `on_epoch_end` の戻り値と `step` の戻り値に同じ名前の指標があると, `on_epoch_end` の値で黙って上書きされる (`training/trainer.py` の `run_epoch`). 例えば `step` で `acc` を返しつつ `on_epoch_end` でも `acc` を返すと, バッチの平均の方は記録されない (`3aca743` の時点. その後 ML-Found の PR #1 で, 同じ名前はエラーになった)
 - `train/` の指標は学習中 (Dropout が効いた状態, パラメータ更新の途中) の予測から求めるので, エポック全体で求める AUC のような指標では `valid/` と比べにくい. 学習用データを推論モードで評価し直す設定があると良い (ML-Found の PR #25 の `trainer.eval_train` で解消. 下の「学習用データの評価し直し」を参照)
 
 ### 最新の ML-Found での再実行 (2026-11-13)

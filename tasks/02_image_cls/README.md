@@ -171,10 +171,10 @@ python evaluate.py outputs/fashion_mnist/2026-11-08/17-38-22
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
-- データの量で決まる Scheduler の引数 (`OneCycleLR` の `steps_per_epoch` や `total_steps`) を config から渡す仕組みが無い (Scheduler を自分で作って `Trainer` に渡すことはできるが, その場合は `config.yaml` に残らない). `load_config` と `start_experiment` の間で `cfg` を書き換えれば動き, `config.yaml` にも残るが, この順番は利用者が知っている必要がある. `start_experiment` の後に書き換えると `config.yaml` と実際の設定がずれる. また `diff.yaml` は `load_config` の時点で決まるので, 書き込んだ値は差分に出ない
-- `lr` はエポックの開始時点の値だけが `history.csv` と `lr_curve.png` に記録されるので, `interval: step` の場合はエポックの中の変化が見えず, 最後のステップの後の学習率も残らない
-- 勾配のノルムが記録されないので, 勾配クリッピングが効いているか (どのくらいの頻度で切られているか) を確かめられない. `nn.utils.clip_grad_norm_` はクリップ前のノルムを返すが, `Trainer.update_parameters` はその値を捨てている
-- ML-Found は `final_model.pt` を学習したデバイスのまま保存する (このタスクでは `mps:0` のテンソル). ML-Found の README の読み込み例 (`torch.load(...)`) には `map_location` が無いので, mps の無い環境ではそのままでは読めない. `evaluate.py` では `map_location="cpu"` を付けた
+- データの量で決まる Scheduler の引数 (`OneCycleLR` の `steps_per_epoch` や `total_steps`) を config から渡す仕組みが無い (Scheduler を自分で作って `Trainer` に渡すことはできるが, その場合は `config.yaml` に残らない). `load_config` と `start_experiment` の間で `cfg` を書き換えれば動き, `config.yaml` にも残るが, この順番は利用者が知っている必要がある. `start_experiment` の後に書き換えると `config.yaml` と実際の設定がずれる. また `diff.yaml` は `load_config` の時点で決まるので, 書き込んだ値は差分に出ない (`3aca743` の時点. その後 ML-Found の PR #9 で `OneCycleLR` の総ステップ数を学習用データから補うようになり, PR #29 と #31 で `CosineAnnealingLR` の `T_max` などに `auto` と書くと学習全体のステップ数で補うようになった. 補った値は `config.yaml` と `train.log` に残る)
+- `lr` はエポックの開始時点の値だけが `history.csv` と `lr_curve.png` に記録されるので, `interval: step` の場合はエポックの中の変化が見えず, 最後のステップの後の学習率も残らない (`3aca743` の時点. その後 ML-Found の PR #8 で, `interval: step` の場合は更新ごとの学習率が `lr_steps.csv` と `lr_steps.png` に残るようになった)
+- 勾配のノルムが記録されないので, 勾配クリッピングが効いているか (どのくらいの頻度で切られているか) を確かめられない. `nn.utils.clip_grad_norm_` はクリップ前のノルムを返すが, `Trainer.update_parameters` はその値を捨てている (`3aca743` の時点. その後 ML-Found の PR #1 で, `trainer.log_grad_norm` でクリップ前のノルムを `train/grad_norm` として記録できるようになった)
+- ML-Found は `final_model.pt` を学習したデバイスのまま保存する (このタスクでは `mps:0` のテンソル). ML-Found の README の読み込み例 (`torch.load(...)`) には `map_location` が無いので, mps の無い環境ではそのままでは読めない. `evaluate.py` では `map_location="cpu"` を付けた (`3aca743` の時点. その後 ML-Found の PR #1 で, `final_model.pt` は cpu のテンソルで保存するようになった)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

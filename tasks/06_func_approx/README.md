@@ -96,7 +96,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 
 - [x] フルバッチ (`[data]` を渡す形) で数千エポック回したときの速度とログの量. 5000 エポックで `train.log` は 5,108 行 (845 KB). 学習時間の大部分はチェックポイントの保存だった (下の「気付いたこと」)
 - [x] LBFGS を指定したときに, どこで, どんなエラーになるか → `Trainer.update_parameters` の `optimizer.step()` で `TypeError: LBFGS.step() missing 1 required positional argument: 'closure'`
-- [x] エラーが分かりやすいか. 学習を始める前に気付けるか → torch のエラーがそのまま出るので原因は分かるが, ML-Found が closure に対応していないことは分からない. 最初のバッチの更新で初めて失敗し, 学習結果の無い出力先が残る. エラーは端末にだけ出て, `train.log` には残らない
+- [x] エラーが分かりやすいか. 学習を始める前に気付けるか → torch のエラーがそのまま出るので原因は分かるが, ML-Found が closure に対応していないことは分からない. 最初のバッチの更新で初めて失敗し, 学習結果の無い出力先が残る. エラーは端末にだけ出て, `train.log` には残らない (`3aca743` の時点. その後 ML-Found の PR #1 で LBFGS を自動で見分けて closure を渡すようになり, PR #33 で closure が必要かを登録簿の仕様とクラスの属性 `requires_closure` で決めるようになった. 下の「最新の ML-Found での再実行」を参照)
 - [x] (PINN を試す場合) 検証時に `torch.set_grad_enabled(False)` の中で `torch.autograd.grad` を呼べずに失敗するか → 失敗した. エポック 1 の検証で `RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn`. `step` の中で `torch.enable_grad()` を使えば回避できた (実験 5 と 6)
 
 ## 期待する結果
@@ -176,10 +176,10 @@ python tasks/06_func_approx/train_pinn.py --experiment configs/experiment/exampl
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
-- closure を渡す更新手順に対応していないので, LBFGS は最初の更新で `TypeError` になる (TODO の項目 2 の通り). エラーは torch のものがそのまま出るので, ML-Found が対応していないことは利用者には分からない
+- closure を渡す更新手順に対応していないので, LBFGS は最初の更新で `TypeError` になる (TODO の項目 2 の通り). エラーは torch のものがそのまま出るので, ML-Found が対応していないことは利用者には分からない (`3aca743` の時点. その後 ML-Found の PR #1 で LBFGS を自動で見分けて closure を渡すようになり, 実験 2 は `Trainer` のままで学習できる. PR #33 で, closure が必要かを登録簿の仕様とクラスの属性 `requires_closure` で決めるようになった)
 - `Trainer` を継承して回避できたが, `update_parameters` は損失しか受け取らないので, closure で損失を計算し直すためにバッチを `step` で `self` に保存する必要があった. また元の `update_parameters` の勾配クリッピングと Scheduler の処理を自分で写す必要がある (このタスクでは省いた)
 - 記録される `train/loss` は, `update_parameters` の前に `step` で計算した損失, つまり前のエポックの更新の後のパラメータでの損失. これはどの Optimizer でも同じだが, LBFGS は 1 回の `step` の中でパラメータが大きく動くので, 記録と現在のパラメータの差が大きい
-- チェックポイントは, `last.pt` を毎エポック, `best.pt` (中身は同じ) を改善したエポックごとに保存する (実験 1 では 5000 エポック中 2351 回改善). どちらにもモデルと Optimizer の状態, `history` の全ての記録, 乱数の状態, ベストモデルの重みが入る. そのため 1 エポックが短いフルバッチ学習では保存が学習時間の大部分を占め (5000 エポックで 44.9 秒が保存をやめると 6.1 秒), 記録が増えるほど 1 回の保存も重くなる (`last.pt` は 2000 エポックで 459 KB, 5000 エポックで 906 KB). 保存の間隔を設定できると良い
+- チェックポイントは, `last.pt` を毎エポック, `best.pt` (中身は同じ) を改善したエポックごとに保存する (実験 1 では 5000 エポック中 2351 回改善). どちらにもモデルと Optimizer の状態, `history` の全ての記録, 乱数の状態, ベストモデルの重みが入る. そのため 1 エポックが短いフルバッチ学習では保存が学習時間の大部分を占め (5000 エポックで 44.9 秒が保存をやめると 6.1 秒), 記録が増えるほど 1 回の保存も重くなる (`last.pt` は 2000 エポックで 459 KB, 5000 エポックで 906 KB). 保存の間隔を設定できると良い (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられるようになり, PR #10 で `best_weights_only: true` で `best.pt` を重みだけにできるようになった. `best.pt` は今も改善のたびに保存する)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

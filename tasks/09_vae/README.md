@@ -177,9 +177,9 @@ python tasks/09_vae/train.py --experiment configs/experiment/examples/beta4.yaml
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
 - `step_fn(model, batch, phase)` には引数としてエポックが渡らないので, KL annealing のようにエポックに依存する損失は, `Trainer` を継承して `self.epoch` を使うか, closure の中から `trainer.epoch` を参照する必要がある
-- 学習の途中で損失の定義が変わる場合 (annealing, β のスケジュール), `monitor` の指標を何にするかで選ばれるベストモデルが大きく変わり, 最後にその重みに戻される. 実験 5 では学習の途中のモデルが残った. ベストモデルに戻さない設定 (最後の重みを残す) があると良い
-- DataLoader が `persistent_workers=True` の場合, 再開した学習は通しの学習と一致しない (上の「学習の再開」)
-- 指標でない値 (`beta` のようなスケジュールの値) も `step` で返すと指標として扱われ, `train/` と `valid/` の両方に記録されて学習曲線も描かれる. 記録だけしたい値を返す方法があると良い
+- 学習の途中で損失の定義が変わる場合 (annealing, β のスケジュール), `monitor` の指標を何にするかで選ばれるベストモデルが大きく変わり, 最後にその重みに戻される. 実験 5 では学習の途中のモデルが残った. ベストモデルに戻さない設定 (最後の重みを残す) があると良い (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.restore_best: false` (ベストモデルは記録するが最後の重みを残す) が, PR #22 で `trainer.select_best: false` (ベストモデルを選ばない) が加わった)
+- DataLoader が `persistent_workers=True` の場合, 再開した学習は通しの学習と一致しない (上の「学習の再開」) (`3aca743` の時点. その後 ML-Found の PR #1 で, この場合は再開時に警告が出るようになった. 下の「最新の ML-Found での再実行」を参照)
+- 指標でない値 (`beta` のようなスケジュールの値) も `step` で返すと指標として扱われ, `train/` と `valid/` の両方に記録されて学習曲線も描かれる. 記録だけしたい値を返す方法があると良い (`3aca743` の時点. その後 ML-Found の PR #20 で, `step` の戻り値の `extra` に入れた値は平均せずに記録だけするようになった. 下の「最新の ML-Found での再実行」を参照)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

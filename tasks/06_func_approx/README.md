@@ -188,3 +188,17 @@ python tasks/06_func_approx/train_pinn.py --experiment configs/experiment/exampl
 - 実験 2 (LBFGS を `Trainer` のまま使う) は今は学習でき, 200 エポックでベストはエポック 19, MSE 5.88e-6, 最大誤差 1.34e-2. `history.csv` は実験 3 と完全に一致した
 - 実験 5 (PINN) は同じエラーで止まり, エラーは `train.log` と `run.json` (`failed`) にも残った
 - 学習時間 (`e2df46e`): 実験 1 は 42.7 秒, 実験 3 は 1.65 秒, 実験 6 は 3.01 秒で, 以前とほぼ同じ. `24f18c2` では 1 エポックが短いので状態のファイルの書き込みが効き, 53.3 秒, 2.05 秒, 12.8 秒だった (ML-Found の PR #18 で直した)
+
+### チェックポイントの保存の時間 (2026-11-13)
+
+ML-Found の PR #38 で, チェックポイントの中の記録を列ごとの数の配列 (テンソル) で持つようになった. 実験 1 (5000 エポック, 既定の保存) を測り直した.
+
+| ML-Found | 学習時間 | `best.pt` | `last.pt` |
+| --- | --- | --- | --- |
+| `29e33bd` (記録は辞書のリスト) | 41.0 秒 | 864 KB | 907 KB |
+| `42ad8aa` (PR #38 の後) | 13.2 秒 | 397 KB | 436 KB |
+| 保存しない (`save_best: false`, `save_last: false`) | 4.3 秒 | - | - |
+
+- `history.csv` は 3 つとも同じだった
+- 保存の時間の大部分は, 毎回の保存で記録を全て pickle することだった. 残りの約 9 秒は, `best.pt` と `last.pt` を毎エポック書く分. ML-Found の `trainer.checkpoint.every_n_epochs` と `best_weights_only: true` で減らせる
+

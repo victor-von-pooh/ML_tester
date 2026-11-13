@@ -39,13 +39,13 @@
 
 ## ML-Found での対応状況
 
-ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返し, 引数の名前の誤りと必須の引数の不足を出力先を作る前に確かめる PR #4, 引数の種類と Scheduler の範囲を整えた PR #5 と #6, 引数の値の範囲を出力先を作る前に確かめる PR #7, step ごとの学習率を記録する PR #8, `OneCycleLR` の総ステップ数を学習用データから補う PR #9 を含む `b9eee7c` に更新した.
+ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返し, 引数の名前の誤りと必須の引数の不足を出力先を作る前に確かめる PR #4, 引数の種類と Scheduler の範囲を整えた PR #5 と #6, 引数の値の範囲を出力先を作る前に確かめる PR #7, step ごとの学習率を記録する PR #8, `OneCycleLR` の総ステップ数を学習用データから補う PR #9, チェックポイントを軽くする設定を加えた PR #10 を含む `fc2ea75` に更新した.
 
 | まとめの項目 | 対応 | 内容 |
 | --- | --- | --- |
 | 1 ベストモデルへの巻き戻し | 対応 | `trainer.restore_best: false` で最後のエポックの重みを残す |
 | 2 Optimizer が 1 つで更新手順が固定 | 一部対応 | closure が必要な Optimizer (LBFGS) を自動で見分けて対応. `trainer.manual_optimization` で `step` の中で更新できる. 複数の Optimizer を config で扱う仕組みは未対応 |
-| 3 チェックポイントの保存が重い | 一部対応 | `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられる. `best.pt` は改善のたびに保存するままで, `last.pt` からベストモデルの重みを外す設定も未対応 (どちらも ML-Found の TODO に記載) |
+| 3 チェックポイントの保存が重い | 対応 | `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられる. PR #10 で, `best.pt` がベストモデルの重みを重ねて持たなくなり, `trainer.checkpoint.best_weights_only` で `best.pt` を重みだけに, `last_with_best: false` で `last.pt` からベストモデルの重みを外せるようになった (04 の `hf_smoke.yaml` で, 以前は両方 1.07 GB だったものが, 既定で `best.pt` 804 MB, 両方の設定で `best.pt` 268 MB と `last.pt` 804 MB). `best.pt` を改善のたびに保存すること自体は変わらない |
 | 4 検証時の扱い | 対応 | `trainer.valid_grad` と `trainer.valid_seed`. `on_epoch_end` の勾配は README に注意を記載 |
 | 5 データの量で決まる Scheduler の引数 | 一部対応 | `load_config` と `start_experiment` の間で書き込む方法を README に記載. 自分で渡した Scheduler の状態を `train.log` に記録. PR #9 で, `OneCycleLR` の総ステップ数を書かなければ `fit` で学習用データのバッチ数から補い, `config.yaml` と `train.log` に残すようになった (02 の `train.py` の書き込みはやめた). 総ステップ数が `trainer.epochs` とバッチ数から求めた予定と合わない場合 (再開で `trainer.epochs` を変えた場合など) は学習の前にエラーか警告. `OneCycleLR` 以外 (warmup 付きの Scheduler, step ごとに使う `CosineAnnealingLR` の `T_max` など) は補わず, 自分で作った Scheduler は `config.yaml` に残らないまま |
 | 6 最良値と同じ値を改善とみなさない | 対応 | `trainer.monitor_tiebreak` で, 同じ値の場合に別の指標 (例: `valid/loss`) で比べる. ベストモデルの判定と Early Stopping の両方に使う |

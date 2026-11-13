@@ -79,7 +79,7 @@ arXiv の論文のタイトルと要旨から, その論文がどの分野に属
     - `step`: 損失と, 3 つの分野が全て当たった割合 (`exact`) を返し, 予測を貯める
     - `on_epoch_end`: 貯めた予測から分野ごとの F1 (`f1_qph`, `f1_ml`, `f1_oc`), その単純平均 (`macro_f1`), 全体で数えた F1 (`micro_f1`) を求める
 - ベストモデルの判定は `valid/macro_f1` (`mode: max`)
-- 段階 2 の Scheduler は, `transformers` の `get_linear_schedule_with_warmup` (最初の 10 % で warmup, その後は線形に減衰) で作って `Trainer` に渡す. 全体のステップ数がバッチ数で決まるため
+- 段階 2 の Scheduler は, 既定では `transformers` の `get_linear_schedule_with_warmup` (最初の 10 % で warmup, その後は線形に減衰) で作って `Trainer` に渡す. 全体のステップ数がバッチ数で決まるため (ML-Found の PR #35 の後は, experiment で Scheduler か warmup を書くと ML-Found が作る. 下の「config の warmup」を参照)
 
 ## config
 
@@ -218,9 +218,9 @@ scheduler:
   warmup_start_factor: 1.0e-8
 ```
 
-動作確認の設定で学習用データを 640 件 (20 ステップ, warmup は 2 ステップ) にして, 2 つの作り方を ML-Found `1c5c47d` で比べた.
+学習用データを 640 件 (20 ステップ, warmup は 2 ステップ) にした動作確認で, 2 つの作り方を ML-Found `1c5c47d` で比べた. コマンドは `python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf_smoke.yaml data.n_train=640` (transformers) と `python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf_config_warmup.yaml trainer.epochs=1 data.n_train=640 data.n_valid=32` (ML-Found). この場合, トップレベルの `warmup_ratio` (transformers の関数に使う値) は使わない.
 
 - `train.log` に「LinearLR の引数を学習用データから補いました: warmup_steps=2, total_iters=18」と出て, `config.yaml` に補った値が残った. Scheduler は `SequentialLR` (warmup の `LinearLR` と減衰の `LinearLR`) になり, 中の Scheduler ごとの状態も `train.log` に残る
-- 更新ごとの学習率 (`lr_steps.csv`) は 20 ステップ全てで浮動小数の誤差の範囲で一致した. 違うのは最初のステップだけで, transformers は 0, ML-Found は 2e-13 (`warmup_start_factor` は 0 より大きい必要がある)
-- エポック 1 の `train/loss` は 0.58847998 と 0.58847997 で, 8 桁目まで同じだった
-- warmup の回数の求め方は, transformers が切り捨て (`int`), ML-Found が四捨五入 (`round`) なので, 総ステップ数 × 割合が `x.5` 以上になる場合は 1 回違う. 段階 2 の本番 (20,000 件, バッチ 32, 2 エポックで 1,250 ステップ) では 125 回で同じ
+- 更新ごとの学習率 (`lr_steps.csv`) は, warmup の 2 ステップだけ `warmup_start_factor` (1e-8) の分ずれた (1 ステップ目は 0 と 2e-13, 2 ステップ目は 1e-05 と 1.00000001e-05). `warmup_start_factor` は 0 より大きい必要がある. 3 ステップ目以降は浮動小数の誤差の範囲で一致した
+- エポック 1 の `train/loss` は 0.5884799764 と 0.5884799689 で, 7 桁目まで同じだった
+- warmup の回数の求め方は, transformers が切り捨て (`int`), ML-Found が Python の `round` (ちょうど半分は偶数へ丸める) なので, 総ステップ数 × 割合の小数部が 0.5 を超える場合と, 整数部が奇数で小数部がちょうど 0.5 の場合は 1 回違う. 段階 2 の本番 (20,000 件, バッチ 32, 2 エポックで 1,250 ステップ) では 125 回で同じ

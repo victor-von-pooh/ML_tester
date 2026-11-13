@@ -10,8 +10,9 @@ optimizer:
     lr: 0.00002
     weight_decay: 0.01
 
-# Scheduler は train_hf.py で transformers の関数から作って Trainer に渡すので
-# name は null のまま, 更新の間隔だけを指定
+# Scheduler は既定では train_hf.py で transformers の関数から作って Trainer に
+# 渡すので, name は null のまま, 更新の間隔だけを指定. experiment で name か
+# warmup を書くと ML-Found が作る (hf_config_warmup.yaml)
 scheduler:
   interval: step
 
@@ -21,7 +22,7 @@ trainer:
   mode: max
 
 # プロジェクト固有の設定
-# warmup に使うステップの割合
+# transformers の関数で作る場合の, warmup に使うステップの割合
 warmup_ratio: 0.1
 
 data:

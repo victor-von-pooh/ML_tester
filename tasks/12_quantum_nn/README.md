@@ -67,7 +67,7 @@ qiskit の量子回路を `TorchConnector` で `nn.Module` にした, 普通と�
 - `batch` は `(x, y)` のタプル
 - モデルの出力の種類に合わせて, `make_step` で `step` を作る. `Sampler` (量子層だけ) は確率の対数で `nn.NLLLoss()`, それ以外は 1 つのロジットで `nn.BCEWithLogitsLoss()`
 - どちらも `{"loss": loss, "acc": acc}` を返す
-- qiskit の乱数 (初期の重みに使う `algorithm_globals`, Estimator の雑音と Sampler の測定に使う `seed`) は ML-Found のシード固定の対象外なので, `train.seed_qiskit: true` の場合は `experiment.seed` で自分で固定する. Estimator と Sampler は呼ばれるたびに同じ `seed` から乱数を作り直すので, 固定すると毎回同じ雑音の列になる
+- qiskit の乱数 (初期の重みに使う `algorithm_globals`, Estimator の雑音と Sampler の測定に使う `seed`) は ML-Found のシード固定の対象外なので, `train.seed_qiskit: true` の場合は `experiment.seed` で固定する. `algorithm_globals` は ML-Found の `register_rng` で登録し, ML-Found が固定と再開時の保存を行う (PR #24 の後. 以前は `train.py` で自分で固定していた). Estimator と Sampler は呼ばれるたびに同じ `seed` から乱数を作り直すので, 固定すると毎回同じ雑音の列になる
 
 ## config
 
@@ -185,3 +185,11 @@ python tasks/12_quantum_nn/train.py --experiment configs/experiment/examples/no_
 
 - 実験 7 (`seed_qiskit: false`) の 2 回は今回も異なった. ベストのエポックと検証用の正解率は 2 回目が 6 と 0.683 (1 回目は 2 と 0.717) で, 以前の 2 回でベストの値が同じだったのは偶然だったことが分かった (今回の 1 回目は以前と同じエポック 2 の 0.717). 検証用の正解率は 50 エポック中 19 エポックで違い, 差は最大 0.067
 - 学習時間 (`24f18c2`, 他の学習を並べずに流した): 120 秒と 118 秒, 123 秒, 450 秒, 191 秒, 174 秒, 0.29 秒, 119 秒と 120 秒. 実験 1 から 4 は以前 (127, 141, 482, 230 秒) より速い. 以前は 08, 09, 10 と並べて流していたため. 実験 5 から 7 は以前とほぼ同じ
+
+### 外部ライブラリの乱数の登録 (2026-11-13)
+
+ML-Found の PR #24 で, 外部ライブラリの乱数を固定と再開時の保存の対象に加える `register_rng` が加わったので, ML-Found `ba004e2` に更新し, `seed_qiskit: true` の場合に qiskit の `algorithm_globals` を登録する形に変えた (`start_experiment` の前に登録する). Estimator と Sampler に渡す `seed` は以前と同じ.
+
+- 実験 1 の `history.csv` は以前の 4 回と完全に一致した. `train.log` に「登録された外部ライブラリの乱数: ['qiskit']」が出て, `last.pt` の乱数の状態に qiskit の状態 (PCG64) が入った
+- 5 エポックで止めて 10 エポックまで再開した学習と, 通しで 10 エポック学習した結果の `history.csv` が完全に一致した
+- 上の「確かめる機能」と FEEDBACK.md の, qiskit の乱数が ML-Found の固定と保存の対象外という点は, この仕組みで解消した. `seed` を渡さない Estimator と Sampler の乱数は, qiskit の中で作られるので登録の対象にならない

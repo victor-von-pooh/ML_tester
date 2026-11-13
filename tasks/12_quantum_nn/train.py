@@ -11,7 +11,9 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from ml_found import Trainer, load_project_config, start_experiment
+from ml_found import (
+    Trainer, load_project_config, register_rng, start_experiment
+)
 from model import ClassicalMLP, HybridQNN, QuantumNeuralNetwork
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
@@ -71,6 +73,77 @@ def make_data(cfg: DictConfig) -> tuple[TensorDataset, TensorDataset]:
     return train_dataset, valid_dataset
 
 
+def seed_qiskit(seed: int) -> None:
+    """
+    qiskit の乱数 (algorithm_globals) を固定する関数
+
+    Parameters
+    ----------
+    seed: int
+        乱数シードの値
+
+    Returns
+    ----------
+    None
+    """
+    # qiskit の乱数生成器を作り直して固定
+    algorithm_globals.random_seed = seed
+
+
+def get_qiskit_state() -> dict:
+    """
+    qiskit の乱数の状態を返す関数
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    ----------
+    state: dict
+        乱数生成器 (PCG64) の状態
+    """
+    # 乱数生成器の状態を取得 (取り出すたびに新しい辞書)
+    state = algorithm_globals.random.bit_generator.state
+
+    return state
+
+
+def set_qiskit_state(state: dict) -> None:
+    """
+    qiskit の乱数の状態を戻す関数
+
+    Parameters
+    ----------
+    state: dict
+        get_qiskit_state が返した状態
+
+    Returns
+    ----------
+    None
+    """
+    # 乱数生成器の状態を上書き
+    algorithm_globals.random.bit_generator.state = state
+
+
+def register_qiskit_rng() -> None:
+    """
+    qiskit の乱数を ML-Found の固定と再開時の保存の対象に加える関数
+
+    start_experiment の前に呼ぶ
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    ----------
+    None
+    """
+    # ML-Found の乱数の登録簿に追加
+    register_rng("qiskit", seed_qiskit, get_qiskit_state, set_qiskit_state)
+
+
 def build_model(cfg: DictConfig, input_dim: int) -> nn.Module:
     """
     config に応じて量子, ハイブリッド, 古典のモデルを作る関数
@@ -92,11 +165,11 @@ def build_model(cfg: DictConfig, input_dim: int) -> nn.Module:
         model = ClassicalMLP(input_dim, cfg.model.hidden_dim, 1)
         return model
 
-    # qiskit の乱数は ML-Found のシード固定の対象外なので, 必要なら自分で固定
+    # qiskit の Estimator と Sampler には, 固定する場合だけシードを渡す
+    # (algorithm_globals は register_qiskit_rng で ML-Found が固定)
     seed: Optional[int] = None
     if cfg.train.seed_qiskit:
         seed = cfg.experiment.seed
-        algorithm_globals.random_seed = seed
 
     # 量子ビットの数を特徴量の数に合わせて量子層を作成
     # ハイブリッドは前の古典の層を学習するために入力に対する勾配も計算
@@ -195,6 +268,8 @@ def main() -> None:
     """
     # config を読み込んで実験を開始
     cfg, diff = load_project_config(str(TASK_DIR))
+    if cfg.train.seed_qiskit:
+        register_qiskit_rng()
     experiment = start_experiment(cfg, diff, str(TASK_DIR))
 
     # データを用意

@@ -118,7 +118,7 @@ experiment で次の差分を試す. 2 から 7 は `configs/experiment/examples
 - [x] `fix_seed` は qiskit の乱数を固定しないので, 再現性がどうなるか → `train.seed_qiskit: false` の 2 回は結果が異なった (エポック 1 の学習用の正解率から差があり, 検証用の正解率は 50 エポック中 16 エポックで最大 0.033 違った). 初期の重みに加えて, Estimator の雑音も呼ぶたびに変わるため. `true` の 2 回は `history.csv` が完全に一致した
 - [x] 再開時の乱数の状態にも qiskit の乱数が含まれない → 既定の config で 5 エポック学習した後に 10 エポックまで再開した学習と, 通しで 10 エポック学習した結果の `history.csv` が完全に一致した. `3aca743` の ML-Found の `get_rng_state` は Python, NumPy, PyTorch の乱数だけを保存していた (PR #24 で外部の乱数を登録できるようになった). ただし `seed_qiskit: true` では Estimator と Sampler が呼ぶたびに同じ `seed` から乱数を作り直し, `algorithm_globals` は初期の重みにしか使わない (再開ではチェックポイントの重みで上書きされる) ので, 再開しても qiskit の側は通しの学習と同じ振る舞いになる. 問題になるのは `seed` を渡さない場合 (試していない)
 - [x] `TorchConnector` の重みが `state_dict` に入り, `best.pt`, `last.pt`, `final_model.pt` から戻せる → 記述の検証のレビューで, 6 つの実験の 3 つのファイルを `weights_only=True` で組み直したモデルに読み込めた. 検証用の正解率も表と一致したが, 実験 1 と 2 は学習時と同じ 16 件ずつのバッチで評価した場合だけで, 60 件を 1 つのバッチにすると 0.683 になった (Estimator の雑音がバッチの分け方で変わり, ロジットが 0 に近い 1 件の判定が変わるため)
-- [x] `log_settings` のモデルの構造とパラメータ数の表示が, 量子層で意味のある内容になるか → パラメータ数は量子回路の重みの数 (6 や 12) が正しく出た. モデルの構造は, 量子層の部分が `(qnn_est): TorchConnector()` とだけ出て, 回路の中身は分からない
+- [x] `log_settings` のモデルの構造とパラメータ数の表示が, 量子層で意味のある内容になるか → パラメータ数は量子回路の重みの数 (6 や 12) が正しく出た. モデルの構造は, 量子層の部分が `(qnn_est): TorchConnector()` とだけ出て, 回路の中身は分からない (`3aca743` の時点. その後 ML-Found の PR #28 で, パラメータの一覧が `model_summary.csv` に残るようになった. 下の「パラメータの一覧」を参照)
 - [x] 1 エポックが遅い場合の進捗バーの見え方 → Estimator で 1 エポック 2.5 秒, Sampler で 9.5 秒程度なので困らなかった
 
 ## 期待する結果
@@ -177,7 +177,7 @@ python tasks/12_quantum_nn/train.py --experiment configs/experiment/examples/no_
 
 - 外部ライブラリの乱数 (qiskit の `algorithm_globals`, Estimator と Sampler の `seed`) は `fix_seed` と再開時の乱数の保存の対象外で, 利用者が自分で固定する必要がある (`3aca743` の時点. PR #24 で解消, 下の「外部ライブラリの乱数の登録」を参照). 固定しないと同じ config でも結果がずれる. 外部の乱数を登録して一緒に固定, 保存できる仕組みがあると良い
 - `experiment.device: auto` は, 計算の中身が cpu で行われるモデルでも mps を選ぶ. 今回は `TorchConnector` が移動を受け持ったので動いたが, 転送のぶん遅くなった. 01 と同じく, 小さなモデルや cpu で計算するモデルでは `cpu` を明示する方が良い
-- `train.log` のモデルの構造は `print(model)` なので, 量子層は `TorchConnector()` とだけ出て量子回路の中身は記録されない. モデルが自分で構造の説明 (`extra_repr` など) を持たない限り, 再現に必要な情報が `train.log` に残らない
+- `train.log` のモデルの構造は `print(model)` なので, 量子層は `TorchConnector()` とだけ出て量子回路の中身は記録されない. モデルが自分で構造の説明 (`extra_repr` など) を持たない限り, 再現に必要な情報が `train.log` に残らない (`3aca743` の時点. その後 ML-Found の PR #28 で, パラメータの一覧は `model_summary.csv` に残るようになった. 回路の構成は今も残らない)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
@@ -193,3 +193,15 @@ ML-Found の PR #24 で, 外部ライブラリの乱数を固定と再開時の�
 - 実験 1 の `history.csv` は以前の 4 回と完全に一致した. `train.log` に「登録された外部ライブラリの乱数: ['qiskit']」が出て, `last.pt` の乱数の状態に qiskit の状態 (PCG64) が入った
 - 5 エポックで止めて 10 エポックまで再開した学習と, 通しで 10 エポック学習した結果の `history.csv` が完全に一致した. ただし `algorithm_globals` は初期の重みにしか使わないので, この一致は登録の前と同じく, qiskit の状態を戻す処理の効果を示すものではない (戻す処理そのものは ML-Found のテストで確かめている)
 - 上の「確かめる機能」と FEEDBACK.md の, qiskit の乱数が ML-Found の固定と保存の対象外という点は, この仕組みで解消した. `seed` を渡さない Estimator と Sampler の乱数は, qiskit の中で作られるので登録の対象にならない
+
+### パラメータの一覧 (2026-11-13)
+
+ML-Found の PR #28 で, 学習を始めるときにパラメータとバッファの一覧を `model_summary.csv` に保存するようになった. ML-Found `1ffd24b` で実験 1 を流し直し, `history.csv` が以前と完全に一致することと, 一覧の中身を確かめた.
+
+| 名前 | 種類 | 層 | 形 | 要素数 | 学習する | 共有 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `qnn.qnn_est.weight` | parameter | `TorchConnector` | 6 | 6 | true | |
+| `qnn.qnn_est._weights` | parameter | `TorchConnector` | 6 | 6 | true | `qnn.qnn_est.weight` |
+
+- `print(model)` では `TorchConnector()` とだけ出た量子層も, 量子回路の重み (6 個) が名前と形付きで残る. 回路の構成 (特徴量の写像や ansatz の繰り返し) は `nn.Module` のパラメータではないので残らず, `extra_repr` の勧めは変わらない
+- `TorchConnector` は同じ重みを `weight` と `_weights` の 2 つの名前で持つ. 一覧ではどちらも出て, 2 つ目に共有している最初の名前が入り, `train.log` の「学習するパラメータ数」は 6 (2 回は数えない) になった

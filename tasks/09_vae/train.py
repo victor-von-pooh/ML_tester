@@ -69,8 +69,8 @@ class VAETrainer(Trainer):
         Returns
         ----------
         outputs: dict
-            学習に使う損失, 再構成誤差, KL, 負の ELBO, KL の重み,
-            いずれも画像 1 枚あたり
+            学習に使う損失, 再構成誤差, KL, 負の ELBO (いずれも画像 1 枚
+            あたり), 記録だけする KL の重み (extra)
         """
         # 正解ラベルは使わずに画像だけを再構成
         x, _ = batch
@@ -85,9 +85,10 @@ class VAETrainer(Trainer):
         beta = self.get_beta()
         loss = recon + beta * kl
         nelbo = (recon + kl).detach()
+        # KL の重みは指標ではないので, 平均せずに記録だけする extra で返却
         outputs = {
             "loss": loss, "recon": recon.detach(), "kl": kl.detach(),
-            "nelbo": nelbo, "beta": beta
+            "nelbo": nelbo, "extra": {"beta": beta}
         }
 
         return outputs

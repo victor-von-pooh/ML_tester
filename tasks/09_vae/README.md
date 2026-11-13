@@ -57,7 +57,7 @@
 `Trainer` を継承した `VAETrainer` で `step` を上書きする.
 
 - 損失は画像 1 枚あたりの負の ELBO: `recon + beta * kl`. `kl` は `mu` と `log_var` から解析的に求める
-- `{"loss": loss, "recon": recon, "kl": kl, "nelbo": recon + kl, "beta": beta}` を返し, 内訳を学習曲線に出す
+- `{"loss": loss, "recon": recon, "kl": kl, "nelbo": recon + kl, "extra": {"beta": beta}}` を返し, 内訳を学習曲線に出す. KL の重み `beta` は指標ではないので, ML-Found の PR #20 からは `extra` で返して平均せずに記録だけする (下の結果のときは指標として返していた)
 - KL annealing: `beta = loss.beta * min(1, epoch / loss.kl_warmup_epochs)` (エポック 1 で `beta / 10`). エポックを参照するため `Trainer` を継承して `step` を上書きし, `self.epoch` を使う (`step_fn` の関数には引数としてエポックが渡らない)
 - `beta` が変わる間は `loss` が比べられないので, ベストモデルの判定には重み 1 の負の ELBO (`valid/nelbo`) を使う
 - 学習後に, ベストモデルで標準正規分布から 64 枚を生成して `samples.png` に保存する. `latent_dim: 2` の場合は潜在空間の -3 から 3 を 20×20 の格子でたどった画像も `traversal.png` に保存する
@@ -118,7 +118,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 
 - `step_fn(model, batch, phase)` にはエポックが渡らないので, KL annealing のようにエポックに依存する損失は関数の形では書けない → 引数では渡らなかった. 関数の形でも closure で `trainer` を参照すれば書けるが, 継承する方が素直
 - `valid/loss` の定義がエポックによって変わる (annealing 中) ので, ベストモデルの判定に向かない. 利用者が `monitor` を変える必要がある → その通りだった
-- `beta` のような指標でない値 (スケジュールの値) も指標として学習曲線が作られる → その通りだった (`beta_curve.png` ができ, `train/beta` と `valid/beta` が記録された)
+- `beta` のような指標でない値 (スケジュールの値) も指標として学習曲線が作られる → その通りだった (`beta_curve.png` ができ, `train/beta` と `valid/beta` が記録された. その後 ML-Found の PR #20 の `extra` に移し, `beta` の 1 列に誤差の無い値で記録されるようになった)
 
 ## 実行方法
 
@@ -186,3 +186,5 @@ python tasks/09_vae/train.py --experiment configs/experiment/examples/beta4.yaml
 上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直した. 5 つの実験の `history.csv` は全て一致した. 学習時間は 78.6, 180.8, 76.8, 79.9, 78.2 秒 (`24f18c2`) で, ほぼ同じ (実験 3 と 4 は 1 割ほど長い).
 
 「学習の再開」の確認も `e2df46e` で流し直した. 結果は以前と同じで, `data.num_workers: 2` では再開した直後のエポック 6 から異なり, `0` では `history.csv` が完全に一致した. 今は `persistent_workers=True` の DataLoader で再開すると, `train.log` に「通しで学習した場合と結果が一致しません」の警告が出る.
+
+`beta` を `step` の `extra` に移した後 (ML-Found `311e7ef`) に実験 1 を流し直し, `beta` 以外の `history.csv` の値が上と完全に一致することを確かめた. `beta` は `train/` や `valid/` の付かない 1 列になり, エポック 1 から 0.1, 0.2, 0.3, ... と誤差の無い値で記録された.

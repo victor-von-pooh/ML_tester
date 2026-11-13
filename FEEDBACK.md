@@ -47,7 +47,7 @@ ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目�
 | 2 Optimizer が 1 つで更新手順が固定 | 一部対応 | closure が必要な Optimizer (LBFGS) を自動で見分けて対応. `trainer.manual_optimization` で `step` の中で更新できる. 複数の Optimizer を config で扱う仕組みは未対応 |
 | 3 チェックポイントの保存が重い | 一部対応 | `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられる. `best.pt` は改善のたびに保存するままで, `last.pt` からベストモデルの重みを外す設定も未対応 (どちらも ML-Found の TODO に記載) |
 | 4 検証時の扱い | 対応 | `trainer.valid_grad` と `trainer.valid_seed`. `on_epoch_end` の勾配は README に注意を記載 |
-| 5 データの量で決まる Scheduler の引数 | 対応 | `load_config` と `start_experiment` の間で書き込む方法を README に記載. 自分で渡した Scheduler の状態を `train.log` に記録. PR #9 で, `OneCycleLR` の総ステップ数を書かなければ `fit` で学習用データのバッチ数から補い, `config.yaml` と `train.log` に残すようになった (02 の `train.py` の書き込みはやめた). 総ステップ数が `trainer.epochs` とバッチ数から求めた予定と合わない場合 (再開で `trainer.epochs` を変えた場合など) は学習の前にエラーか警告 |
+| 5 データの量で決まる Scheduler の引数 | 一部対応 | `load_config` と `start_experiment` の間で書き込む方法を README に記載. 自分で渡した Scheduler の状態を `train.log` に記録. PR #9 で, `OneCycleLR` の総ステップ数を書かなければ `fit` で学習用データのバッチ数から補い, `config.yaml` と `train.log` に残すようになった (02 の `train.py` の書き込みはやめた). 総ステップ数が `trainer.epochs` とバッチ数から求めた予定と合わない場合 (再開で `trainer.epochs` を変えた場合など) は学習の前にエラーか警告. `OneCycleLR` 以外 (warmup 付きの Scheduler, step ごとに使う `CosineAnnealingLR` の `T_max` など) は補わず, 自分で作った Scheduler は `config.yaml` に残らないまま |
 | 6 最良値と同じ値を改善とみなさない | 対応 | `trainer.monitor_tiebreak` で, 同じ値の場合に別の指標 (例: `valid/loss`) で比べる. ベストモデルの判定と Early Stopping の両方に使う |
 | 7 指標の平均の扱い | 一部対応 | `dict` 以外の Mapping のバッチのサンプル数を推定. 平均してよい指標の注意を README に記載. 記録だけする値は ML-Found の TODO に記載 |
 | 8 失敗したときの後始末 | 一部対応 | Optimizer と Scheduler のクラス名と組み合わせ, 学習の設定の組み合わせ, 存在しない `resume_from` を出力先を作る前に確認. `fit` の中のエラーを `train.log` に記録. PR #4 で, Optimizer と Scheduler の引数の名前の誤りと必須の引数の不足も出力先を作る前に確かめるようになった. PR #7 で, Optimizer と Scheduler の引数の値が登録簿の範囲の外 (負の学習率など) の場合も出力先を作る前にエラーになった. 配列の値 (Adam の `betas` など) と自作のクラスの値は確かめないので, 誤りは `Trainer` の作成でエラーになり出力先が残る. `Trainer` の作成で起きたエラーは `train.log` に書かれない |
@@ -63,7 +63,7 @@ PR #1 の最終的な内容で, 01 (cpu) に `trainer.monitor_tiebreak: valid/lo
 
 submodule を `8a6a69c` に更新した後に, 全タスクの全ての config (`configs/experiment/` の下, 04 の DistilBERT の本番の設定を除く) を 2 エポックだけ流し, エラーと警告が無いことを確かめた. エラーになったのは, エラーになることを確かめるための 3 つ (05 の `plateau_max` と `plateau_step`, 06 の `pinn`) だけで, どれも各タスクの README に書いた通りのエラーだった. 05 の 2 つは, 学習を始める前の確認で止まるようになった.
 
-`f0c26ab` に更新した後に, 全タスクの全ての config を新しい引数の確認に通し, 結果が更新前と同じ (新たに拒否される config は無い) ことを確かめた. 02 の OneCycleLR の `steps_per_epoch` は, `train.py` が `start_experiment` の前に書き込むので必須の引数の確認を通る.
+`f0c26ab` に更新した後に, 全タスクの全ての config を新しい引数の確認に通し, 結果が更新前と同じ (新たに拒否される config は無い) ことを確かめた. 02 の OneCycleLR の `steps_per_epoch` は, `train.py` が `start_experiment` の前に書き込むので必須の引数の確認を通る. (PR #9 以降は `OneCycleLR` の総ステップ数が必須の引数の確認の対象外になり, `train.py` も書き込まない)
 
 ## 一覧
 

@@ -66,17 +66,6 @@ def resolve_experiment_path(path: str) -> Path:
     return resolved
 
 
-    # 学習率の山の位置を決めるのに全体のステップ数が必要
-    # エポックごとに更新する場合は 1 エポックを 1 ステップとして数え,
-    # config に書かれた値があっても実際の更新回数で上書き
-    if cfg.scheduler.interval == "step":
-        cfg.scheduler.params.steps_per_epoch = n_batches
-    else:
-        cfg.scheduler.params.steps_per_epoch = 1
-
-    return cfg
-
-
 def step(model: nn.Module, batch: tuple, phase: str) -> dict:
     """
     1 バッチ分の損失と正解率を求める関数

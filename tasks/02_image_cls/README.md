@@ -106,7 +106,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 
 - [x] `experiment.device: auto` で cuda または mps が選ばれ, バッチが自動でデバイスに移る (この環境では mps)
 - [x] `scheduler.interval: step` で学習率がバッチごとに更新される. ただし `lr_curve.png` にはエポックの開始時点の値しか出ない (下の「気付いたこと」)
-- [x] `OneCycleLR` の `steps_per_epoch` を config で無理なく指定できるか → config だけでは書けず, `train.py` で書き込む必要があった
+- [x] `OneCycleLR` の `steps_per_epoch` を config で無理なく指定できるか → config だけでは書けず, `train.py` で書き込む必要があった (その後 ML-Found の PR #9 で, 書かなければ自動で補われるようになった)
 - [ ] 勾配クリッピングが効いている → ML-Found は勾配のノルムを記録しないので確かめられなかった. 実験 3 と比べても結果の差は小さい
 - [x] `final_model.pt` を別のスクリプト (`evaluate.py`) から読み込んでテスト用データで評価できる
 - [x] `DataLoader` の `num_workers > 0` で問題が起きない (macOS の spawn を含む). `train.py` は `if __name__ == "__main__":` で守っているので問題なかった
@@ -119,7 +119,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 
 ## 予想される問題
 
-- `OneCycleLR` の `steps_per_epoch` はバッチ数に依存するので, config だけでは決めにくい → その通りだった
+- `OneCycleLR` の `steps_per_epoch` はバッチ数に依存するので, config だけでは決めにくい → その通りだった (その後 ML-Found の PR #9 で, 書かなければ自動で補われるようになった)
 - 進捗バーがエポック単位なので, 1 エポックが長い場合にバッチの進み具合が見えない → このタスクでは 1 エポックが約 5 秒なので困らなかった
 
 ## 実行方法

@@ -177,7 +177,7 @@ python tasks/12_quantum_nn/train.py --experiment configs/experiment/examples/no_
 
 - 外部ライブラリの乱数 (qiskit の `algorithm_globals`, Estimator と Sampler の `seed`) は `fix_seed` と再開時の乱数の保存の対象外で, 利用者が自分で固定する必要がある (`3aca743` の時点. PR #24 で解消, 下の「外部ライブラリの乱数の登録」を参照). 固定しないと同じ config でも結果がずれる. 外部の乱数を登録して一緒に固定, 保存できる仕組みがあると良い
 - `experiment.device: auto` は, 計算の中身が cpu で行われるモデルでも mps を選ぶ. 今回は `TorchConnector` が移動を受け持ったので動いたが, 転送のぶん遅くなった. 01 と同じく, 小さなモデルや cpu で計算するモデルでは `cpu` を明示する方が良い
-- `train.log` のモデルの構造は `print(model)` なので, 量子層は `TorchConnector()` とだけ出て量子回路の中身は記録されない. モデルが自分で構造の説明 (`extra_repr` など) を持たない限り, 再現に必要な情報が `train.log` に残らない
+- `train.log` のモデルの構造は `print(model)` なので, 量子層は `TorchConnector()` とだけ出て量子回路の中身は記録されない. モデルが自分で構造の説明 (`extra_repr` など) を持たない限り, 再現に必要な情報が `train.log` に残らない (`3aca743` の時点. その後 ML-Found の PR #28 で, パラメータの一覧は `model_summary.csv` に残るようになった. 回路の構成は今も残らない)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

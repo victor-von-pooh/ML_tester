@@ -176,7 +176,7 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
-- 再開すると Scheduler の状態が引数 (`T_max` など) ごとチェックポイントから戻るので, config で引数を変えても効かず, `config.yaml` の記録と実際の設定が食い違う (上の「学習の再開」)
+- 再開すると Scheduler の状態が引数 (`T_max` など) ごとチェックポイントから戻るので, config で引数を変えても効かず, `config.yaml` の記録と実際の設定が食い違う (上の「学習の再開」) (`3aca743` の時点. ML-Found の PR #26 の `trainer.resume_scheduler: config` で解消, 下の「Scheduler を config の引数で作り直す再開」を参照)
 - 損失に乱数を含む学習では, 検証用の損失がエポックごとに乱数で揺れ, ベストモデルの判定と Early Stopping が乱数に左右される. 検証の乱数を固定する仕組みが無いので, 専用の乱数生成器を自分で用意して `on_epoch_start` で戻した
 - EMA の重みはチェックポイントにも `final_model.pt` にも入らない (`state_dict` と `resume` を上書きすれば加えられる). 検証や判定に EMA の重みを使うフックも無い. EMA は拡散モデルや画像の生成で一般的なので, `trainer.ema_decay` のような設定で, 更新, 保存, 再開, 検証に使うモデルの切り替えまで面倒を見てもらえると良い
 
@@ -200,3 +200,10 @@ ML-Found の PR #23 で, 検証, ベストモデルの判定, `final_model.pt` �
     - `ema.eval: false` の 2 エポックの通しの学習, 1 エポックで止めて 2 エポックまで再開した学習: どちらも以前の結果と `history.csv`, `ema_model.pt`, `ema_model.png`, `best_model.png`, `final_model.pt` が全て一致した. 置き換えた `extra_state_dict` でも EMA の状態が戻る
     - `ema.eval: true`: 通しの学習と再開した学習が完全に一致した
 - この PR で ML-Found を `a9c12ce` (PR #24, #25 を含む) に更新した. 増えた機能はこのタスクで使わない設定だけ (`register_rng` の登録なし, `eval_train: false`)
+
+### Scheduler を config の引数で作り直す再開 (2026-11-13)
+
+ML-Found の PR #26 で, 再開時に Scheduler の引数が config と違う場合に, config の引数で作り直して再開元と同じステップ数まで進める `trainer.resume_scheduler: config` が加わった. 上の「学習の再開」と同じ条件 (`T_max: ${trainer.epochs}` のまま, 時刻 50, 生成を毎エポック, `data.num_workers: 0`) で, 1 エポックで止めて 2 エポックまで再開した (ML-Found `128edab`).
+
+- `train.log` に「config の引数で作り直して 1 ステップ進めました: T_max (再開元 1, config 2)」が出て, エポック 2 の学習率は 0.0001 (通しの学習と同じ) になった
+- `history.csv`, `ema_model.pt`, `ema_model.png`, `best_model.png`, `final_model.pt` が, 通しで 2 エポック学習した結果と完全に一致した. 以前はエポック 2 から異なっていた (学習率が 0 になったため)

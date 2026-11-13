@@ -2,7 +2,7 @@
 機械学習のテストフィールド.
 
 [ML-Found](https://github.com/victor-von-pooh/ML-Found) を利用者の立場で使い, いろいろな種類のタスクで機能するかを確かめる.
-各タスクの `train.py` を手で動かして結果を見て, 書きにくい点や足りない機能を [FEEDBACK.md](FEEDBACK.md) にまとめる.
+各タスクの `train.py` を手で動かして結果を見て, 書きにくい点や足りない機能を [FEEDBACK.md](FEEDBACK.md) にまとめる. 結果は ML-Dashboard の画面でも見られる (下の「ML-Dashboard で見る」).
 
 ## 導入
 
@@ -16,6 +16,21 @@ pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 ```
+
+## ML-Dashboard で見る
+
+実験の一覧, 学習曲線の比較, 画面からの学習の起動には [ML-Dashboard](https://github.com/victor-von-pooh/ML-Dashboard) を使える. 各タスクは ML-Found のプロジェクトの形なので, そのまま読み込める.
+
+1. ML-Dashboard の README の手順で起動し, 表示された URL を開く
+2. 「プロジェクトを追加」で, ML_tester を clone したディレクトリを絶対パスで指定して探す. `tasks/` の 12 のタスクがまとめて見つかる (submodule の ML-Found の例は対象外)
+3. 学習に使う Python は, 上の「導入」で作った `.venv` が自動で選ばれる (タスクのディレクトリから上に向かって仮想環境を探すため)
+
+画面から学習を起動する場合の注意.
+
+- 04 の `train_hf.py` と 06 の `train_pinn.py` は, 選ぶと対応する config (`configs/default/hf.yaml` と `configs/experiment/hf.yaml` など) を元にする
+- データの用意が要るタスクは, 先に各タスクの README の手順で用意する
+- 01 の `invalid_key.yaml` と 05 の `plateau_max.yaml`, `plateau_step.yaml` はエラーになることを確かめる例なので, 起動の前の確認で止まる
+- 手早く試すなら 01 の `examples/cpu.yaml` (Python の起動を含めて数秒で終わる)
 
 ## タスク
 

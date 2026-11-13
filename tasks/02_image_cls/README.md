@@ -73,7 +73,7 @@ scheduler:
   params:
     max_lr: 0.01
     epochs: ${trainer.epochs}   # trainer.epochs に合わせる
-    # steps_per_epoch はバッチ数で決まるので train.py で書き込む
+    # steps_per_epoch はバッチ数で決まるので, 学習を始めるときに ML-Found が補う
   interval: step
 trainer:
   epochs: 15
@@ -91,9 +91,8 @@ model:
 ```
 
 `OneCycleLR` は全体のステップ数 (`epochs × steps_per_epoch`) が必要だが, `steps_per_epoch` はバッチ数で決まるので config だけでは書けない.
-そこで `train.py` で, `load_config` の後, `start_experiment` の前に DataLoader を作り, `cfg.scheduler.params.steps_per_epoch` に `len(train_loader)` (= 422) を書き込む.
-`start_experiment` より前に書き込むので, 保存される `config.yaml` にもこの値が残る.
-`scheduler.interval: epoch` で OneCycleLR を使う場合は, 1 エポックを 1 ステップとして `steps_per_epoch: 1` を書き込む. config に `steps_per_epoch` を書いても, 実際の更新回数で上書きされる.
+下の結果のときは, `train.py` で `load_config` の後, `start_experiment` の前に DataLoader を作り, `cfg.scheduler.params.steps_per_epoch` に `len(train_loader)` (= 422) を書き込んでいた (`scheduler.interval: epoch` の場合は 1).
+その後 ML-Found が, `OneCycleLR` の総ステップ数を書かない場合に `fit` で学習用データのバッチ数から補うようになったので (`interval: epoch` なら 1), `train.py` の書き込みはやめた. 補った値は `config.yaml` と `train.log` に残る.
 
 experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples/` に置き, `--experiment` で切り替える.
 
@@ -107,7 +106,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 
 - [x] `experiment.device: auto` で cuda または mps が選ばれ, バッチが自動でデバイスに移る (この環境では mps)
 - [x] `scheduler.interval: step` で学習率がバッチごとに更新される. ただし `lr_curve.png` にはエポックの開始時点の値しか出ない (下の「気付いたこと」)
-- [x] `OneCycleLR` の `steps_per_epoch` を config で無理なく指定できるか → config だけでは書けず, `train.py` で書き込む必要があった
+- [x] `OneCycleLR` の `steps_per_epoch` を config で無理なく指定できるか → config だけでは書けず, `train.py` で書き込む必要があった (その後 ML-Found の PR #9 で, 書かなければ自動で補われるようになった)
 - [ ] 勾配クリッピングが効いている → ML-Found は勾配のノルムを記録しないので確かめられなかった. 実験 3 と比べても結果の差は小さい
 - [x] `final_model.pt` を別のスクリプト (`evaluate.py`) から読み込んでテスト用データで評価できる
 - [x] `DataLoader` の `num_workers > 0` で問題が起きない (macOS の spawn を含む). `train.py` は `if __name__ == "__main__":` で守っているので問題なかった
@@ -120,7 +119,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 
 ## 予想される問題
 
-- `OneCycleLR` の `steps_per_epoch` はバッチ数に依存するので, config だけでは決めにくい → その通りだった
+- `OneCycleLR` の `steps_per_epoch` はバッチ数に依存するので, config だけでは決めにくい → その通りだった (その後 ML-Found の PR #9 で, 書かなければ自動で補われるようになった)
 - 進捗バーがエポック単位なので, 1 エポックが長い場合にバッチの進み具合が見えない → このタスクでは 1 エポックが約 5 秒なので困らなかった
 
 ## 実行方法

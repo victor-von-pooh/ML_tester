@@ -67,6 +67,8 @@ tasks/XX_name/
 
 必要に応じて `data.py` (データの用意) や `evaluate.py` (学習後の評価) などを足す.
 
+`train.py` は ML-Found の `load_project_config` で, `--experiment` (experiment の config のパス, 相対パスはタスクのディレクトリから) と「項目=値」の上書きを受け取る. 例: `.venv/bin/python tasks/01_tabular_cls/train.py --experiment configs/experiment/examples/cpu.yaml trainer.epochs=5`
+
 ## モデルの書き方
 
 モデルは各タスクの `model.py` に自前のクラスとして書く. 書き方の要点.

@@ -46,7 +46,8 @@ class AUCTrainer(Trainer):
         Parameters
         ----------
         phase: str
-            学習時は train, 検証時は valid
+            学習時は train, 検証時は valid, 学習用データの評価し直しでは
+            train_eval
 
         Returns
         ----------
@@ -72,7 +73,7 @@ class AUCTrainer(Trainer):
         batch: Any
             標準化した特徴量と正解ラベル
         phase: str
-            train または valid
+            train, valid, train_eval のどれか
 
         Returns
         ----------
@@ -100,7 +101,8 @@ class AUCTrainer(Trainer):
         Parameters
         ----------
         phase: str
-            学習時は train, 検証時は valid
+            学習時は train, 検証時は valid, 学習用データの評価し直しでは
+            train_eval
 
         Returns
         ----------

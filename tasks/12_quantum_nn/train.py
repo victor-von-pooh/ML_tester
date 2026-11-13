@@ -165,7 +165,7 @@ def build_model(cfg: DictConfig, input_dim: int) -> nn.Module:
         model = ClassicalMLP(input_dim, cfg.model.hidden_dim, 1)
         return model
 
-    # qiskit の Estimator と Sampler には, 固定する場合だけシードを渡す
+    # qiskit の Estimator と Sampler には, 固定する場合だけシードを指定
     # (algorithm_globals は register_qiskit_rng で ML-Found が固定)
     seed: Optional[int] = None
     if cfg.train.seed_qiskit:

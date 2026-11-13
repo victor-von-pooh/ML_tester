@@ -56,7 +56,7 @@ config の `train.variant` で次の 3 通りを切り替える. 損失は `nn.B
 - `step` は生成器の損失を `loss` として返し, 識別器の損失は `self.d_loss` に保存する
 - `update_parameters` で, まず生成器を ML-Found の元の手順 (`super().update_parameters`) で更新し, 次に識別器を 2 つ目の Optimizer で更新する. 識別器を先に更新すると, 生成器の損失の計算グラフの中の識別器の重みが書き換わり, 逆伝播でエラーになる (PyTorch の in-place の検出) ため, 一般的な順 (識別器 → 生成器) と逆になる
 - 2 つ目の Optimizer の状態はチェックポイントに入らないので, `state_dict` と `resume` も上書きして加える
-- `trainer.grad_clip_norm` は使わない. ML-Found は `model.parameters()` (識別器も含む) でクリップするので, 生成器のクリップに捨てる予定の識別器の勾配が混ざり, 識別器の本当の更新はクリップされない. config の Scheduler も生成器の Optimizer にしか付かない
+- `trainer.grad_clip_norm` は使わない. ML-Found は `model.parameters()` (識別器も含む) でクリップするので, 生成器のクリップに捨てる予定の識別器の勾配が混ざり, 識別器の本当の更新はクリップされない. config の Scheduler も生成器の Optimizer にしか付かない (クリップの対象は `3aca743` の時点. その後 ML-Found の PR #1 で, `Trainer` の Optimizer が更新するパラメータだけに掛けるようになった)
 
 ### C. `step` の中で手動で更新する
 
@@ -112,7 +112,7 @@ visualize:
 
 - [x] 2 つ目の Optimizer を config で表す方法が無く, プロジェクト固有の項目として書く必要がある → その通りだった. `discriminator_optimizer` を自分で足し, ML-Found の `build_optimizer` で作った. ML-Found の `optimizer` の項目と違い, クラスを変えたときに引数を捨てる扱いなどは効かない
 - [x] `update_parameters` を上書きして交互の更新が書けるか → 書けた (B). ただし生成器を先に更新する順にする必要があった
-- [x] 2 つ目の Optimizer の状態をチェックポイントに含められるか → `state_dict` と `resume` を上書きして含められた. 1 エポック学習した後に再開して 2 エポック目まで学習し, 識別器の Optimizer のステップ数が 469 から 938 に続いていることを確かめた. ただし ML-Found の `resume` は読み込んだ状態を外に出さないので, 同じパスの解決の規則を写してもう一度読み込んだ
+- [x] 2 つ目の Optimizer の状態をチェックポイントに含められるか → `state_dict` と `resume` を上書きして含められた. 1 エポック学習した後に再開して 2 エポック目まで学習し, 識別器の Optimizer のステップ数が 469 から 938 に続いていることを確かめた. ただし ML-Found の `resume` は読み込んだ状態を外に出さないので, 同じパスの解決の規則を写してもう一度読み込んだ (`3aca743` の時点. その後 ML-Found の PR #1 で `extra_state_dict` と `load_extra_state_dict` が加わり, 読み込み直さずに状態を加えて戻せるようになった. このタスクの `train.py` は書き換えていない)
 - [x] ベストモデルの判定 (GAN の損失は良し悪しの指標にならない) を実質的に無効にできるか → 判定を止める設定は無く, `monitor` を指定しないと `train/loss` が使われる. `on_epoch_end` で毎エポック増える値 (例: エポック数) を返して `mode: max` で監視すれば毎エポック更新させられるが, 見せかけの指標が要る
 - [x] 学習後にベストモデルの重みに戻される動作が GAN では不要で, 最後の重みのまま残せるか → 設定では残せなかった (上の見せかけの指標を使えば残せる). B と C ではエポック 1 (生成器の損失が最も小さい) がベストと判定され, `final_model.pt` と学習後の `trainer.model` はエポック 1 の重みになった (下の結果を参照)
 - [x] 固定したノイズから生成した画像をエポックごとに保存できる (`on_epoch_end` で)
@@ -166,9 +166,9 @@ python tasks/10_gan/train.py --experiment configs/experiment/examples/variant_c.
 - Optimizer, Scheduler, チェックポイントがすべて 1 つの Optimizer を前提にしているので, 2 つ目の Optimizer は config, 作成, 更新, 保存, 再開の全てを利用者が書く必要があった
 - `update_parameters` は損失を 1 つしか受け取らないので, 2 つの損失を交互に更新するには `step` から `self` を経由して渡す必要があり, 計算グラフの都合で更新の順も制約された
 - C のように更新を全て自分で行う場合も, 元の `update_parameters` が `loss` で必ず `backward` するので, `detach().requires_grad_(True)` を返すか `update_parameters` を上書きする必要がある. 自動の更新を止める設定 (Lightning の `automatic_optimization = False` に当たるもの) があると良い
-- 勾配クリッピングは `model.parameters()` 全体に掛かるので, Optimizer を分けた場合は Optimizer ごとのパラメータでクリップできない
+- 勾配クリッピングは `model.parameters()` 全体に掛かるので, Optimizer を分けた場合は Optimizer ごとのパラメータでクリップできない (`3aca743` の時点. その後 ML-Found の PR #1 で, `Trainer` の Optimizer が更新するパラメータだけに掛けるようになった)
 - ベストモデルの判定と学習後の巻き戻しを止める設定が無いので, 損失が良し悪しの指標にならない GAN では, 何もしないと最初のエポックの崩れたモデルが `final_model.pt` に残る. 09 の β-VAE と同じ問題で, GAN では最も影響が大きかった
-- `resume` が読み込んだチェックポイントを外に出さないので, 追加の状態を戻すにはパスの解決の規則を写してもう一度読み込む必要があった
+- `resume` が読み込んだチェックポイントを外に出さないので, 追加の状態を戻すにはパスの解決の規則を写してもう一度読み込む必要があった (`3aca743` の時点. その後 ML-Found の PR #1 で `extra_state_dict` と `load_extra_state_dict` が加わり, 継承したクラスが状態を加えて戻せるようになった)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
@@ -183,3 +183,4 @@ ML-Found の PR #22 で `trainer.select_best: false` (ベストモデルを選�
 - 3 つとも `history.csv` と生成画像 (`samples/`, `last_model.png`) が以前と全て一致した. 学習時間は 328 秒 (B), 331 秒 (A), 302 秒 (C)
 - `best.pt` は作られず, `run.json` は `select_best: false`, `best_epoch: null`, `final_weights: last` になった. `final_model.pt` は `last.pt` の `model` と一致した (B で確認)
 - 上の「確かめる機能」, 「予想される問題」, 「ML-Found について気付いたこと」の, ベストモデルの判定と学習後の巻き戻しを止める設定が無いという点 (`3aca743` の時点の結果) は, この設定で解消した. 巻き戻しだけを止める `trainer.restore_best: false` も PR #1 で加わっている
+- このタスクの `train.py` は今も `state_dict` と `resume` を上書きして識別器の Optimizer の状態を保存して戻している (`extra_state_dict` は使っていない). そのため `STOP` に `now` と書いてエポックの途中で止めた場合, ML-Found の PR #32 でモデルと生成器の Optimizer などはメモリの上で前のエポックの状態に戻るが, 識別器の Optimizer の状態は戻らない. `last.pt` はその場合に書かれないので再開には影響せず, `STOP` を使わないこのタスクの実験にも影響しない

@@ -155,11 +155,11 @@ model.load_state_dict(torch.load("outputs/iris/<日付>/<時刻>/final_model.pt"
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
-- 指標が最良値と同じ値になっても改善とみなされない (`training/callbacks.py` の `is_improved` が `>` と `<` で比べる). そのため, 検証用データが少なく正解率のように同じ値を取りやすい指標を `monitor` にすると, ベストモデルは最初にその値に達したエポックのままになり, Early Stopping も最良値に並んだだけのエポックを「改善なし」と数えて止まる. 実験 1 と 2 は, `valid/loss` が下がり続けている途中で止まった
-- Early Stopping で止まると, 進捗バーの最後の表示が 1 エポック少ない (エポック 39 で止まったのに `38/200`). `for epoch in pbar` の tqdm は次の要素を取り出すときに数えるので, `break` した最後のエポックが数えられない
+- 指標が最良値と同じ値になっても改善とみなされない (`training/callbacks.py` の `is_improved` が `>` と `<` で比べる). そのため, 検証用データが少なく正解率のように同じ値を取りやすい指標を `monitor` にすると, ベストモデルは最初にその値に達したエポックのままになり, Early Stopping も最良値に並んだだけのエポックを「改善なし」と数えて止まる. 実験 1 と 2 は, `valid/loss` が下がり続けている途中で止まった (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.monitor_tiebreak` が加わり, 同じ値の場合に別の指標 (例: `valid/loss`) で比べられるようになった)
+- Early Stopping で止まると, 進捗バーの最後の表示が 1 エポック少ない (エポック 39 で止まったのに `38/200`). `for epoch in pbar` の tqdm は次の要素を取り出すときに数えるので, `break` した最後のエポックが数えられない (`3aca743` の時点. その後 ML-Found の PR #1 で直った. 下の「最新の ML-Found での再実行」を参照)
 - `device: auto` では mps が選ばれるが, このタスクでは cpu の方が 6 倍以上速かった
 - experiment の config のパスは利用者が `train.py` に書くので, 複数の実験を切り替えるには毎回 `configs/experiment/train.yaml` を書き換えるか, 自分で引数を用意する必要がある. このタスクでは `--experiment` を自分で用意した (その後 ML-Found の PR #19 の `load_project_config` に移し, 「項目=値」の上書きも受け取れるようになった)
-- `train.log` の「未コミットの変更: N ファイル」は `git status --porcelain` の行数なので, 未追跡のディレクトリが 1 行にまとめられ, `git_diff.patch` に含まれるファイル数より少なく出る (このタスクの最初の実行では 3 ファイルと出たが, patch には 7 ファイル含まれていた)
+- `train.log` の「未コミットの変更: N ファイル」は `git status --porcelain` の行数なので, 未追跡のディレクトリが 1 行にまとめられ, `git_diff.patch` に含まれるファイル数より少なく出る (このタスクの最初の実行では 3 ファイルと出たが, patch には 7 ファイル含まれていた) (`3aca743` の時点. その後 ML-Found の PR #1 で, 未追跡のディレクトリの中のファイルも 1 つずつ数えるようになった)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

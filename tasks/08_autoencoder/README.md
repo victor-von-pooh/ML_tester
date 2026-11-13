@@ -136,7 +136,7 @@ python train.py --experiment configs/experiment/examples/latent2.yaml
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
 - 正解ラベルを使わない教師なし学習でも, `step` で再構成の損失を返すだけで問題なく書けた
-- `on_epoch_end` は勾配の計算を止める範囲 (`torch.set_grad_enabled(train)`) の外で呼ばれるので, 検証の後でも勾配の計算が有効になっている. 中で推論すると, `torch.no_grad()` を書かない限り計算グラフが作られる. README にこのことが書かれていない
+- `on_epoch_end` は勾配の計算を止める範囲 (`torch.set_grad_enabled(train)`) の外で呼ばれるので, 検証の後でも勾配の計算が有効になっている. 中で推論すると, `torch.no_grad()` を書かない限り計算グラフが作られる. README にこのことが書かれていない (`3aca743` の時点. その後 ML-Found の PR #1 で, README の「継承して細かく変える」に `torch.no_grad()` を書く注意が加わった)
 - エポックの途中や学習後に画像などを残す仕組みは無いので, 指標を返すための `on_epoch_end` を流用した. 学習後の処理は `fit` の後に書けば済むが, 出力先や間隔の扱いは自分で書く必要がある
 
 ### 最新の ML-Found での再実行 (2026-11-13)

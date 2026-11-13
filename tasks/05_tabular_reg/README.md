@@ -149,9 +149,9 @@ python tasks/05_tabular_reg/train.py --experiment configs/experiment/examples/pl
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した.
 
-- ReduceLROnPlateau の `mode` や `interval` の食い違いは, `Trainer` を作るとき (`start_experiment` の後) に確かめられるので, エラーで止まっても `config.yaml`, `diff.yaml`, `train.log` (と `git_diff.patch`) だけを含む出力先が残る. 01 の「default に無い項目」のエラーは `load_config` で起きるので出力先が作られなかったのと対照的
-- エラーで止まった場合, `train.log` にはエラーの内容が書かれず, 最後の行は途中の記録 (このタスクでは「目的変数の標準偏差」) のままになる. 後から出力先を見ても, 失敗した実験だと分かりにくい
-- `step` で RMSE を返すと, ML-Found はバッチごとの値をサンプル数で重み付けして平均するので, エポック全体の RMSE 以下になる. README の `step` の説明に, 平均してよい指標とそうでない指標の注意があると良い
+- ReduceLROnPlateau の `mode` や `interval` の食い違いは, `Trainer` を作るとき (`start_experiment` の後) に確かめられるので, エラーで止まっても `config.yaml`, `diff.yaml`, `train.log` (と `git_diff.patch`) だけを含む出力先が残る. 01 の「default に無い項目」のエラーは `load_config` で起きるので出力先が作られなかったのと対照的 (`3aca743` の時点. その後 ML-Found の PR #1 で, これらの食い違いは出力先を作る前にエラーになった)
+- エラーで止まった場合, `train.log` にはエラーの内容が書かれず, 最後の行は途中の記録 (このタスクでは「目的変数の標準偏差」) のままになる. 後から出力先を見ても, 失敗した実験だと分かりにくい (`3aca743` の時点. その後 ML-Found の PR #1 で学習の途中のエラーは `train.log` にも書かれるようになり, PR #2 で失敗した実験は `run.json` の状態が `failed` になった. PR #16 で `Trainer` の作成で起きたエラーも両方に残る. このタスクのエラーは, 今は出力先を作る前に止まる)
+- `step` で RMSE を返すと, ML-Found はバッチごとの値をサンプル数で重み付けして平均するので, エポック全体の RMSE 以下になる. README の `step` の説明に, 平均してよい指標とそうでない指標の注意があると良い (`3aca743` の時点. その後 ML-Found の PR #1 で, README の `step` の説明に, 重み付き平均してよい指標とエポック全体から求める指標の注意が加わった)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 

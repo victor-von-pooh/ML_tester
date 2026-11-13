@@ -3,7 +3,7 @@
 ## 目的
 
 生成器 (Generator) と識別器 (Discriminator) の 2 つのモデルを, 2 つの Optimizer で交互に更新する学習が ML-Found で書けるかを確かめる.
-実験した時点 (ML-Found `3aca743`) の ML-Found は Optimizer が 1 つで更新手順も固定だったので, **書ける方法を探り, どこで無理が出るかを記録する** のが主な目的だった. ML-Found の PR #1 で, `trainer.manual_optimization` で `step` の中で自分で更新できるようになり, `extra_state_dict` と `load_extra_state_dict` で 2 つ目の Optimizer の状態をチェックポイントに加えられるようになった. 2 つ目の Optimizer を config から作る仕組みはまだ無い. また `trainer.restore_best: false` で, 学習後にベストモデルへ戻さず最後のエポックの重みを残せるようになった (ベストモデルの判定自体を止める設定は無い).
+実験した時点 (ML-Found `3aca743`) の ML-Found は Optimizer が 1 つで更新手順も固定だったので, **書ける方法を探り, どこで無理が出るかを記録する** のが主な目的だった. ML-Found の PR #1 で, `trainer.manual_optimization` で `step` の中で自分で更新できるようになり, `extra_state_dict` と `load_extra_state_dict` で 2 つ目の Optimizer の状態をチェックポイントに加えられるようになった. 2 つ目の Optimizer を config から作る仕組みはまだ無い. また `trainer.restore_best: false` で, 学習後にベストモデルへ戻さず最後のエポックの重みを残せるようになった. その後 PR #22 で, `trainer.select_best: false` でベストモデルの判定自体を止められるようになり, このタスクの config はこれを使う形に変えた (下の「`select_best` への書き換え」を参照).
 
 ## ディレクトリ構成
 
@@ -68,7 +68,8 @@ config の `train.variant` で次の 3 通りを切り替える. 損失は `nn.B
 
 - `step` は `{"loss", "d_loss", "g_loss", "d_real", "d_fake"}` を返す. `d_real` と `d_fake` は識別器が本物と生成画像を本物と判定した確率の平均
 - `on_epoch_end` で, エポック 1, `visualize.sample_every` (5) の倍数, 最後のエポックに, 固定したノイズから 64 枚を生成して `samples/epoch_XXX.png` に保存する
-- 学習後に, ML-Found が戻したベストモデルと, `last.pt` に入っている最後のエポックの重みの両方で生成し, `best_model.png` と `last_model.png` に保存する. `train/loss` は B と C では生成器の損失, A では 2 つの和なので, ベストモデルは画像の質を表さない
+- `train/loss` は B と C では生成器の損失, A では 2 つの和で, 画像の質を表さないので, `trainer.select_best: false` でベストモデルを選ばない. `best.pt` は作られず, `final_model.pt` と学習後のモデルは最後のエポックの重みになる
+- 学習後に, 最後のエポックの重みで生成し, `last_model.png` に保存する
 
 ## config
 
@@ -86,6 +87,7 @@ trainer:
   epochs: 20
   monitor: train/loss       # 検証用データが無いので学習用の指標だけ
   mode: min
+  select_best: false        # GAN の損失は良し悪しの指標にならないので, ベストモデルを選ばない
 train:
   variant: B                # A, B, C
 discriminator_optimizer:    # B と C で識別器に使う 2 つ目の Optimizer (ML-Found の外の設定)
@@ -140,11 +142,11 @@ python tasks/10_gan/train.py --experiment configs/experiment/examples/variant_c.
 ```
 
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
-- 出力先には ML-Found の出力に加えて, `samples/` (学習中の生成画像), `best_model.png` (ML-Found が戻したベストモデル), `last_model.png` (最後のエポックの重み) ができる
+- 出力先には ML-Found の出力に加えて, `samples/` (学習中の生成画像) と `last_model.png` (最後のエポックの重みでの生成画像) ができる. `best.pt` は作られない
 
 ## 結果のメモ
 
-2026-11-08, ML-Found `3aca743`, PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13, mps で実行.
+2026-11-08, ML-Found `3aca743` (`select_best` が無く, ベストモデルを選んでいた時点), PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13, mps で実行.
 学習時間は他の学習と GPU を分け合った状態での値.
 
 | 書き方 | ML-Found のベストのエポック | エポック 20 の `d_loss` | `g_loss` | `d_real` | `d_fake` | 最後の重みの生成画像 | 学習時間 |
@@ -173,3 +175,11 @@ python tasks/10_gan/train.py --experiment configs/experiment/examples/variant_c.
 上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, その後の ML-Found (`302ccd6`) で 3 つを流し直した. 3 つの `history.csv` と生成画像 (`samples/`, `best_model.png`, `last_model.png`) は以前と全て一致した. 学習時間は 397 秒 (B), 439 秒 (A), 380 秒 (C) で, 他の作業と並べて流したため長い.
 
 - 最初の流し直し (`24f18c2`) では, 3 つとも学習の後に `last.pt` を mps に読み込む所で失敗した. ML-Found が PR #8 からチェックポイントに float64 の記録を入れ, mps は float64 を扱えないため. ML-Found の PR #17 で直し, 流し直した
+
+### `select_best` への書き換え (2026-11-13)
+
+ML-Found の PR #22 で `trainer.select_best: false` (ベストモデルを選ばない設定) が加わったので, ML-Found `3e6a5a5` に更新し, このタスクの config をこれを使う形に変えた. 学習後の `best_model.png` と, `last.pt` を読み込み直して作っていた `last_model.png` は, 学習後のモデル (最後のエポックの重み) から作る `last_model.png` だけにした.
+
+- 3 つとも `history.csv` と生成画像 (`samples/`, `last_model.png`) が以前と全て一致した. 学習時間は 328 秒 (B), 331 秒 (A), 302 秒 (C)
+- `best.pt` は作られず, `run.json` は `select_best: false`, `best_epoch: null`, `final_weights: last` になった. `final_model.pt` は `last.pt` の `model` と一致した (B で確認)
+- 上の「確かめる機能」, 「予想される問題」, 「ML-Found について気付いたこと」の, ベストモデルの判定と学習後の巻き戻しを止める設定が無いという点 (`3aca743` の時点の結果) は, この設定で解消した. 巻き戻しだけを止める `trainer.restore_best: false` も PR #1 で加わっている

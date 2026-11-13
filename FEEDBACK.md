@@ -39,11 +39,11 @@
 
 ## ML-Found での対応状況
 
-ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返し, 引数の名前の誤りと必須の引数の不足を出力先を作る前に確かめる PR #4, 引数の種類と Scheduler の範囲を整えた PR #5 と #6, 引数の値の範囲を出力先を作る前に確かめる PR #7, step ごとの学習率を記録する PR #8, `OneCycleLR` の総ステップ数を学習用データから補う PR #9, チェックポイントを軽くする設定を加えた PR #10, エポックの途中で止める PR #11, 文書と TODO を整えた PR #12, #14, #15, 警告の読み込みを直した PR #13, `Trainer` の作成のエラーを記録する PR #16, 下の流し直しで見つけた不具合を直した PR #17 と #18, コマンドラインからの上書きを受け取る PR #19, 平均せずに記録だけする値の PR #20 を含む `311e7ef` に更新した.
+ML-Found の PR #1 (`main` の `8a6a69c` にマージ済み) で, 次の項目に対応した. 各タスクの README の結果は, 更新前の `3aca743` で得たもの. その後 submodule は, 実験の状態と進み具合を書き出す PR #2 と, Optimizer と Scheduler の引数の仕様を返し, 引数の名前の誤りと必須の引数の不足を出力先を作る前に確かめる PR #4, 引数の種類と Scheduler の範囲を整えた PR #5 と #6, 引数の値の範囲を出力先を作る前に確かめる PR #7, step ごとの学習率を記録する PR #8, `OneCycleLR` の総ステップ数を学習用データから補う PR #9, チェックポイントを軽くする設定を加えた PR #10, エポックの途中で止める PR #11, 文書と TODO を整えた PR #12, #14, #15, 警告の読み込みを直した PR #13, `Trainer` の作成のエラーを記録する PR #16, 下の流し直しで見つけた不具合を直した PR #17 と #18, コマンドラインからの上書きを受け取る PR #19, 平均せずに記録だけする値の PR #20, バッチのサンプル数を推定できない場合に警告する PR #21, ベストモデルを選ばない設定の PR #22 を含む `3e6a5a5` に更新した.
 
 | まとめの項目 | 対応 | 内容 |
 | --- | --- | --- |
-| 1 ベストモデルへの巻き戻し | 対応 | `trainer.restore_best: false` で最後のエポックの重みを残す. ベストモデルの判定 (`best.pt`) 自体を止める設定は無い (ML-Found の TODO に記載) |
+| 1 ベストモデルへの巻き戻し | 対応 | `trainer.restore_best: false` で最後のエポックの重みを残す. PR #22 で, `trainer.select_best: false` でベストモデルの判定自体を止められるようになった (`best.pt` を作らず, 最後の重みを残す. Early Stopping と `monitor_tiebreak` とは併用できない). 10 の config はこれを使う形に変えた |
 | 2 Optimizer が 1 つで更新手順が固定 | 一部対応 | closure が必要な Optimizer (LBFGS) を自動で見分けて対応. `trainer.manual_optimization` で `step` の中で更新できる. 複数の Optimizer を config で扱う仕組みは未対応 (ML-Found の TODO に記載) |
 | 3 チェックポイントの保存が重い | 一部対応 | `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられる. PR #10 で, `best.pt` がベストモデルの重みを重ねて持たなくなり, `trainer.checkpoint.best_weights_only` で `best.pt` を重みだけに, `last_with_best: false` で `last.pt` からベストモデルの重みを外せるようになった (04 の `hf_smoke.yaml` で, 以前は両方 1071 MB だったものが, 既定で `best.pt` 804 MB (`last.pt` は 1071 MB のまま), 両方の設定で `best.pt` 268 MB と `last.pt` 804 MB. 重みだけの `best.pt` は再開に使えないので, 再開は `last.pt` から). `best.pt` を改善のたびに保存すること自体は変わらないので, 06 のように毎エポック改善するフルバッチ学習では `every_n_epochs` と `best_weights_only: true` (または `save_best: false`) を合わせる必要がある (時間は未確認). チェックポイントが記録の全てを含むこと (06 の改善案の `history.csv` への追記) は未対応 (ML-Found の TODO に記載) |
 | 4 検証時の扱い | 対応 | `trainer.valid_grad` と `trainer.valid_seed`. `on_epoch_end` の勾配は README に注意を記載 |

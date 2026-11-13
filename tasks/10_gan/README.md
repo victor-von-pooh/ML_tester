@@ -170,6 +170,6 @@ python tasks/10_gan/train.py --experiment configs/experiment/examples/variant_c.
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, その後の ML-Found (`302ccd6`) で 3 つを流し直した. ベストのエポックとエポック 20 の 4 つの値は全て同じだった. 学習時間は 397 秒 (B), 439 秒 (A), 380 秒 (C) で, 他の作業と並べて流したため長い.
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, その後の ML-Found (`302ccd6`) で 3 つを流し直した. 3 つの `history.csv` と生成画像 (`samples/`, `best_model.png`, `last_model.png`) は以前と全て一致した. 学習時間は 397 秒 (B), 439 秒 (A), 380 秒 (C) で, 他の作業と並べて流したため長い.
 
 - 最初の流し直し (`24f18c2`) では, 3 つとも学習の後に `last.pt` を mps に読み込む所で失敗した. ML-Found が PR #8 からチェックポイントに float64 の記録を入れ, mps は float64 を扱えないため. ML-Found の PR #17 で直し, 流し直した

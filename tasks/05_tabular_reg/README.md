@@ -155,6 +155,6 @@ python tasks/05_tabular_reg/train.py --experiment configs/experiment/examples/pl
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`, 学習時間は一部 `e2df46e`) で流し直した. 実験 1 と 2 の `history.csv` は一致した. 実験 3 と 4 は同じエラーで, 今は出力先を作る前に止まる.
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直し, 学習時間は `e2df46e` でも測り直した. 実験 1 と 2 の `history.csv` は一致した. 実験 3 と 4 は同じエラーで, 今は出力先を作る前に止まる.
 
 - 学習時間: 実験 1 は 6.32 秒 (`e2df46e`), 実験 2 は 6.98 秒 (`24f18c2`)

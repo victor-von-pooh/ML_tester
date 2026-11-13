@@ -199,4 +199,4 @@ python tasks/07_weather_forecast/train.py --experiment resume60.yaml
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`, 学習時間は一部 `e2df46e`) で流し直した. 4 つの実験の `history.csv` は全て一致し, 実験 2 (再開) と 3 (通し) の `history.csv` が完全に一致することも確かめた. 学習時間もほぼ同じ (実験 1 は 1.60 秒).
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直し, 学習時間は `e2df46e` でも測り直した. 4 つの実験の `history.csv` は全て一致し, 実験 2 (再開) と 3 (通し) の `history.csv` が完全に一致することも確かめた. 学習時間もほぼ同じ (実験 1 は 1.60 秒).

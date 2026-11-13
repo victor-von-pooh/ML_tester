@@ -157,6 +157,6 @@ python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`, 学習時間は一部 `e2df46e`) で流し直した. 3 つの実験の `history.csv` は全て一致し, AUC と AP も同じだった.
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直し, 学習時間は `e2df46e` でも測り直した. 3 つの実験の `history.csv` は全て一致し, AUC と AP も同じだった.
 
 - 学習時間: 実験 1 は 2.49 秒 (`e2df46e`). `24f18c2` では 3.28 秒, 3.24 秒, 1.31 秒だった (状態のファイルの書き込みの分)

@@ -183,7 +183,7 @@ python tasks/06_func_approx/train_pinn.py --experiment configs/experiment/exampl
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`, 学習時間は一部 `e2df46e`) で流し直した. 実験 1, 3, 4, 6 の `history.csv` は全て一致した.
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直し, 学習時間は `e2df46e` でも測り直した. 実験 1, 3, 4, 6 の `history.csv` は全て一致した.
 
 - 実験 2 (LBFGS を `Trainer` のまま使う) は今は学習でき, 200 エポックでベストはエポック 19, MSE 5.88e-6, 最大誤差 1.34e-2. `history.csv` は実験 3 と完全に一致した
 - 実験 5 (PINN) は同じエラーで止まり, エラーは `train.log` と `run.json` (`failed`) にも残った

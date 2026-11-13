@@ -178,6 +178,6 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`, 学習時間は一部 `e2df46e`) で流し直した. 2 つの実験の `history.csv`, EMA の重み, 生成した画像は全て一致し, 実験 1 と 2 の `history.csv`, `final_model.pt`, `best_model.png` がバイト単位で一致することも確かめた.
+上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直した. 2 つの実験の `history.csv`, EMA の重み, 生成した画像は全て一致し, 実験 1 と 2 の `history.csv`, `final_model.pt`, `best_model.png` がバイト単位で一致することも確かめた.
 
 - 学習時間 (`24f18c2`, 他の学習を並べずに流した): 2016 秒 (EMA あり), 2085 秒 (EMA なし). EMA なしの方は一部のエポックだけ遅く, 時間の差は EMA ではないという結論を裏付ける

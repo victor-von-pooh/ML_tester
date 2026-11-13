@@ -14,6 +14,7 @@
 │   └── experiment/
 │       ├── train.yaml              # 普段使う差分 (空)
 │       └── examples/               # 下の「config」の実験 2 と 3 の差分
+│           ├── eval_train.yaml
 │           ├── no_pos_weight.yaml
 │           └── pos1.yaml
 ├── model.py                        # ImbalancedClassifier
@@ -94,6 +95,7 @@ experiment で次の差分を試す. 2 と 3 は `configs/experiment/examples/` 
 1. 差分なし (`configs/experiment/train.yaml`, 空のファイル)
 2. `loss.use_pos_weight: false` で AP がどう変わるか (`no_pos_weight.yaml`)
 3. `data.pos_ratio: 0.01` (`pos1.yaml`)
+4. `trainer.eval_train: true` (`eval_train.yaml`, 学習用データを推論モードで評価し直す. 後から追加)
 
 ## 確かめる ML-Found の機能
 
@@ -110,7 +112,7 @@ experiment で次の差分を試す. 2 と 3 は `configs/experiment/examples/` 
 ## 予想される問題
 
 - `pos_weight` は学習用データの正例の割合から決まるので, config の値だけでは書けず, train.py で計算して損失関数に渡す形になる → その通りだった. ML-Found の問題ではない
-- 学習時の予測は Dropout が効いた状態なので `train/auc` は参考程度にしかならない. 学習用データを推論モードで評価し直す仕組みは ML-Found に無い → その通りだった (下の結果を参照)
+- 学習時の予測は Dropout が効いた状態なので `train/auc` は参考程度にしかならない. 学習用データを推論モードで評価し直す仕組みは ML-Found に無い → その通りだった (下の結果を参照. `3aca743` の時点. その後 ML-Found の PR #25 で `trainer.eval_train` が加わり, 実験 4 で確かめた)
 
 ## 実行方法
 
@@ -122,6 +124,7 @@ experiment で次の差分を試す. 2 と 3 は `configs/experiment/examples/` 
 python tasks/03_imbalanced_cls/train.py                                                            # 実験 1
 python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples/no_pos_weight.yaml  # 実験 2
 python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples/pos1.yaml           # 実験 3
+python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples/eval_train.yaml     # 実験 4
 ```
 
 - `.venv` を有効にしない場合は `python` を `.venv/bin/python` に読み替える
@@ -153,10 +156,27 @@ python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples
 - `Trainer` を継承する書き方は README の説明通りで, `step`, `on_epoch_start`, `on_epoch_end` の上書きと `self.epoch` の参照に問題は無かった
 - ML-Found の README には継承したクラスの `__init__` の例が無い. 親クラスの引数の順は `(model, experiment, step_fn, optimizer, scheduler)` なので, `step_fn` を使わない場合は `None` を位置で渡すか, `optimizer=optimizer` のようにキーワードで渡す. このタスクでは `None` を位置で渡した
 - `on_epoch_end` の戻り値と `step` の戻り値に同じ名前の指標があると, `on_epoch_end` の値で黙って上書きされる (`training/trainer.py` の `run_epoch`). 例えば `step` で `acc` を返しつつ `on_epoch_end` でも `acc` を返すと, バッチの平均の方は記録されない
-- `train/` の指標は学習中 (Dropout が効いた状態, パラメータ更新の途中) の予測から求めるので, エポック全体で求める AUC のような指標では `valid/` と比べにくい. 学習用データを推論モードで評価し直す設定があると良い
+- `train/` の指標は学習中 (Dropout が効いた状態, パラメータ更新の途中) の予測から求めるので, エポック全体で求める AUC のような指標では `valid/` と比べにくい. 学習用データを推論モードで評価し直す設定があると良い (ML-Found の PR #25 の `trainer.eval_train` で解消. 下の「学習用データの評価し直し」を参照)
 
 ### 最新の ML-Found での再実行 (2026-11-13)
 
 上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直し, 学習時間は `e2df46e` でも測り直した. 3 つの実験の `history.csv` は全て一致し, AUC と AP も同じだった.
 
 - 学習時間: 実験 1 は 2.49 秒 (`e2df46e`). `24f18c2` では 3.28 秒, 3.24 秒, 1.31 秒だった (状態のファイルの書き込みの分)
+
+### 学習用データの評価し直し (2026-11-13)
+
+ML-Found の PR #25 で, 各エポックの学習の後に学習用データを推論モードで評価し直し, `train_eval/` を付けて記録する `trainer.eval_train` が加わった. 実験 1 にこれを加えた実験 4 を ML-Found `a9c12ce` で流した. `DiffusionTrainer` のような書き換えは要らず, `on_epoch_start`, `step`, `on_epoch_end` は `phase` が `train_eval` でもそのまま AUC と AP を求めた.
+
+- 同じ ML-Found で流し直した実験 1 は, 以前の `history.csv` と完全に一致した. 実験 4 の `train/`, `valid/`, `lr` の列は実験 1 と完全に一致し, 評価し直しは学習に影響しなかった
+- `train/auc` が `valid/auc` より低いエポックは 50 のうち 8 (エポック 1 から 7 と 11) だったが, `train_eval/auc` は全てのエポックで `valid/auc` 以上だった
+
+| エポック | `train/auc` | `train_eval/auc` | `valid/auc` | `train/ap` | `train_eval/ap` | `valid/ap` |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0.7135 | 0.8235 | 0.8028 | 0.2273 | 0.4419 | 0.3769 |
+| 10 | 0.9368 | 0.9487 | 0.9337 | 0.7922 | 0.8286 | 0.7793 |
+| 46 (ベスト) | 0.9701 | 0.9834 | 0.9468 | 0.8657 | 0.9140 | 0.8331 |
+| 50 | 0.9702 | 0.9847 | 0.9436 | 0.8698 | 0.9131 | 0.8218 |
+
+- エポック 1 の差が最も大きい. `train/` はパラメータを更新しながら集めた予測なので, 学習の始めの悪い予測を含む. Dropout が効いた状態の予測であることと合わせて, 学習用の値が低く出ていた
+- 学習時間は 3.7 秒 (実験 1 は 2.5 秒). 学習用データの推論 1 周分が増えた

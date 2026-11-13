@@ -1,0 +1,3 @@
+# 実験 4: 実験 1 に加えて, 学習用データを推論モードで評価し直す (train_eval/)
+trainer:
+  eval_train: true

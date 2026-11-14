@@ -3,7 +3,7 @@
 ## 目的
 
 生成器 (Generator) と識別器 (Discriminator) の 2 つのモデルを, 2 つの Optimizer で交互に更新する学習が ML-Found で書けるかを確かめる.
-実験した時点 (ML-Found `3aca743`) の ML-Found は Optimizer が 1 つで更新手順も固定だったので, **書ける方法を探り, どこで無理が出るかを記録する** のが主な目的だった. ML-Found の PR #1 で, `trainer.manual_optimization` で `step` の中で自分で更新できるようになり, `extra_state_dict` と `load_extra_state_dict` で 2 つ目の Optimizer の状態をチェックポイントに加えられるようになった. その後 ML-Found の PR #41 で, config の `optimizers` に名前付きで複数の Optimizer を書けるようになり, その書き方を D として加えた (`train_named.py`). また `trainer.restore_best: false` で, 学習後にベストモデルへ戻さず最後のエポックの重みを残せるようになった. その後 PR #22 で, `trainer.select_best: false` でベストモデルの判定自体を止められるようになり, このタスクの config はこれを使う形に変えた (下の「`select_best` への書き換え」を参照).
+実験した時点 (ML-Found `3aca743`) の ML-Found は Optimizer が 1 つで更新手順も固定だったので, **書ける方法を探り, どこで無理が出るかを記録する** のが主な目的だった. ML-Found の PR #1 で, `trainer.manual_optimization` で `step` の中で自分で更新できるようになり, `extra_state_dict` と `load_extra_state_dict` で 2 つ目の Optimizer の状態をチェックポイントに加えられるようになった. また `trainer.restore_best: false` で, 学習後にベストモデルへ戻さず最後のエポックの重みを残せるようになった. その後 PR #22 で, `trainer.select_best: false` でベストモデルの判定自体を止められるようになり, このタスクの config はこれを使う形に変えた (下の「`select_best` への書き換え」を参照). その後 ML-Found の PR #41 で, config の `optimizers` に名前付きで複数の Optimizer を書けるようになり, その書き方を D として加えた (`train_named.py`).
 
 ## ディレクトリ構成
 
@@ -46,7 +46,7 @@
 
 ## 試す書き方
 
-config の `train.variant` で次の 3 通りを切り替える. 損失は `nn.BCEWithLogitsLoss()` で, 識別器は本物を 1, 生成画像を 0 と判定させ, 生成器は生成画像を 1 と判定させる.
+A から C は config の `train.variant` で切り替え, D は別のスクリプト `train_named.py` で動かす. 損失は `nn.BCEWithLogitsLoss()` で, 識別器は本物を 1, 生成画像を 0 と判定させ, 生成器は生成画像を 1 と判定させる.
 
 ### A. 損失を 1 つにまとめる (ML-Found の仕組みのまま)
 
@@ -127,6 +127,7 @@ visualize:
 - [x] ベストモデルの判定 (GAN の損失は良し悪しの指標にならない) を実質的に無効にできるか → 判定を止める設定は無く, `monitor` を指定しないと `train/loss` が使われる. `on_epoch_end` で毎エポック増える値 (例: エポック数) を返して `mode: max` で監視すれば毎エポック更新させられるが, 見せかけの指標が要る
 - [x] 学習後にベストモデルの重みに戻される動作が GAN では不要で, 最後の重みのまま残せるか → 設定では残せなかった (上の見せかけの指標を使えば残せる). B と C ではエポック 1 (生成器の損失が最も小さい) がベストと判定され, `final_model.pt` と学習後の `trainer.model` はエポック 1 の重みになった (下の結果を参照)
 - [x] 固定したノイズから生成した画像をエポックごとに保存できる (`on_epoch_end` で)
+- [x] ML-Found の `optimizers` (PR #41) で, 2 つ目の Optimizer の作成, 更新, 保存, 再開を書かずに GAN を学習できるか → できた (D). B と結果が一致した (下の結果を参照)
 
 ## 期待する結果
 
@@ -154,7 +155,7 @@ python tasks/10_gan/train_named.py                                              
 ```
 
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
-- 出力先には ML-Found の出力に加えて, `samples/` (学習中の生成画像) と `last_model.png` (最後のエポックの重みでの生成画像) ができる. `best.pt` は作られない
+- 出力先には ML-Found の出力に加えて, `samples/` (学習中の生成画像) と, A から C では `last_model.png` (最後のエポックの重みでの生成画像) ができる. `best.pt` は作られない
 
 ## 結果のメモ
 
@@ -199,9 +200,9 @@ ML-Found の PR #22 で `trainer.select_best: false` (ベストモデルを選�
 
 ### 名前付きの Optimizer (D) での学習 (2026-11-14)
 
-ML-Found `2d78838` (PR #41) で D を加え, `python tasks/10_gan/train_named.py` で 20 エポックを学習した (mps).
+ML-Found `2d78838` (PR #41) で D を加え, `python tasks/10_gan/train_named.py` で 20 エポックを学習した (mps). 比べた B は, その前の ML-Found `42ad8aa` で流した実験.
 
-- 同じ ML-Found で既定の B を流した実験と比べ, 20 エポックの識別器と生成器の損失, 判定の確率 (`d_real`, `d_fake`) が全て一致した (差は 0). `samples/` の生成画像 (エポック 1, 10, 20) と `final_model.pt` の重みも一致した. D は B と同じ同時の更新なので, 期待どおり
-- `train_named.py` は, B で上書きしていた `update_parameters`, `state_dict`, `resume` と, 2 つ目の Optimizer の作成が要らない (`GANTrainer` は 3 つの書き方を含めて約 260 行, `NamedGANTrainer` は `step` と `on_epoch_end` だけで約 100 行). 2 つ目の Optimizer も config の確認 (範囲, typo) とダッシュボードの学習の起動のフォームの対象になる
-- 学習時間は 288 秒 (B は 314 秒). B は生成器の損失の逆伝播で識別器のパラメータの勾配も求めていたが, D は受け持つ部分の勾配だけを求めるためと考えられる (1 回ずつの比較なので, 他の負荷の差も含む)
+- 既定の B の実験と比べ, 20 エポックの識別器と生成器の損失, 判定の確率 (`d_real`, `d_fake`) が全て一致した (差は 0). `samples/` の生成画像 (エポック 1, 5, 10, 15, 20 の全て) と `final_model.pt` の重みも一致した. D は B と同じ同時の更新なので, 期待どおり
+- `train_named.py` は, B で上書きしていた `update_parameters`, `state_dict`, `resume` と, 2 つ目の Optimizer の作成が要らない (`GANTrainer` は 3 つの書き方を含めて約 260 行, `NamedGANTrainer` は `__init__`, `step`, `on_epoch_end` だけで約 100 行). 2 つ目の Optimizer も config の確認 (範囲, typo) とダッシュボードの学習の起動のフォームの対象になる
+- 学習時間は 289 秒 (B は 315 秒). B は生成器の損失の逆伝播で識別器のパラメータの勾配も求めていたが, D は受け持つ部分の勾配だけを求めるためと考えられる (ML-Found の版も違う 1 回ずつの比較なので, 他の負荷の差も含む)
 

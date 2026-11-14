@@ -1,0 +1,44 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: mnist_gan
+  seed: 42
+
+# 生成器と識別器を, 名前付きの 2 つの Optimizer で更新 (ML-Found の optimizers)
+# ML-Found が損失ごとに受け持つ部分の勾配を求め, 書いた順に更新
+optimizers:
+  discriminator:
+    name: Adam
+    params:
+      lr: 0.0002
+      betas: [0.5, 0.999]
+    modules: [discriminator]
+  generator:
+    name: Adam
+    params:
+      lr: 0.0002
+      betas: [0.5, 0.999]
+    modules: [generator]
+
+trainer:
+  epochs: 20
+  # 検証用データは使わないので, 監視できるのは学習用の指標だけ
+  monitor: train/loss_generator
+  mode: min
+  # GAN の損失は良し悪しの指標にならないので, ベストモデルを選ばず最後の重みを残す
+  select_best: false
+
+data:
+  # 相対パスはタスクのディレクトリから辿る
+  root: ../../data/torchvision
+  batch_size: 128
+  num_workers: 2
+
+model:
+  noise_dim: 100
+  g_channels: 64
+  d_channels: 64
+
+visualize:
+  # 生成する画像の枚数と, 保存するエポックの間隔
+  n_images: 64
+  sample_every: 5

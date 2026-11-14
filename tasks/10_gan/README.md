@@ -3,22 +3,25 @@
 ## 目的
 
 生成器 (Generator) と識別器 (Discriminator) の 2 つのモデルを, 2 つの Optimizer で交互に更新する学習が ML-Found で書けるかを確かめる.
-実験した時点 (ML-Found `3aca743`) の ML-Found は Optimizer が 1 つで更新手順も固定だったので, **書ける方法を探り, どこで無理が出るかを記録する** のが主な目的だった. ML-Found の PR #1 で, `trainer.manual_optimization` で `step` の中で自分で更新できるようになり, `extra_state_dict` と `load_extra_state_dict` で 2 つ目の Optimizer の状態をチェックポイントに加えられるようになった. 2 つ目の Optimizer を config から作る仕組みはまだ無い. また `trainer.restore_best: false` で, 学習後にベストモデルへ戻さず最後のエポックの重みを残せるようになった. その後 PR #22 で, `trainer.select_best: false` でベストモデルの判定自体を止められるようになり, このタスクの config はこれを使う形に変えた (下の「`select_best` への書き換え」を参照).
+実験した時点 (ML-Found `3aca743`) の ML-Found は Optimizer が 1 つで更新手順も固定だったので, **書ける方法を探り, どこで無理が出るかを記録する** のが主な目的だった. ML-Found の PR #1 で, `trainer.manual_optimization` で `step` の中で自分で更新できるようになり, `extra_state_dict` と `load_extra_state_dict` で 2 つ目の Optimizer の状態をチェックポイントに加えられるようになった. その後 ML-Found の PR #41 で, config の `optimizers` に名前付きで複数の Optimizer を書けるようになり, その書き方を D として加えた (`train_named.py`). また `trainer.restore_best: false` で, 学習後にベストモデルへ戻さず最後のエポックの重みを残せるようになった. その後 PR #22 で, `trainer.select_best: false` でベストモデルの判定自体を止められるようになり, このタスクの config はこれを使う形に変えた (下の「`select_best` への書き換え」を参照).
 
 ## ディレクトリ構成
 
 ```
 10_gan/
 ├── configs/
-│   ├── default/train.yaml          # 基準の config (書き方 B)
+│   ├── default/train.yaml          # 基準の config (書き方 A, B, C)
+│   ├── default/named.yaml          # 書き方 D の基準の config (optimizers)
 │   └── experiment/
 │       ├── train.yaml              # 普段使う差分 (空)
+│       ├── named.yaml              # D の普段使う差分 (空)
 │       └── examples/
 │           ├── variant_a.yaml      # 書き方 A
 │           └── variant_c.yaml      # 書き方 C
 ├── data.py                         # MNIST の読み込みと DataLoader
 ├── model.py                        # Generator, Discriminator, GAN
 ├── train.py                        # GANTrainer (Trainer を継承, 3 つの書き方), 学習の実行
+├── train_named.py                  # NamedGANTrainer (書き方 D), 学習の実行
 └── outputs/mnist_gan/<日付>/<時刻>/ # ML-Found が実験ごとに作る (git の管理外)
 ```
 
@@ -63,6 +66,14 @@ config の `train.variant` で次の 3 通りを切り替える. 損失は `nn.B
 - `step` の中で識別器と生成器の Optimizer を自分で `zero_grad`, `backward`, `step` する (識別器 → 生成器の一般的な順)
 - ML-Found には `g_loss.detach().requires_grad_(True)` (勾配がパラメータに流れない損失) を返す. ML-Found の `update_parameters` はこれで逆伝播して `optimizer.step()` を呼ぶが, その前の `zero_grad` で勾配が `None` になるので何も更新しない. `update_parameters` を上書きして逆伝播と更新を飛ばす書き方でもよい
 - PyTorch Lightning の `automatic_optimization = False` に当たる書き方
+
+### D. config の `optimizers` に名前付きで書く (`train_named.py`)
+
+- `configs/default/named.yaml` の `optimizers` に, 識別器 (`modules: [discriminator]`) と生成器 (`modules: [generator]`) の Optimizer を名前付きで書く. ML-Found が 2 つを作り, 更新, 保存, 再開する
+- `step` は `{"loss": {"discriminator": d_loss, "generator": g_loss}}` を返すだけで, `update_parameters`, `state_dict`, `resume` は上書きしない. ML-Found は損失ごとに受け持つ部分のパラメータだけの勾配を求めるので, 生成器の損失の勾配は識別器に入らない
+- 2 つの損失の勾配を更新の前の同じパラメータで求めてから両方を更新する (同時の更新) ので, B と同じ計算になる. B と同じ乱数で学習すると, 記録, 生成画像, 最後の重みが一致するはず
+- 記録は `train/loss_discriminator`, `train/loss_generator` と合計の `train/loss`, 学習率は `lr_discriminator` と `lr_generator`. 合計は良し悪しを表さないので, 監視する指標は `train/loss_generator` にし, B と同じく `select_best: false`
+- 識別器を更新した後の値で生成器の損失を求める順 (C) にしたい場合は, `manual_optimization` で `self.optimizer["generator"]` などを使う
 
 ## step と Trainer の設計
 
@@ -139,6 +150,7 @@ MNIST が `data/torchvision/` に無い場合は, 初回にダウンロードが
 python tasks/10_gan/train.py                                                         # B (約 6 分)
 python tasks/10_gan/train.py --experiment configs/experiment/examples/variant_a.yaml  # A (約 5 分)
 python tasks/10_gan/train.py --experiment configs/experiment/examples/variant_c.yaml  # C (約 5 分)
+python tasks/10_gan/train_named.py                                                   # D (約 5 分)
 ```
 
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
@@ -184,3 +196,12 @@ ML-Found の PR #22 で `trainer.select_best: false` (ベストモデルを選�
 - `best.pt` は作られず, `run.json` は `select_best: false`, `best_epoch: null`, `final_weights: last` になった. `final_model.pt` は `last.pt` の `model` と一致した (B で確認)
 - 上の「確かめる機能」, 「予想される問題」, 「ML-Found について気付いたこと」の, ベストモデルの判定と学習後の巻き戻しを止める設定が無いという点 (`3aca743` の時点の結果) は, この設定で解消した. 巻き戻しだけを止める `trainer.restore_best: false` も PR #1 で加わっている
 - このタスクの `train.py` は今も `state_dict` と `resume` を上書きして識別器の Optimizer の状態を保存して戻している (`extra_state_dict` は使っていない). そのため `STOP` に `now` と書いてエポックの途中で止めた場合, ML-Found の PR #32 でモデルと生成器の Optimizer などはメモリの上で前のエポックの状態に戻るが, 識別器の Optimizer の状態は戻らない. `last.pt` はその場合に書かれないので再開には影響せず, `STOP` を使わないこのタスクの実験にも影響しない
+
+### 名前付きの Optimizer (D) での学習 (2026-11-14)
+
+ML-Found `2d78838` (PR #41) で D を加え, `python tasks/10_gan/train_named.py` で 20 エポックを学習した (mps).
+
+- 同じ ML-Found で既定の B を流した実験と比べ, 20 エポックの識別器と生成器の損失, 判定の確率 (`d_real`, `d_fake`) が全て一致した (差は 0). `samples/` の生成画像 (エポック 1, 10, 20) と `final_model.pt` の重みも一致した. D は B と同じ同時の更新なので, 期待どおり
+- `train_named.py` は, B で上書きしていた `update_parameters`, `state_dict`, `resume` と, 2 つ目の Optimizer の作成が要らない (`GANTrainer` は 3 つの書き方を含めて約 260 行, `NamedGANTrainer` は `step` と `on_epoch_end` だけで約 100 行). 2 つ目の Optimizer も config の確認 (範囲, typo) とダッシュボードの学習の起動のフォームの対象になる
+- 学習時間は 288 秒 (B は 314 秒). B は生成器の損失の逆伝播で識別器のパラメータの勾配も求めていたが, D は受け持つ部分の勾配だけを求めるためと考えられる (1 回ずつの比較なので, 他の負荷の差も含む)
+

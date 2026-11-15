@@ -12,12 +12,12 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture の 4 つのリ�
 | 段階 | 内容 | 今のリポジトリ |
 | --- | --- | --- |
 | 問題の設定 | 何を入力し, 何を出力し, 何で評価するかを決める | (まだ無い) |
-| データの分析 | データの形, 分布, 分け方を確かめる | (まだ無い) |
+| データの分析 | データの形, 分布, 分け方を確かめ, 前処理して学習用に書き出す | ML-EDA, ML-Fathom |
 | モデルの作成・選定 | 部品をつないでモデルを組み立て, 候補を比べる | ML-ModelControl, ML-CreateArchitecture |
 | モデルの学習・評価 | config から学習し, 結果を比べる | ML-Found, ML-Dashboard |
 | 推論 | 学習したモデルで予測する | (まだ無い) |
 
-着手したのは「モデルの作成・選定」と「モデルの学習・評価」. 他の段階は, この方針に沿って後から足す.
+着手したのは「データの分析」「モデルの作成・選定」「モデルの学習・評価」. 他の段階は, この方針に沿って後から足す.
 
 一番難しく, 要になるのは問題の設定. 問題の設定がしっかりできれば, プロジェクトごとの学習のスクリプトを自動で書けるようにすることを目指す. 将来は, 問題の設定の段階がプロジェクト (学習のスクリプトを含む) を作り, 学習・評価の段階がそれを動かす. それまでは, プロジェクトとスクリプトは人が書く.
 
@@ -28,6 +28,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture の 4 つのリ�
 
    | 段階 | ライブラリ | 画面 |
    | --- | --- | --- |
+   | データの分析 | ML-EDA | ML-Fathom |
    | モデルの作成・選定 | ML-ModelControl | ML-CreateArchitecture |
    | モデルの学習・評価 | ML-Found | ML-Dashboard |
 
@@ -45,6 +46,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture の 4 つのリ�
 
 | 約束 | 形を持つリポジトリ | 作るもの | 読むもの |
 | --- | --- | --- | --- |
+| データセット (`dataset.yaml`, `format_version` 付き. 分割ごとのデータと前処理のレシピ) | ML-EDA (`docs/DESIGN.md` の「書き出し」) | ML-EDA (ML-Fathom の画面から) | 学習のスクリプト (ML-EDA の `load_dataset` で読む) |
 | モデルの定義 (YAML か JSON, `format_version` 付き) | ML-ModelControl (`docs/DESIGN.md` の「モデルの定義の形」) | ML-CreateArchitecture (手でも書ける) | ML-CreateArchitecture, 学習のスクリプト (ML-ModelControl で組み立てる) |
 | プロジェクトの形 (`configs/default/`, `configs/experiment/`, 学習のスクリプト) | ML-Found (`docs/FORMAT.md`) | 今は人. 将来は問題の設定 | ML-Found, ML-Dashboard |
 | 実験のディレクトリ (config, 起動のしかた, 状態, 記録, 重み. `run.json` と `source.yaml` に形式の版がある) | ML-Found (`docs/FORMAT.md`) | ML-Found | ML-Dashboard, 将来は推論 |
@@ -57,11 +59,11 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture の 4 つのリ�
 | 2 | 約束を, 版を付けた文書と, 形を持つ側のテストにする |
 | 3 | 作成・選定と学習・評価をつなぐ. 今も ML-ModelControl の README の手順 (学習のスクリプトで定義から組み立て, 定義を実験に写す) で学習できる. 定義の置き場の決まりや自動の保存など, 専用の仕組みを入れるかは保留中 |
 | 4 | プロジェクトを中心に, 画面を 1 つのアプリにまとめる |
-| 5 | 問題の設定, データの分析, 推論を, 同じ「ライブラリと画面」の形で足す |
+| 5 | 問題の設定, 推論を, 同じ「ライブラリと画面」の形で足す (データの分析は ML-EDA と ML-Fathom で着手) |
 
 ## ML_tester の役割
 
-ML_tester は動作確認の場. 各リポジトリを利用者の立場で使い, 機能するかを確かめ, 気付いたことを記録する. 今は主に ML-Found (と, 結果を見る ML-Dashboard) を確かめている. タスク 13 は, ML-ModelControl の定義から組み立てたモデルを ML-Found で学習し, モデルの作成と学習の交点を確かめる.
+ML_tester は動作確認の場. 各リポジトリを利用者の立場で使い, 機能するかを確かめ, 気付いたことを記録する. 今は主に ML-Found (と, 結果を見る ML-Dashboard) を確かめている. タスク 13 は, ML-ModelControl の定義から組み立てたモデルを ML-Found で学習し, モデルの作成と学習の交点を確かめる. タスク 14 は, ML-EDA で前処理して書き出したデータセットを ML-Found で学習し, データの分析と学習の交点を確かめる.
 
 - 各リポジトリは ML_tester を前提にしない. 手順書, 例, テストは, 各リポジトリだけで完結させる
 - 機能を ML_tester に集約しない. 機能は各リポジトリに足す

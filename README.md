@@ -17,6 +17,7 @@ pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@5cfabe4"   # 13 で使う
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@9ac69a9"   # 14 で使う
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 ```
 
@@ -26,7 +27,7 @@ pip install transformers==5.22.2          # 04 の段階 2 で使う
 
 1. 上の「導入」で `.venv` を作っておく. 学習に使う Python は, 登録したときにタスクのディレクトリから上に向かって仮想環境を探して決まるので, 先に作ると `.venv` が自動で選ばれる
 2. ML-Dashboard を ML_tester とは別のディレクトリに clone し, その README の「導入と起動」の手順で起動して, 表示されたトークン付きの URL を開く
-3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 13 のタスクが候補に出る (submodule の ML-Found の例は対象外). そのまま「13 件を追加」で登録する
+3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 14 のタスクが候補に出る (submodule の ML-Found の例は対象外). そのまま「14 件を追加」で登録する
 
 clone した直後は実験が無いので, 各タスクの README の手順で学習するか, 画面から起動すると一覧に出る.
 
@@ -54,6 +55,7 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 11 | `tasks/11_diffusion` | 拡散モデル | MNIST | timestep の乱数, EMA |
 | 12 | `tasks/12_quantum_nn` | 量子ニューラルネット | make_moons, Iris | CPU だけで動くモデル, 外部ライブラリの乱数, チェックポイント |
 | 13 | `tasks/13_model_spec` | モデルの定義から組み立てたモデルの学習 | 手書き数字 (8x8) | ML-ModelControl の定義を config で選んで学習, 定義を実験に残して作り直す (モデルの作成と学習の交点) |
+| 14 | `tasks/14_eda_dataset` | ML-EDA で前処理したデータセットの学習 | 合成した顧客の表 | 気付きからレシピを書き, 書き出したデータセットを load_dataset で学習, 新しいデータに同じ前処理 (データの分析と学習の交点) |
 
 各タスクのディレクトリは次の構成にする.
 

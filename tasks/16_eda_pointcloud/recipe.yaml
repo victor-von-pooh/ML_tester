@@ -1,0 +1,12 @@
+# ML-EDA の前処理のレシピ (ML-Fathom の「前処理と書き出し」で作るものと同じ形)
+format_version: 1
+target: label
+task: classification
+steps:
+  # 読めない点群 (error がある件) を除く
+  - {op: filter_rows, column: error, compare: isna}
+item_steps:
+  # 点の数を 512 にそろえ (有限の点から間引きと重ね), 中心を原点に, 最も遠い点を 1 に
+  - {op: sample_points, points: 512}
+  - {op: normalize_cloud}
+split: {method: stratified, valid: 0.2, test: 0.1, seed: 0}

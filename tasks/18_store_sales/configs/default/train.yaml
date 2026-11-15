@@ -1,0 +1,29 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: store_sales
+  seed: 0
+  # 小さなモデルなので, GPU より CPU の方が速い
+  device: cpu
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+
+trainer:
+  epochs: 80
+  monitor: valid/mae
+  mode: min
+  early_stopping:
+    use: true
+    patience: 10
+
+# プロジェクト固有の設定
+data:
+  # prepare.py が ML-EDA で書き出すデータセット (タスクのディレクトリから)
+  dataset: outputs/dataset
+  batch_size: 64
+
+model:
+  # ML-CreateArchitecture で組んだモデルの定義 (タスクのディレクトリから)
+  spec: models/sales_mlp.yaml

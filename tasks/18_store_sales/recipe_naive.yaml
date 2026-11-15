@@ -1,0 +1,36 @@
+# recipe.yaml から lag の by (店ごと) だけを外したレシピ. 店をまたいで
+# ずらすので, 1 つ前の値は前の日の同じ店ではなく, 前の行の別の店になる
+format_version: 1
+target: sales
+task: forecasting
+steps:
+- op: drop_duplicates
+- op: normalize_text
+  columns:
+  - store
+- op: lag
+  columns: auto
+  lags:
+  - 1
+  - 7
+  windows:
+  - 7
+- op: drop_missing
+- op: datetime_parts
+  columns:
+  - date
+  parts:
+  - weekday
+  - month
+  drop: false
+- op: one_hot
+  columns:
+  - store
+- op: standardize
+  columns: auto
+split:
+  method: time
+  valid: 0.15
+  test: 0.15
+  seed: 0
+item_steps: []

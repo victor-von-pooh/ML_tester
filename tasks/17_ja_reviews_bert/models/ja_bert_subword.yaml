@@ -1,0 +1,130 @@
+format_version: 1
+name: ja_bert_subword
+inputs:
+  ids:
+    shape: [2, 17]
+    ui: {x: 40, y: 60}
+    dtype: int64
+    fill: ones
+nodes:
+  tok:
+    unit: nn.Embedding
+    params: {num_embeddings: 502, embedding_dim: 64, padding_idx: 0}
+    inputs: {input: ids}
+    ui: {x: 300, y: 60}
+  positions:
+    unit: op.Positions
+    params: {}
+    inputs: {input: ids}
+    ui: {x: 300, y: 182}
+  pos:
+    unit: nn.Embedding
+    params: {num_embeddings: 128, embedding_dim: 64}
+    inputs: {input: positions}
+    ui: {x: 560, y: 170}
+  pad:
+    unit: op.Equal
+    params: {value: 0}
+    inputs: {input: ids}
+    ui: {x: 300, y: 304}
+  emb:
+    unit: op.Add
+    params: {}
+    inputs:
+      xs: [tok, pos]
+    ui: {x: 820, y: 170}
+  emb_norm:
+    unit: nn.LayerNorm
+    params: {normalized_shape: 64}
+    inputs: {input: emb}
+    ui: {x: 1080, y: 170}
+  block1:
+    unit: sub.encoder_block
+    params: {}
+    inputs: {x: emb_norm, pad_mask: pad}
+    ui: {x: 1340, y: 170}
+  block2:
+    unit: sub.encoder_block
+    params: {}
+    inputs: {x: block1, pad_mask: pad}
+    ui: {x: 1600, y: 60}
+  cls:
+    unit: op.Index
+    params: {dim: 1, index: 0}
+    inputs: {input: block2}
+    ui: {x: 1860, y: 60}
+  head:
+    unit: nn.Linear
+    params: {in_features: 64, out_features: 2}
+    inputs: {input: cls}
+    ui: {x: 2120, y: 170}
+  mlm:
+    unit: nn.Linear
+    params: {in_features: 64, out_features: 502}
+    inputs: {input: block2}
+    ui: {x: 1860, y: 182}
+outputs: {logits: head, mlm: mlm}
+subgraphs:
+  encoder_block:
+    name: encoder_block
+    inputs:
+      x:
+        shape: [2, 16, 64]
+        ui: {x: 40, y: 60}
+      pad_mask:
+        shape: [2, 16]
+        ui: {x: 40, y: 160}
+        dtype: bool
+        fill: zeros
+    nodes:
+      attn:
+        unit: nn.MultiheadAttention
+        params: {embed_dim: 64, num_heads: 4, batch_first: true}
+        inputs: {query: x, key: x, value: x, key_padding_mask: pad_mask}
+        ui: {x: 300, y: 170}
+      add1:
+        unit: op.Add
+        params: {}
+        inputs:
+          xs: ['attn:output', x]
+        ui: {x: 560, y: 60}
+      norm1:
+        unit: nn.LayerNorm
+        params: {normalized_shape: 64}
+        inputs: {input: add1}
+        ui: {x: 820, y: 60}
+      ff1:
+        unit: nn.Linear
+        params: {in_features: 64, out_features: 128}
+        inputs: {input: norm1}
+        ui: {x: 1080, y: 170}
+      act:
+        unit: nn.GELU
+        params: {}
+        inputs: {input: ff1}
+        ui: {x: 1340, y: 170}
+      ff2:
+        unit: nn.Linear
+        params: {in_features: 128, out_features: 64}
+        inputs: {input: act}
+        ui: {x: 1600, y: 170}
+      add2:
+        unit: op.Add
+        params: {}
+        inputs:
+          xs: [ff2, norm1]
+        ui: {x: 1860, y: 60}
+      norm2:
+        unit: nn.LayerNorm
+        params: {normalized_shape: 64}
+        inputs: {input: add2}
+        ui: {x: 2120, y: 60}
+    outputs: {y: norm2}
+    ui:
+      outputs:
+        y: {x: 2380, y: 60}
+      source: {kind: model, name: encoder_block}
+ui:
+  outputs:
+    logits: {x: 2380, y: 60}
+    mlm: {x: 2380, y: 160}

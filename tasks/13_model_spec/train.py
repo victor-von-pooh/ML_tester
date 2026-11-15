@@ -10,7 +10,9 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from ml_found import Trainer, load_project_config, start_experiment
+from ml_found import (
+    Experiment, Trainer, load_project_config, start_experiment
+)
 from ml_modelcontrol import SpecError, build_model, export_python, infer
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
@@ -110,18 +112,32 @@ def build_from_spec(spec_path: Path, seed: int) -> nn.Module:
     model: nn.Module
         組み立てたモデル
     """
-    # 定義の誤り (引数の不足など) は組み立てで SpecError になる
+    # 定義のファイルが無い場合は終了
+    if not spec_path.is_file():
+        print(f"モデルの定義 {spec_path} がありません (config の model.spec)")
+        sys.exit(1)
+
+    # 定義の誤り (引数の不足など) は組み立てで SpecError
     try:
         model = build_model(spec_path, seed=seed)
     except SpecError as error:
         print(f"モデルの定義 {spec_path.name} に誤りがあります")
         for issue in error.issues:
-            print(f"- {issue['node'] or '定義'}: {issue['message']}")
+            if issue["severity"] == "error":
+                print(f"- {issue['node'] or '定義'}: {issue['message']}")
         sys.exit(1)
 
-    # 出力の形がクラスの数と合うかを形の推定で確認
+    # 形の誤り (in_features の食い違いなど) は形の推定で確認
     result = infer(spec_path)
-    shape = result["outputs"]["logits"]["shape"]
+    if not result["ok"]:
+        print(f"モデルの定義 {spec_path.name} の形を計算できません")
+        for name, node in result["nodes"].items():
+            if node["status"] == "error":
+                print(f"- {name}: {node['error']}")
+        sys.exit(1)
+
+    # 出力の形がクラスの数と合うかの確認
+    shape = next(iter(result["outputs"].values()))["shape"]
     if shape[-1] != NUM_CLASSES:
         print(f"出力の形 {shape} の最後がクラスの数 {NUM_CLASSES} と違います")
         sys.exit(1)
@@ -131,18 +147,18 @@ def build_from_spec(spec_path: Path, seed: int) -> nn.Module:
 
 
 def check_rebuild(
-    run_dir: Path, model: nn.Module, x_valid: torch.Tensor
+    experiment: Experiment, model: nn.Module, x_valid: torch.Tensor
 ) -> None:
     """
     実験の出力先の定義と重みから, 同じモデルを作り直せるかを確かめる関数
 
     組み立て直したモデルと, 書き出した Python のコードのモデルの両方で,
-    学習の後のモデルと同じ出力になるかを表示する
+    学習の後のモデルと同じ出力になるかを train.log に記録する (cpu で比較)
 
     Parameters
     ----------
-    run_dir: Path
-        実験の出力先
+    experiment: Experiment
+        学習した実験
     model: nn.Module
         学習の後のモデル (final_model.pt と同じ重み)
     x_valid: torch.Tensor
@@ -152,7 +168,9 @@ def check_rebuild(
     ----------
     None
     """
-    # 学習の後のモデルの出力 (推論モード)
+    # 学習の後のモデルの出力 (推論モード, cpu)
+    run_dir = experiment.run_dir
+    model = model.cpu()
     model.eval()
     with torch.no_grad():
         expected = model(x_valid)
@@ -170,8 +188,9 @@ def check_rebuild(
         "model_export", code_path
     )
     module = importlib.util.module_from_spec(module_spec)
-    # 実験の出力先に __pycache__ を作らないように, 読み込みの間だけ止める
-    sys.dont_write_bytecode, before = True, sys.dont_write_bytecode
+    # 実験の出力先に __pycache__ を作らないように, 読み込みの間だけ停止
+    before = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     try:
         module_spec.loader.exec_module(module)
     finally:
@@ -184,8 +203,12 @@ def check_rebuild(
     with torch.no_grad():
         rebuilt_diff = (rebuilt(x_valid) - expected).abs().max().item()
         exported_diff = (exported(x_valid) - expected).abs().max().item()
-    print(f"組み立て直したモデルとの出力の差: {rebuilt_diff:.3g}")
-    print(f"書き出したコードのモデルとの出力の差: {exported_diff:.3g}")
+    experiment.logger.info(
+        f"組み立て直したモデルとの出力の差: {rebuilt_diff:.3g}"
+    )
+    experiment.logger.info(
+        f"書き出したコードのモデルとの出力の差: {exported_diff:.3g}"
+    )
 
 
 def main() -> None:
@@ -205,7 +228,7 @@ def main() -> None:
     spec_path = TASK_DIR / cfg.model.spec
     model = build_from_spec(spec_path, cfg.experiment.seed)
 
-    # 実験を開始し, 使った定義を実験の出力先に残す
+    # 実験を開始し, 使った定義を実験の出力先に保存
     experiment = start_experiment(cfg, diff, str(TASK_DIR))
     shutil.copy(spec_path, experiment.run_dir / "model_spec.yaml")
 
@@ -223,7 +246,7 @@ def main() -> None:
     print(f"ベストモデルの検証用データの正解率: {best_acc:.4f}")
 
     # 出力先の定義と重みから作り直せるかの確認
-    check_rebuild(experiment.run_dir, trainer.model, x_valid)
+    check_rebuild(experiment, trainer.model, x_valid)
 
 
 if __name__ == "__main__":

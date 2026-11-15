@@ -1,0 +1,9 @@
+# 気付きを見ずに書いたレシピ (読めない画像を除かず, 色の形式もそろえない).
+# prepare.py は中身を読む前に注意を出し, 書き出しは理由付きの誤りで止まる
+format_version: 1
+target: label
+task: classification
+item_steps:
+  - {op: resize, width: 32, height: 32}
+  - {op: normalize}
+split: {method: stratified, valid: 0.2, test: 0.1, seed: 0}

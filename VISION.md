@@ -63,7 +63,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
 
 ## ML_tester の役割
 
-ML_tester は動作確認の場. 各リポジトリを利用者の立場で使い, 機能するかを確かめ, 気付いたことを記録する. 今は主に ML-Found (と, 結果を見る ML-Dashboard) を確かめている. タスク 13 は, ML-ModelControl の定義から組み立てたモデルを ML-Found で学習し, モデルの作成と学習の交点を確かめる. タスク 14 は, ML-EDA で前処理して書き出したデータセットを ML-Found で学習し, データの分析と学習の交点を確かめる.
+ML_tester は動作確認の場. 各リポジトリを利用者の立場で使い, 機能するかを確かめ, 気付いたことを記録する. 今は主に ML-Found (と, 結果を見る ML-Dashboard) を確かめている. タスク 13 は, ML-ModelControl の定義から組み立てたモデルを ML-Found で学習し, モデルの作成と学習の交点を確かめる. タスク 14 は, ML-EDA で前処理して書き出したデータセットを ML-Found で学習し, データの分析と学習の交点を確かめる. タスク 15 は同じ交点を, 中身の手順で配列にする画像で確かめる.
 
 - 各リポジトリは ML_tester を前提にしない. 手順書, 例, テストは, 各リポジトリだけで完結させる
 - 機能を ML_tester に集約しない. 機能は各リポジトリに足す

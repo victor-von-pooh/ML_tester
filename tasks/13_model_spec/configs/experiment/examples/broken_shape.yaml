@@ -1,0 +1,3 @@
+# 形の合わない定義 (形の推定で出力先を作る前に止まることの確認)
+model:
+  spec: models/broken_shape.yaml

@@ -1,0 +1,40 @@
+format_version: 1
+name: digits_cnn
+description: 8x8 の手書き数字を分ける, 残差のブロックを 2 つ重ねた小さな CNN
+inputs:
+  x:
+    shape: [8, 1, 8, 8]
+nodes:
+  stem:
+    unit: nn.Conv2d
+    params: {in_channels: 1, out_channels: 16, kernel_size: 3, padding: 1}
+    inputs: x
+  stem_act: {unit: nn.ReLU, inputs: stem}
+  block1: {unit: sub.block, inputs: stem_act}
+  block2: {unit: sub.block, inputs: block1}
+  pool:
+    unit: nn.MaxPool2d
+    params: {kernel_size: 2}
+    inputs: block2
+  flat: {unit: nn.Flatten, inputs: pool}
+  head:
+    unit: nn.Linear
+    params: {in_features: 256, out_features: 10}
+    inputs: flat
+outputs: {logits: head}
+subgraphs:
+  block:
+    description: 3x3 の畳み込みと ReLU の残差のブロック (チャンネル数 16)
+    inputs:
+      x: {}
+    nodes:
+      conv:
+        unit: nn.Conv2d
+        params: {in_channels: 16, out_channels: 16, kernel_size: 3, padding: 1}
+        inputs: x
+      act: {unit: nn.ReLU, inputs: conv}
+      add:
+        unit: op.Add
+        inputs:
+          xs: [x, act]
+    outputs: {out: add}

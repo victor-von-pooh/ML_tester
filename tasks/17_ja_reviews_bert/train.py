@@ -74,7 +74,7 @@ def predict(model: nn.Module, ids: torch.Tensor) -> torch.Tensor:
     probability: torch.Tensor
         (件数, クラス数) の確率
     """
-    # 推論のモードで, 分類の出力だけを使う
+    # 推論のモードでの, 分類の出力だけの確率
     model.eval()
     with torch.no_grad():
         logits = model(ids)
@@ -157,7 +157,7 @@ def main() -> None:
     try:
         model = load_model(
             TASK_DIR, cfg.model.spec, cfg.model.init, cfg.experiment.seed,
-            vocab
+            vocab, dataset.info["splits"]["train"]["shape"][1] + 1
         )
     except ValueError as error:
         print(error)

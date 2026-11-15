@@ -9,7 +9,7 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 DATA_PATH = DATA_DIR / "reviews_ja.csv"
 UNLABELED_PATH = DATA_DIR / "reviews_ja_unlabeled.csv"
 
-# 評価の対象 (本体の評価がラベル. 他の点は本体と関係なく良し悪しを決める)
+# 評価の対象 (本体の評価がラベル. 他の点は本体と関係の無い良し悪し)
 TARGET = "本体"
 ASPECTS = ["配送", "梱包", "説明書", "サポートの対応", "付属品", "箱"]
 
@@ -45,7 +45,7 @@ def clause(subject: str, positive: bool, rng: np.random.Generator) -> str:
     text: str
         句
     """
-    # 述語は否定で意味が逆になるものと, 悪いことの否定を混ぜる
+    # 否定で意味が逆になる述語と, 悪いことの否定の混在
     good, bad = PREDICATES[rng.integers(len(PREDICATES))]
     filler = FILLERS[rng.integers(len(FILLERS))]
     text = f"{filler}{subject}は{good if positive else bad}"
@@ -73,7 +73,7 @@ def review(positive: bool, rng: np.random.Generator) -> str:
     text: str
         レビュー
     """
-    # 本体の句と他の点の句を混ぜて並べる
+    # 本体の句と他の点の句の, 無作為な順の並び
     count = int(rng.integers(1, 4))
     aspects = rng.choice(ASPECTS, count, replace=False)
     parts = [clause(TARGET, positive, rng)] + [

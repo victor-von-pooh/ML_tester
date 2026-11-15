@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from typing import Callable
 
 import numpy as np
 import torch
@@ -13,11 +14,10 @@ from tokens import add_cls, load_model, special_ids
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
 TASK_DIR = Path(__file__).resolve().parent
 
-# 事前学習の後の重みの置き場 (train.py の model.init の既定)
-PRETRAINED = TASK_DIR / "outputs" / "pretrained.pt"
 
-
-def make_step(mask_id: int, cls_id: int, vocab: int, ratio: float):
+def make_step(
+    mask_id: int, cls_id: int, vocab: int, ratio: float
+) -> Callable[[nn.Module, tuple, str], dict]:
     """
     隠した文字を当てる (MLM) 1 バッチ分の損失を求める関数を作る関数
 
@@ -34,8 +34,8 @@ def make_step(mask_id: int, cls_id: int, vocab: int, ratio: float):
 
     Returns
     ----------
-    step: Callable
-        ML-Found の step (model, batch, phase) -> 損失と正解率
+    step: Callable[[nn.Module, tuple, str], dict]
+        ML-Found の step (model, batch, phase) -> 損失, 正解率, 件数
     """
     def step(model: nn.Module, batch: tuple, phase: str) -> dict:
         """
@@ -54,9 +54,10 @@ def make_step(mask_id: int, cls_id: int, vocab: int, ratio: float):
         Returns
         ----------
         outputs: dict
-            隠した文字の交差エントロピー損失と正解率
+            隠した文字の交差エントロピー損失と正解率, 平均の重み (隠した
+            文字の数)
         """
-        # 隠す位置を決め, 隠した位置だけを当てる
+        # 隠す位置の選択と, 隠した位置だけの予測
         (ids,) = batch
         chosen = (torch.rand(ids.shape, device=ids.device) < ratio) & (
             ids > 0
@@ -65,10 +66,10 @@ def make_step(mask_id: int, cls_id: int, vocab: int, ratio: float):
         labels = ids.masked_fill(~chosen, -100)
         logits = model(inputs)["mlm"]
         ce = nn.CrossEntropyLoss(ignore_index=-100)
-        loss = ce(logits.reshape(-1, vocab), labels.reshape(-1))
+        loss = ce(logits.flatten(0, 1), labels.flatten())
         hit = (logits.argmax(dim=-1) == ids) & chosen
         acc = hit.sum() / chosen.sum().clamp(min=1)
-        outputs = {"loss": loss, "acc": acc}
+        outputs = {"loss": loss, "acc": acc, "batch_size": int(chosen.sum())}
 
         return outputs
 
@@ -110,10 +111,15 @@ def main() -> None:
         TensorDataset(ids[order[:cut]]), batch_size=cfg.data.batch_size
     )
 
-    # 定義からモデルを作り, 隠した文字を当てる学習
-    model = load_model(
-        TASK_DIR, cfg.model.spec, cfg.model.init, cfg.experiment.seed, vocab
-    )
+    # 定義からモデルを作り, 隠した文字を当てる学習 (重みは読まない)
+    try:
+        model = load_model(
+            TASK_DIR, cfg.model.spec, None, cfg.experiment.seed, vocab,
+            ids.shape[1]
+        )
+    except ValueError as error:
+        print(error)
+        sys.exit(1)
     experiment = start_experiment(cfg, diff, str(TASK_DIR))
     experiment.logger.info(
         f"事前学習: {len(ids)} 件, 語の数 {vocab} ([MASK] {mask_id}, "
@@ -123,11 +129,15 @@ def main() -> None:
     trainer = Trainer(model, experiment, step)
     history = trainer.fit(train_loader, valid_loader)
 
-    # 微調整で読み込む重み
-    torch.save(trainer.model.state_dict(), PRETRAINED)
+    # 微調整で読み込む重み (ベストのエポックの重み)
+    output = TASK_DIR / cfg.pretrain.output
+    torch.save(trainer.model.state_dict(), output)
+    best_epoch = trainer.checkpoint.best_epoch
     print(f"保存先: {experiment.run_dir}")
-    print(f"検証用の隠した文字の正解率: {history.get('valid/acc')[-1]:.4f}")
-    print(f"微調整で読み込む重み: {PRETRAINED}")
+    print(f"ベストモデルのエポック: {best_epoch}")
+    print(f"検証用の隠した文字の正解率: "
+          f"{history.get('valid/acc')[best_epoch - 1]:.4f}")
+    print(f"微調整で読み込む重み: {output}")
 
 
 if __name__ == "__main__":

@@ -6,9 +6,8 @@ trainer:
   epochs: 4
   monitor: valid/loss
   mode: min
+  # 検証の隠す位置を毎エポック同じにする (エポックどうしを比べるため)
+  valid_seed: 0
 
 data:
   batch_size: 128
-
-model:
-  init: null

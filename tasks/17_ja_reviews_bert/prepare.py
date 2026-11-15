@@ -41,7 +41,8 @@ def main() -> None:
             print(f"  [{item['severity']}] {item['code']}: "
                   f"{item['message'][:70]}")
 
-    # レシピで書き出す (語彙は学習用の文だけで作る)
+    # 文の列として読んだデータの, レシピでの書き出し (語彙は学習用の文から)
+    data = load_data(SOURCE, text_column="review")
     info = export_dataset(
         data, TASK_DIR / "recipe.yaml", DATASET, name="reviews_ja",
         overwrite=True
@@ -49,7 +50,7 @@ def main() -> None:
     shapes = {name: item["shape"] for name, item in info["splits"].items()}
     print(f"書き出し: {DATASET}, 形 {shapes}, クラス {info['classes']}")
 
-    # ラベルの無いレビューに, 書き出したときと同じ中身の手順をかける
+    # ラベルの無いレビューへの, 書き出したときと同じ中身の手順
     dataset = load_dataset(DATASET)
     unlabeled = load_data(UNLABELED, text_column="review")
     corpus = np.stack([

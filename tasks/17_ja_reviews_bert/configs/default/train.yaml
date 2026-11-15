@@ -41,3 +41,5 @@ model:
 pretrain:
   # 事前学習 (MLM) で隠す文字の割合
   mask_ratio: 0.15
+  # 事前学習の後の重みを書く場所 (model.init と同じにすると微調整で読む)
+  output: outputs/pretrained.pt

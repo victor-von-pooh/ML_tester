@@ -1,0 +1,36 @@
+format_version: 1
+name: sales_mlp
+inputs:
+  x:
+    shape: [64, 22]
+    ui: {x: 40, y: 60}
+nodes:
+  fc1:
+    unit: nn.Linear
+    params: {in_features: 22, out_features: 64}
+    inputs: {input: x}
+    ui: {x: 300, y: 60}
+  act1:
+    unit: nn.ReLU
+    params: {}
+    inputs: {input: fc1}
+    ui: {x: 560, y: 60}
+  fc2:
+    unit: nn.Linear
+    params: {in_features: 64, out_features: 64}
+    inputs: {input: act1}
+    ui: {x: 820, y: 60}
+  act2:
+    unit: nn.ReLU
+    params: {}
+    inputs: {input: fc2}
+    ui: {x: 1080, y: 60}
+  out:
+    unit: nn.Linear
+    params: {in_features: 64, out_features: 1}
+    inputs: {input: act2}
+    ui: {x: 1340, y: 60}
+outputs: {y: out}
+ui:
+  outputs:
+    y: {x: 1600, y: 60}

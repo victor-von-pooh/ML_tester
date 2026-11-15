@@ -1,0 +1,6 @@
+# 店をまたいでずらしたデータセット (先に prepare.py --recipe recipe_naive.yaml --out outputs/dataset_naive)
+experiment:
+  name: store_sales_naive
+
+data:
+  dataset: outputs/dataset_naive

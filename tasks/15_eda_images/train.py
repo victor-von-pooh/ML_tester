@@ -125,13 +125,20 @@ def main() -> None:
         sys.exit(1)
     dataset = load_dataset(path)
     experiment = start_experiment(cfg, diff, str(TASK_DIR))
+    # 画像は normalize で (件数, チャンネル, 高さ, 幅) の配列になる前提
     shape = dataset.info["splits"]["train"]["shape"]
+    if len(shape) != 4 or shape[1] not in (1, 3):
+        print(
+            f"学習用の形 {shape} は (件数, チャンネル, 高さ, 幅) ではありません. "
+            "レシピの最後を normalize にして書き出し直してください"
+        )
+        sys.exit(1)
     experiment.logger.info(
         f"データセット: {dataset.info['name']}, 学習用の形 {shape}, "
         f"クラス {dataset.info['classes']}"
     )
 
-    # 分割ごとのテンソルを DataLoader にする
+    # 分割ごとのテンソルの DataLoader
     train_loader = DataLoader(
         TensorDataset(*dataset.tensors("train")),
         batch_size=cfg.data.batch_size, shuffle=True

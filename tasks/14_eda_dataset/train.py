@@ -121,7 +121,7 @@ def main() -> None:
         f"クラス {dataset.info['classes']}"
     )
 
-    # 分割ごとのテンソルを DataLoader にする
+    # 分割ごとのテンソルの DataLoader
     train_loader = DataLoader(
         TensorDataset(*dataset.tensors("train")),
         batch_size=cfg.data.batch_size, shuffle=True

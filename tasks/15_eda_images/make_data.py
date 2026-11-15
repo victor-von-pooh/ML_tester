@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -9,7 +10,7 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "shapes"
 # クラス (図形) の名前
 SHAPES = ("circle", "square", "triangle")
 
-# 画像の大きさの候補 (幅, 高さ). 前処理でそろえる必要がある
+# 画像の大きさの候補 (幅, 高さ). 前処理でそろえる対象
 SIZES = ((48, 48), (64, 64), (64, 48))
 
 
@@ -81,7 +82,8 @@ def main(per_class: int = 300, seed: int = 0) -> None:
     ----------
     None
     """
-    # クラスごとに描いて保存
+    # 前の画像を消してから, クラスごとに描いて保存
+    shutil.rmtree(DATA_DIR, ignore_errors=True)
     rng = np.random.default_rng(seed)
     for shape in SHAPES:
         folder = DATA_DIR / shape

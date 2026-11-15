@@ -24,8 +24,14 @@ def parse_args() -> argparse.Namespace:
     """
     # 既定は recipe.yaml と outputs/dataset
     parser = argparse.ArgumentParser()
-    parser.add_argument("--recipe", default="recipe.yaml")
-    parser.add_argument("--out", default="outputs/dataset")
+    parser.add_argument(
+        "--recipe", default="recipe.yaml",
+        help="レシピ (タスクのディレクトリから)"
+    )
+    parser.add_argument(
+        "--out", default="outputs/dataset",
+        help="書き出す先 (タスクのディレクトリから)"
+    )
     args = parser.parse_args()
 
     return args
@@ -49,7 +55,7 @@ def main() -> None:
     recipe = TASK_DIR / args.recipe
     dataset = TASK_DIR / args.out
 
-    # 元のデータが無ければ作り方を案内して終える
+    # 元のデータが無ければ作り方の案内と終了
     if not SOURCE.is_dir():
         print("data/shapes がありません. 先に make_data.py を実行してください")
         sys.exit(1)
@@ -61,17 +67,16 @@ def main() -> None:
     for item in result["findings"]:
         print(f"[{item['severity']}] {item['code']}: {item['message']}")
 
-    # 中身を読まずにレシピを確かめる (ML-Fathom の前と後の様子と同じ)
-    checked = prepare(data, recipe, read_items=False)
-    rows = {name: len(frame) for name, frame in checked.frames.items()}
-    print(f"分割: {rows}, 注意: {checked.notes or 'なし'}")
-
-    # 画像を読んで配列にし, 書き出す (前のものは置き換える)
+    # 中身を読まないレシピの確認 (ML-Fathom の前と後の様子と同じ) と,
+    # 画像を読んで配列にした書き出し (前のものは置き換える)
     try:
+        checked = prepare(data, recipe, read_items=False)
+        rows = {n: len(frame) for n, frame in checked.frames.items()}
+        print(f"分割: {rows}, 注意: {checked.notes or 'なし'}")
         info = export_dataset(
             data, recipe, dataset, name=dataset.name, overwrite=True
         )
-    except ValueError as error:
+    except (ValueError, FileExistsError) as error:
         print(f"書き出せません: {error}")
         sys.exit(1)
     shapes = {name: item["shape"] for name, item in info["splits"].items()}

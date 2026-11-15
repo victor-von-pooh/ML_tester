@@ -48,7 +48,7 @@ def main() -> None:
     recipe = TASK_DIR / args.recipe
     dataset = TASK_DIR / args.out
 
-    # 元のデータが無ければ作り方を案内して終える
+    # 元のデータが無ければ作り方の案内と終了
     if not SOURCE.is_file():
         print("data/churn.csv がありません. 先に make_data.py を実行してください")
         sys.exit(1)

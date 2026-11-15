@@ -73,7 +73,7 @@ python tasks/16_eda_pointcloud/train.py       # 4. 学習
 python tasks/16_eda_pointcloud/train.py --experiment configs/experiment/examples/quick.yaml   # 動作の確認 (3 エポック)
 ```
 
-CPU で, 3 は 1 秒ほど, 4 は 12 秒ほど (Python の起動を含む. 学習は 9 秒ほど).
+CPU で, 3 は 1 秒ほど, 4 は 12 から 14 秒ほど (Python の起動を含む. 学習は 9 から 10 秒). `--recipe` と `--out` の相対パスは, タスクのディレクトリから辿る (2 の `outputs/naive` は `tasks/16_eda_pointcloud/outputs/naive`).
 
 ## 期待する結果
 

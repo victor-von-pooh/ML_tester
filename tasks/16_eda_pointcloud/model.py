@@ -35,7 +35,7 @@ class PointEncoder(nn.Module):
         feature: torch.Tensor
             (バッチ, チャンネル数 * 4) の点群全体の特徴
         """
-        # 点ごとに特徴を作り, 点の並びに依らないように最大値でまとめる
+        # 点ごとの特徴と, 点の並びに依らない最大値でのまとめ
         h = x.transpose(1, 2)
         h = self.relu(self.norm1(self.conv1(h)))
         h = self.relu(self.norm2(self.conv2(h)))

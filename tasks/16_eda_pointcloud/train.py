@@ -10,7 +10,7 @@ from ml_eda import Dataset, load_dataset
 from ml_found import (
     Experiment, Trainer, load_project_config, start_experiment
 )
-from make_data import place, surface
+from make_data import place, surface  # 新しい点群も学習用と同じ作り方
 from model import PointClassifier
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
@@ -60,7 +60,7 @@ def new_cloud() -> dict:
         points ((3000, 3) の座標) と colors (None). ML-EDA の読み込みと
         同じ形
     """
-    # 学習用と同じ作り方 (回転, 拡大, 平行移動) の円錐に欠けを入れる
+    # 学習用と同じ作り方 (回転, 拡大, 平行移動) の円錐と欠け
     rng = np.random.default_rng(123)
     points = place(surface("cone", 3000, rng), rng)
     points[rng.random(3000) < 0.1] = np.nan
@@ -98,7 +98,7 @@ def evaluate_test(
     # 点の数も欠けも違う新しい点群に, 書き出したときと同じ中身の手順
     # (有限の点からの sample_points, normalize_cloud) をかけて予測
     array = dataset.transform_item(new_cloud())
-    x = torch.from_numpy(np.asarray(array, dtype=np.float32)).unsqueeze(0)
+    x = torch.from_numpy(array).unsqueeze(0)
     with torch.no_grad():
         probability = model(x).softmax(dim=1)[0]
     best = int(probability.argmax())

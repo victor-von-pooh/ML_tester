@@ -142,7 +142,7 @@ def main(per_class: int = 60, seed: int = 0) -> None:
     ----------
     None
     """
-    # 前の点群を消してから, 形ごとに書く (3 件に 1 件ずつ形式を変える)
+    # 前の点群を消してからの, 形ごとの書き出し (3 件に 1 件ずつ形式を変更)
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     rng = np.random.default_rng(seed)
     for shape in SHAPES:

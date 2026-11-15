@@ -45,9 +45,9 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture の 4 つのリ�
 
 | 約束 | 形を持つリポジトリ | 作るもの | 読むもの |
 | --- | --- | --- | --- |
-| モデルの定義 (YAML か JSON, `format_version` 付き) | ML-ModelControl | ML-CreateArchitecture (手でも書ける) | ML-CreateArchitecture, 学習のスクリプト (ML-ModelControl で組み立てる) |
-| プロジェクトの形 (`configs/default/`, `configs/experiment/`, 学習のスクリプト) | ML-Found (スクリプトが複数ある場合の default の選び方など, 一部の決まりは今は ML-Dashboard の文書にある) | 今は人. 将来は問題の設定 | ML-Found, ML-Dashboard |
-| 実験のディレクトリ (config, 起動のしかた, 状態, 記録, 重み. `run.json` に形式の版がある) | ML-Found | ML-Found | ML-Dashboard, 将来は推論 |
+| モデルの定義 (YAML か JSON, `format_version` 付き) | ML-ModelControl (`docs/DESIGN.md` の「モデルの定義の形」) | ML-CreateArchitecture (手でも書ける) | ML-CreateArchitecture, 学習のスクリプト (ML-ModelControl で組み立てる) |
+| プロジェクトの形 (`configs/default/`, `configs/experiment/`, 学習のスクリプト) | ML-Found (`docs/FORMAT.md`) | 今は人. 将来は問題の設定 | ML-Found, ML-Dashboard |
+| 実験のディレクトリ (config, 起動のしかた, 状態, 記録, 重み. `run.json` と `source.yaml` に形式の版がある) | ML-Found (`docs/FORMAT.md`) | ML-Found | ML-Dashboard, 将来は推論 |
 
 ## 進め方
 

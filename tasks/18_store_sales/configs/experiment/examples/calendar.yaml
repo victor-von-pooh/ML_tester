@@ -1,0 +1,6 @@
+# 暦の日付でずらしたデータセット (先に prepare.py --recipe recipe_calendar.yaml --out outputs/dataset_calendar)
+experiment:
+  name: store_sales_calendar
+
+data:
+  dataset: outputs/dataset_calendar

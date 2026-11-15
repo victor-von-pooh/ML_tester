@@ -4,12 +4,14 @@ format_version: 1
 target: sales
 task: forecasting
 steps:
-- op: drop_duplicates
 - op: normalize_text
   columns:
   - store
+- op: drop_duplicates
 - op: lag
-  columns: auto
+  columns:
+  - sales
+  - temperature
   lags:
   - 1
   - 7

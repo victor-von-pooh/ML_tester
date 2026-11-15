@@ -66,7 +66,7 @@ def main() -> None:
     for item in result["findings"]:
         print(f"[{item['severity']}] {item['code']}: {item['message'][:80]}")
 
-    # レシピで前処理し, 時刻の順に分けて書き出す (前のものは置き換える)
+    # レシピでの前処理と, 時刻の順に分けた書き出し (前のものは置き換え)
     out = TASK_DIR / args.out
     try:
         info = export_dataset(

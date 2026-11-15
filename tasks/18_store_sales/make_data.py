@@ -45,7 +45,7 @@ def main(days: int = 730, seed: int = 0) -> None:
         heat = rng.uniform(-0.02, 0.02)
         noise = 0.0
         for day in range(days):
-            # 前の日の揺れが続く (店ごと)
+            # 前の日の揺れの続き (店ごと)
             noise = 0.7 * noise + rng.normal(0, 0.08)
             promo = rng.random() < 0.08
             dow = dates[day].day_of_week
@@ -62,7 +62,7 @@ def main(days: int = 730, seed: int = 0) -> None:
             })
     frame = pd.DataFrame(rows)
 
-    # 日付の書き方を混ぜる (2024/01/03, 2024-01-03, 2024年1月3日)
+    # 日付の書き方の混在 (2024/01/03, 2024-01-03, 2024年1月3日)
     style = rng.integers(0, 3, len(frame))
     frame["date"] = [
         d.strftime("%Y/%m/%d") if s == 0 else d.strftime("%Y-%m-%d")

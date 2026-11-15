@@ -2,12 +2,12 @@ format_version: 1
 name: sales_mlp
 inputs:
   x:
-    shape: [64, 25]
+    shape: [64, 22]
     ui: {x: 40, y: 60}
 nodes:
   fc1:
     unit: nn.Linear
-    params: {in_features: 25, out_features: 64}
+    params: {in_features: 22, out_features: 64}
     inputs: {input: x}
     ui: {x: 300, y: 60}
   act1:

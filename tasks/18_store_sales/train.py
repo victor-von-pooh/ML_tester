@@ -34,12 +34,12 @@ def unscale(dataset: Dataset, name: str, values: torch.Tensor) -> torch.Tensor:
     original: torch.Tensor
         元の大きさの値 (標準化していない列はそのまま)
     """
-    # 標準化の手順の当てはめた値 (中心と幅) で戻す
+    # 標準化の手順で当てはめた中心と幅での復元 (後の手順から順に)
     original = values
-    for step in dataset.recipe["steps"]:
+    for step in reversed(dataset.recipe["steps"]):
         if step["op"] == "standardize":
             center, scale = step["state"]["values"].get(name, [0.0, 1.0])
-            original = values * scale + center
+            original = original * scale + center
 
     return original
 
@@ -96,8 +96,8 @@ def evaluate_test(
     center: float, scale: float
 ) -> None:
     """
-    テスト用の期間の誤差と, 前の週の同じ曜日の売上を答えた場合の誤差を
-    比べる関数
+    テスト用の期間の誤差と, 7 つ前の行の売上 (多くは前の週の同じ曜日) を
+    答えた場合の誤差を比べる関数
 
     Parameters
     ----------
@@ -127,14 +127,15 @@ def evaluate_test(
         f"テスト用の平均絶対誤差: {mae:,.0f} 円, 平均の割合の誤差: {mape:.3%}"
     )
 
-    # 前の週の同じ曜日の売上 (sales_lag7) をそのまま答えた場合
+    # 7 つ前の行の売上 (sales_lag7. 多くは前の週の同じ曜日) を答えた場合
     if "sales_lag7" in dataset.features:
         column = dataset.features.index("sales_lag7")
         last_week = unscale(dataset, "sales_lag7", x[:, column])
         base = (last_week - y).abs().mean().item()
         base_pct = ((last_week - y).abs() / y.clamp(min=1)).mean().item()
         experiment.logger.info(
-            f"前の週の同じ曜日を答えた場合: {base:,.0f} 円, {base_pct:.3%}"
+            f"7 つ前の行 (sales_lag7) を答えた場合: {base:,.0f} 円, "
+            f"{base_pct:.3%}"
         )
 
 
@@ -159,7 +160,7 @@ def main() -> None:
         sys.exit(1)
     dataset = load_dataset(path)
 
-    # 売上は学習用の平均と標準偏差で標準化して学ぶ
+    # 学習用の平均と標準偏差での売上の標準化
     x_train, y_train = dataset.tensors("train")
     x_valid, y_valid = dataset.tensors("valid")
     center, scale = y_train.mean().item(), y_train.std().item()

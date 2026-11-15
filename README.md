@@ -4,6 +4,8 @@
 [ML-Found](https://github.com/victor-von-pooh/ML-Found) を利用者の立場で使い, いろいろな種類のタスクで機能するかを確かめる.
 各タスクの `train.py` を手で動かして結果を見て, 書きにくい点や足りない機能を [FEEDBACK.md](FEEDBACK.md) にまとめる. 結果は ML-Dashboard の画面でも見られる (下の「ML-Dashboard で見る」).
 
+「機械学習を全て GUI 上で行う」という全体の方針と, 各リポジトリの役割は [VISION.md](VISION.md) にまとめた. このリポジトリは動作確認の場で, 各リポジトリはこのリポジトリが無くても単独で使えるようにする.
+
 ## 導入
 
 ```bash

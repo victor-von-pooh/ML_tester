@@ -1,0 +1,43 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: ja_bert
+  seed: 0
+  # 小さなモデルなので, GPU より CPU の方が速い
+  device: cpu
+
+optimizer:
+  name: AdamW
+  params:
+    lr: 0.001
+    weight_decay: 0.01
+
+scheduler:
+  name: CosineAnnealingLR
+  interval: step
+  params:
+    T_max: auto
+  warmup_ratio: 0.1
+
+trainer:
+  epochs: 12
+  monitor: valid/acc
+  mode: max
+  early_stopping:
+    use: false
+
+# プロジェクト固有の設定
+data:
+  # prepare.py が ML-EDA で書き出すデータセットと, 事前学習用の番号の並び
+  dataset: outputs/dataset
+  corpus: outputs/corpus.npy
+  batch_size: 64
+
+model:
+  # ML-CreateArchitecture で組んだモデルの定義 (タスクのディレクトリから)
+  spec: models/ja_bert.yaml
+  # 学習を始める前に読み込む重み (pretrain.py が書く. null なら読まない)
+  init: outputs/pretrained.pt
+
+pretrain:
+  # 事前学習 (MLM) で隠す文字の割合
+  mask_ratio: 0.15

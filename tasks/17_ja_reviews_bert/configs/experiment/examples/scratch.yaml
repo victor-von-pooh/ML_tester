@@ -1,0 +1,6 @@
+# 事前学習をせずに, 同じ BERT を最初から学習する
+experiment:
+  name: ja_bert_scratch
+
+model:
+  init: null

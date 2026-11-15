@@ -1,0 +1,14 @@
+# pretrain.py で使う. ラベルの無いレビューで, 隠した文字を当てる (MLM)
+experiment:
+  name: ja_bert_pretrain
+
+trainer:
+  epochs: 4
+  monitor: valid/loss
+  mode: min
+
+data:
+  batch_size: 128
+
+model:
+  init: null

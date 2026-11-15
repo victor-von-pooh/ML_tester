@@ -1,0 +1,7 @@
+# 答えから作った列 (cancel_reason_code) を落とさないレシピで書き出したデータセット
+# (先に prepare.py --recipe recipe_leak.yaml --out outputs/dataset_leak)
+experiment:
+  name: churn_leak
+
+data:
+  dataset: outputs/dataset_leak

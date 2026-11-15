@@ -17,7 +17,7 @@ pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@5cfabe4"   # 13 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@9ac69a9"   # 14 で使う
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@76c3dbc"   # 14 で使う
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 ```
 

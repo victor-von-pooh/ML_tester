@@ -1,6 +1,6 @@
 # 全体の方針
 
-ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture の 4 つのリポジトリが, 最終的に何を目指し, どう組み合わさるかをまとめる.
+ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom の 6 つのリポジトリが, 最終的に何を目指し, どう組み合わさるかをまとめる.
 これは全体を見渡すためのメモで, 決まりの本体は各リポジトリの文書にある. 各リポジトリは, このメモと ML_tester を前提にせず単独で成り立つようにする.
 
 ## 目指すもの

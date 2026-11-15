@@ -1,14 +1,23 @@
 from pathlib import Path
 import sys
 
-import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from ml_eda import load_dataset
-from ml_found import Trainer, load_project_config, start_experiment
+from ml_eda import Dataset, load_data, load_dataset
+from ml_found import (
+    Experiment, Trainer, load_project_config, start_experiment
+)
 from model import ChurnClassifier
+
+# 推論の確かめに使う新しい顧客 (元のデータと同じ形の csv. ID, 欠損,
+# カンマ付きの数を含む. 答えから作った列は予測のときには無い)
+NEW_CUSTOMER = (
+    "customer_id,tenure_months,monthly_fee,total_paid,plan,contract,"
+    "support_calls,data_gb\n"
+    'C999999,3,,"1,210",premium,monthly,6,12.0\n'
+)
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
 TASK_DIR = Path(__file__).resolve().parent
@@ -43,7 +52,9 @@ def step(model: nn.Module, batch: tuple, phase: str) -> dict:
     return outputs
 
 
-def evaluate_test(model: nn.Module, dataset, experiment) -> None:
+def evaluate_test(
+    model: nn.Module, dataset: Dataset, experiment: Experiment
+) -> None:
     """
     テスト用の分割の正解率と, 新しいデータへの前処理を確かめる関数
 
@@ -51,9 +62,9 @@ def evaluate_test(model: nn.Module, dataset, experiment) -> None:
     ----------
     model: nn.Module
         学習した後のモデル
-    dataset: Any
+    dataset: Dataset
         ML-EDA のデータセット
-    experiment: Any
+    experiment: Experiment
         実験 (train.log に記録する)
 
     Returns
@@ -67,15 +78,19 @@ def evaluate_test(model: nn.Module, dataset, experiment) -> None:
         accuracy = (model(x_test).argmax(dim=1) == y_test).float().mean()
     experiment.logger.info(f"テスト用の正解率: {accuracy.item():.4f}")
 
-    # 元の形の新しいデータ (前処理の前) に, 書き出したときの前処理をかける
-    raw = pd.DataFrame({
-        "customer_id": ["C999999"], "tenure_months": [3],
-        "monthly_fee": [None], "total_paid": [210.0], "plan": ["premium"],
-        "contract": ["monthly"], "support_calls": [6], "data_gb": [12.0],
-    })
-    features = torch.from_numpy(
-        dataset.transform(raw).to_numpy(dtype="float32")
-    )
+    # 元のデータと同じ形の新しい顧客を load_data で読み (カンマ付きの数は
+    # ここで数になる), 書き出したときの前処理をかける. 予測のときに無い列
+    # (答えから作った列など) を学習に使っていると, 前処理で誤りになる
+    path = experiment.run_dir / "new_customer.csv"
+    path.write_text(NEW_CUSTOMER, encoding="utf-8")
+    try:
+        raw = load_data(path, kind="table").frame
+        features = torch.from_numpy(
+            dataset.transform(raw).to_numpy(dtype="float32")
+        )
+    except ValueError as error:
+        experiment.logger.warning(f"新しい顧客を予測できません: {error}")
+        return
     with torch.no_grad():
         probability = model(features).softmax(dim=1)[0, 1].item()
     experiment.logger.info(f"新しい顧客の解約の確率: {probability:.3f}")

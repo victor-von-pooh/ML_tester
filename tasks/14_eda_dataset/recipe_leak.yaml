@@ -1,0 +1,15 @@
+# ML-EDA の前処理のレシピ (ML-Fathom の「前処理と書き出し」で作るものと同じ形)
+format_version: 1
+target: churn
+task: classification
+steps:
+  # ID だけを落とし, 答えから作った列 (リーク) は残す (リークの確かめ用)
+  - {op: drop_columns, columns: [customer_id]}
+  # 欠損は学習用の中央値と最も多い値で埋める
+  - {op: impute, columns: [monthly_fee], strategy: median, indicator: true}
+  - {op: impute, columns: [plan], strategy: most_frequent}
+  # 偏った分布の対数, カテゴリのワンホット, 標準化
+  - {op: log, columns: [data_gb]}
+  - {op: one_hot, columns: [plan, contract]}
+  - {op: standardize, columns: [tenure_months, monthly_fee, total_paid, support_calls, data_gb]}
+split: {method: stratified, valid: 0.2, test: 0.1, seed: 0}

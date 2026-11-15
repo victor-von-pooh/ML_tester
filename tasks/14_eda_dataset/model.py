@@ -7,17 +7,17 @@ class ChurnClassifier(nn.Module):
         # 親クラスのコンストラクタを呼び出す
         super(ChurnClassifier, self).__init__()
 
-        # 引数の保存
+        # 入力次元数, 隠れ層の次元数, クラス数を保存
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.num_classes = num_classes
 
-        # 2 層の多層パーセプトロン
-        self.layers = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, num_classes),
-        )
+        # 隠れ層と出力層の定義
+        self.fc1 = nn.Linear(self.input_dim, self.hidden_dim)
+        self.fc2 = nn.Linear(self.hidden_dim, self.num_classes)
+
+        # 活性化関数の定義
+        self.relu = nn.ReLU()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -33,7 +33,10 @@ class ChurnClassifier(nn.Module):
         logits: torch.Tensor
             クラスごとのスコア
         """
-        # 多層パーセプトロンを適用
-        logits = self.layers(x)
+        # 隠れ層で特徴量を変換
+        h = self.relu(self.fc1(x))
+
+        # 出力層でクラスごとのスコアを計算
+        logits = self.fc2(h)
 
         return logits

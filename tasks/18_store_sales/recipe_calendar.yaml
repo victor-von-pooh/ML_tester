@@ -1,0 +1,41 @@
+# ML-Fathom で作って保存したレシピ (学習できる形にする手順を作る → 決めてほしいことの「日付でずらす」. 店ごとに暦の日付でずらす)
+format_version: 1
+target: sales
+task: forecasting
+steps:
+- op: normalize_text
+  columns:
+  - store
+- op: drop_duplicates
+- op: lag
+  columns:
+  - sales
+  - temperature
+  lags:
+  - 1
+  - 7
+  windows:
+  - 7
+  by:
+  - store
+  time: date
+  freq: 1D
+- op: drop_missing
+- op: datetime_parts
+  columns:
+  - date
+  parts:
+  - weekday
+  - month
+  drop: false
+- op: one_hot
+  columns:
+  - store
+- op: standardize
+  columns: auto
+split:
+  method: time
+  valid: 0.15
+  test: 0.15
+  seed: 0
+item_steps: []

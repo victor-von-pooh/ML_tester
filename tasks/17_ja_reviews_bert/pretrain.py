@@ -135,7 +135,7 @@ def main() -> None:
     best_epoch = trainer.checkpoint.best_epoch
     print(f"保存先: {experiment.run_dir}")
     print(f"ベストモデルのエポック: {best_epoch}")
-    print(f"検証用の隠した文字の正解率: "
+    print(f"検証用の隠したトークンの正解率: "
           f"{history.get('valid/acc')[best_epoch - 1]:.4f}")
     print(f"微調整で読み込む重み: {output}")
 

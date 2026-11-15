@@ -9,7 +9,8 @@ inputs:
 nodes:
   bag:
     unit: nn.EmbeddingBag
-    params: {num_embeddings: 502, embedding_dim: 64, mode: mean, padding_idx: 0}
+    params:
+      {num_embeddings: 502, embedding_dim: 64, mode: mean, padding_idx: 0}
     inputs: {input: ids}
     ui: {x: 300, y: 60}
   head:

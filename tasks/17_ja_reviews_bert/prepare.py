@@ -31,11 +31,12 @@ def main() -> None:
         "--recipe", default="recipe.yaml", help="レシピ (タスクのディレクトリから)"
     )
     parser.add_argument(
-        "--out", default="outputs/dataset", help="データセットの書き出し先"
+        "--out", default="outputs/dataset",
+        help="データセットの書き出し先 (タスクのディレクトリから)"
     )
     parser.add_argument(
         "--corpus", default="outputs/corpus.npy",
-        help="ラベルの無いレビューの番号の並びの書き出し先"
+        help="ラベルの無いレビューの番号の並びの書き出し先 (タスクのディレクトリから)"
     )
     args = parser.parse_args()
     recipe = TASK_DIR / args.recipe
@@ -73,6 +74,7 @@ def main() -> None:
         dataset.transform_item(unlabeled.load_item(i))
         for i in range(len(unlabeled.frame))
     ])
+    corpus_path.parent.mkdir(parents=True, exist_ok=True)
     np.save(corpus_path, corpus)
     print(f"事前学習用: {corpus_path}, 形 {corpus.shape}")
 

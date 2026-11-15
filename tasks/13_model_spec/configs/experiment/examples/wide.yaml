@@ -1,0 +1,3 @@
+# チャンネル数を 32 にした定義に切り替える
+model:
+  spec: models/cnn_wide.yaml

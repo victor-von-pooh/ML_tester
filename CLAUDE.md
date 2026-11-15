@@ -16,7 +16,7 @@ ML_tester で作業するときの方針をまとめる.
 - `tasks/XX_name/`: 1 タスク 1 ディレクトリ. ML-Found のプロジェクトのディレクトリとして扱う
     - `configs/default/train.yaml`, `configs/experiment/train.yaml`: ML-Found の 2 段の config
     - `configs/experiment/examples/`: README の実験で使う差分. `--experiment` で切り替える
-    - `model.py`: モデルのクラス
+    - `model.py`: モデルのクラス (13 は代わりに `models/` の ML-ModelControl のモデルの定義)
     - `train.py`: データ, step, 学習の実行
     - `README.md`: 目的, データ, モデル, 確かめる機能, 期待する結果, 予想される問題, 実行方法, 結果のメモ
     - `outputs/`: ML-Found が作る (git の管理外)

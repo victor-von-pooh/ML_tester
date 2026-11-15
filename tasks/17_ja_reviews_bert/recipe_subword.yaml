@@ -1,0 +1,24 @@
+# ML-Fathom の「前処理と書き出し」で作って保存したレシピ (読み方は「文 (review)」).
+# 中身の手順は「決めてほしいこと」の「分析から作る」で, 分析が文の区切り方を
+# 比べて勧めた部分語 (語彙 500, 長さ 16) になった
+format_version: 1
+target: label
+task: classification
+steps:
+- op: drop_duplicates
+  columns:
+  - review
+- op: filter_rows
+  column: length
+  compare: '>'
+  value: 0
+split:
+  method: stratified
+  valid: 0.2
+  test: 0.1
+  seed: 0
+item_steps:
+- op: vocabulary
+  unit: subword
+  length: 16
+  max_tokens: 500

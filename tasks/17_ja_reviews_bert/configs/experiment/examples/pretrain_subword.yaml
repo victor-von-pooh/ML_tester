@@ -1,0 +1,21 @@
+# pretrain.py で使う. 部分語のデータセット (recipe_subword.yaml) で, 隠した
+# 部分語を当てる (MLM)
+experiment:
+  name: ja_bert_subword_pretrain
+
+trainer:
+  epochs: 4
+  monitor: valid/loss
+  mode: min
+  valid_seed: 0
+
+data:
+  dataset: outputs/dataset_subword
+  corpus: outputs/corpus_subword.npy
+  batch_size: 128
+
+model:
+  spec: models/ja_bert_subword.yaml
+
+pretrain:
+  output: outputs/pretrained_subword.pt

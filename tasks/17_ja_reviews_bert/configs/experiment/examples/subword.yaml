@@ -1,0 +1,12 @@
+# 部分語のデータセットで, 事前学習 (pretrain_subword.yaml) の後の BERT を
+# 微調整する
+experiment:
+  name: ja_bert_subword
+
+data:
+  dataset: outputs/dataset_subword
+  corpus: outputs/corpus_subword.npy
+
+model:
+  spec: models/ja_bert_subword.yaml
+  init: outputs/pretrained_subword.pt

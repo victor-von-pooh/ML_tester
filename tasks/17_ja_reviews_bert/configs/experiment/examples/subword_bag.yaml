@@ -1,0 +1,14 @@
+# 比べるためのモデル: 部分語の埋め込みの平均 (並びを見ない)
+experiment:
+  name: subword_bag
+
+trainer:
+  epochs: 30
+
+data:
+  dataset: outputs/dataset_subword
+  corpus: outputs/corpus_subword.npy
+
+model:
+  spec: models/subword_bag.yaml
+  init: null

@@ -1,0 +1,11 @@
+# 部分語のデータセットで, 事前学習をせずに BERT を最初から学習する
+experiment:
+  name: ja_bert_subword_scratch
+
+data:
+  dataset: outputs/dataset_subword
+  corpus: outputs/corpus_subword.npy
+
+model:
+  spec: models/ja_bert_subword.yaml
+  init: null

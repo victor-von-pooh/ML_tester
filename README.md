@@ -17,7 +17,7 @@ pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@6d61aa7"   # 14 から 18 で使う
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@5dcbd77"   # 14 から 18 で使う (all に部分語の tokenizers も入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 ```
 
@@ -58,7 +58,7 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 14 | `tasks/14_eda_dataset` | ML-EDA で前処理したデータセットの学習 | 合成した顧客の表 | 気付きからレシピを書き, 書き出したデータセットを load_dataset で学習, 新しいデータに同じ前処理 (データの分析と学習の交点) |
 | 15 | `tasks/15_eda_images` | ML-EDA で配列にした画像のデータセットの学習 | 合成した図形の画像 | 大きさ, 色の形式, 読めないファイルの混ざる画像のフォルダを中身の手順で配列にし, 中身を読まずにレシピを確かめ, 新しい画像に同じ手順 (データの分析と学習の交点) |
 | 16 | `tasks/16_eda_pointcloud` | ML-EDA で配列にした点群のデータセットの学習 | 合成した形の点群 | PLY, PCD, xyz の混在, 点の数の違い, 座標が数でない点を中身の手順でそろえ, 新しい点群に同じ手順 (データの分析と学習の交点) |
-| 17 | `tasks/17_ja_reviews_bert` | 日本語のレビューを画面で組んだ BERT で分類 | 合成した日本語のレビュー (汚れた csv とラベル無しの文) | ML-Fathom で文の列を前処理, ML-CreateArchitecture で組んだ BERT を事前学習 (MLM) と微調整, 文字の平均のモデルと比べる (3 つの段階を通しで) |
+| 17 | `tasks/17_ja_reviews_bert` | 日本語のレビューを画面で組んだ BERT で分類 | 合成した日本語のレビュー (汚れた csv とラベル無しの文) | ML-Fathom で文の列を前処理, ML-CreateArchitecture で組んだ BERT を事前学習 (MLM) と微調整, 文字の平均のモデルと比べる (3 つの段階を通しで). ML-Fathom が勧めた部分語の区切りでも比べる |
 | 18 | `tasks/18_store_sales` | 店ごとの日々の売上の予測 | 合成した 12 店の売上 (円の付いた数, 混在した日付, 重複) | ML-Fathom で店ごとの時系列として前処理 (店ごとのずらし), ML-CreateArchitecture で組んだモデルで回帰, 店をまたいだずらしと比べる |
 
 各タスクのディレクトリは次の構成にする.

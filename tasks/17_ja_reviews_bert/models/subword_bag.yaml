@@ -1,0 +1,24 @@
+format_version: 1
+name: subword_bag
+inputs:
+  ids:
+    shape: [2, 17]
+    ui: {x: 40, y: 60}
+    dtype: int64
+    fill: ones
+nodes:
+  bag:
+    unit: nn.EmbeddingBag
+    params:
+      {num_embeddings: 502, embedding_dim: 64, mode: mean, padding_idx: 0}
+    inputs: {input: ids}
+    ui: {x: 300, y: 60}
+  head:
+    unit: nn.Linear
+    params: {in_features: 64, out_features: 2}
+    inputs: {input: bag}
+    ui: {x: 560, y: 60}
+outputs: {logits: head}
+ui:
+  outputs:
+    logits: {x: 820, y: 60}

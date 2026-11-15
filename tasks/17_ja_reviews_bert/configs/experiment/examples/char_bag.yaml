@@ -1,0 +1,10 @@
+# 比べるためのモデル: 文字の埋め込みの平均 (文字の並びを見ない)
+experiment:
+  name: char_bag
+
+trainer:
+  epochs: 30
+
+model:
+  spec: models/char_bag.yaml
+  init: null

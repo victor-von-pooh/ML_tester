@@ -1,0 +1,13 @@
+# pretrain.py で使う. ラベルの無いレビューで, 隠した文字を当てる (MLM)
+experiment:
+  name: ja_bert_pretrain
+
+trainer:
+  epochs: 4
+  monitor: valid/loss
+  mode: min
+  # 検証の隠す位置を毎エポック同じにする (エポックどうしを比べるため)
+  valid_seed: 0
+
+data:
+  batch_size: 128

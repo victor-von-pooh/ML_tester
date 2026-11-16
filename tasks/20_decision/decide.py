@@ -207,12 +207,15 @@ def sales_decisions(out: Path) -> tuple[Path, pd.DataFrame, pd.Timestamp]:
         "last_week"
     ].notna().to_numpy()
 
-    # 損の比ごとの実際の損 (今のやり方: 前の週の同じ曜日の売上を置く)
+    # 損の比ごとの実際の損 (今のやり方: 前の週の同じ曜日の売上を置く).
+    # 差の幅は日ごとに選び直す (同じ日の店どうしは似ているため. 18 は行の
+    # 順でずらす一式なので, 自動では行ごとになる)
     print("18 のテスト用の期間で, 置く量の方針の実際の損 (百万円):")
     for under, over in SALES_COSTS:
         decision = {"type": "quantity", "under_cost": under,
                     "over_cost": over, "current": "last_week"}
-        result = backtest(bundle, window, decision, count=count)
+        result = backtest(bundle, window, decision, count=count,
+                          group="date")
         values = {name: -value / 1e6
                   for name, value in result["policies"].items()}
         print(f"  足りない {under} : 余る {over} ({result['rows']:,} 行): "
@@ -324,7 +327,7 @@ def remeasure_decisions(
         ))
         replay = backtest(bundle, frame, {**decision,
                                           "current": "remeasured"},
-                          count=second.to_numpy())
+                          count=second.to_numpy(), group="date")
         gap = replay["gaps"]["今のやり方"]
         low, high = gap["range"]
         print(f"  足りない {under} : 余る {over} ({replay['rows']:,} 行): "
@@ -332,8 +335,8 @@ def remeasure_decisions(
               f"測り直し {-replay['policies']['今のやり方'] / 1e6:,.1f}, "
               f"予測の値どおり "
               f"{-replay['policies']['予測の値どおりに置く'] / 1e6:,.1f} "
-              f"(測り直しの改善 {-gap['gap'] / 1e6:,.1f}, 90 % の幅 "
-              f"{-high / 1e6:,.1f} から {-low / 1e6:,.1f})")
+              f"(測り直しの改善 {-gap['gap'] / 1e6:,.2f}, 90 % の幅 "
+              f"{-high / 1e6:,.2f} から {-low / 1e6:,.2f})")
 
 
 def reviews_decisions(out: Path) -> None:

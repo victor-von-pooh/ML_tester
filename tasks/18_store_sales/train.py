@@ -10,6 +10,7 @@ from ml_eda import Dataset, load_dataset
 from ml_found import (
     Experiment, Trainer, load_project_config, start_experiment
 )
+from ml_inference import make_bundle
 from ml_modelcontrol import build_model
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
@@ -196,6 +197,20 @@ def main() -> None:
     print(f"ベストの検証用の平均絶対誤差: "
           f"{history.get('valid/mae')[best_epoch - 1]:,.0f} 円")
     evaluate_test(trainer.model, dataset, experiment, center, scale)
+
+    # 推論の一式を実験の中に (前処理の外でした売上の標準化も書く)
+    info = make_bundle(
+        Path(experiment.run_dir) / "inference", TASK_DIR / cfg.model.spec,
+        path, experiment.run_dir,
+        target_scale={"center": center, "scale": scale},
+        name=cfg.experiment.name
+    )
+    check = info["check"]
+    experiment.logger.info(
+        f"推論の一式: {check['split']} の {check['metric']} "
+        f"{check['value']:,.1f} (記録 {check['recorded']}, 合う: "
+        f"{check['matches']})"
+    )
 
 
 if __name__ == "__main__":

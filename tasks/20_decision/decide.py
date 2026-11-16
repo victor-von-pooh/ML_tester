@@ -207,9 +207,9 @@ def sales_decisions(out: Path) -> tuple[Path, pd.DataFrame, pd.Timestamp]:
         "last_week"
     ].notna().to_numpy()
 
-    # 損の比ごとの実際の損 (今のやり方: 前の週の同じ曜日の売上を置く).
-    # 差の幅は日ごとに選び直す (同じ日の店どうしは似ているため. 18 は行の
-    # 順でずらす一式なので, 自動では行ごとになる)
+    # 損の比ごとの実際の損 (今のやり方: 前の週の同じ曜日の売上を置く. 差の
+    # 幅は日ごとの選び直し. 同じ日の店どうしは似ているため. 18 は行の順で
+    # ずらす一式なので, 自動では行ごと)
     print("18 のテスト用の期間で, 置く量の方針の実際の損 (百万円):")
     for under, over in SALES_COSTS:
         decision = {"type": "quantity", "under_cost": under,

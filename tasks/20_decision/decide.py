@@ -200,7 +200,7 @@ def sales_decisions(out: Path) -> tuple[Path, pd.DataFrame, pd.Timestamp]:
     result: tuple[Path, pd.DataFrame, pd.Timestamp]
         一式のディレクトリ, sales_window の表, テスト用の期間の始め
     """
-    # テスト用の期間と, 過去の値の列のための前の 30 日
+    # 18 の一式と, テスト用の期間と前の 30 日の売上
     bundle, start = sales_bundle(out)
     window = sales_window(start)
     count = (window["date"] >= start).to_numpy() & window[
@@ -256,7 +256,7 @@ def remeasured_levels(
     levels: pd.Series
         行ごとの置く量 (選ばなかった行は欠損)
     """
-    # 全ての行で予測し, 選んだ行だけで決める
+    # 全ての行での予測と, 選んだ行だけでの決定
     table = predict(bundle, window)
     part = table[rows.to_numpy()].reset_index(drop=True)
     action = decide(bundle, part, decision)["frame"]["action"]
@@ -288,7 +288,7 @@ def remeasure_decisions(
     ----------
     None
     """
-    # 期間の前半で測る (一式は写してから書き換える)
+    # 期間の前半での測り直し (一式は写してから書き換え)
     days = sorted(window.loc[window["date"] >= start, "date"].unique())
     middle = days[len(days) // 2]
     recent = out / "bundle_sales_recent"
@@ -302,8 +302,8 @@ def remeasure_decisions(
     for sentence in result["sentences"]:
         print(f"  {sentence}")
 
-    # 後半で, 前の外れ方の方針と測り直した外れ方の方針を比べる (測り直した
-    # 方の量を今のやり方の列として渡すと, 差の 90 % の幅も出る)
+    # 後半での, 前の外れ方の方針と測り直した外れ方の方針の比べ (測り直した
+    # 方の量を今のやり方の列として渡し, 差の 90 % の幅も求める)
     second = (window["date"] >= middle) & window["last_week"].notna()
     for name, path in (("前の記録の", bundle), ("測り直した", recent)):
         check = remeasure(path, window, count=second.to_numpy(), write=False)
@@ -311,7 +311,9 @@ def remeasure_decisions(
         print(f"  {name}外れ方の 80 % と 90 % の幅が後半の実績を覆った割合: "
               f"{coverage['80']:.3f}, {coverage['90']:.3f}")
     old = load_bundle(bundle).info["uncertainty"]
-    split = {"valid": "検証用", "train": "学習用"}.get(old["split"], "")
+    split = {"valid": "検証用", "train": "学習用"}.get(
+        old["split"], str(old["split"])
+    )
     print(f"後半で, 前の記録 ({split}の分割の {old['rows']:,} 行) "
           "と測り直した外れ方の量の実際の損 (百万円):")
     for under, over in SALES_COSTS:

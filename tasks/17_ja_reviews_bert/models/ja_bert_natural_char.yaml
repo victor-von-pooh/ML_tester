@@ -9,7 +9,7 @@ inputs:
 nodes:
   tok:
     unit: nn.Embedding
-    params: {num_embeddings: 162, embedding_dim: 64, padding_idx: 0}
+    params: {num_embeddings: 164, embedding_dim: 64, padding_idx: 0}
     inputs: {input: ids}
     ui: {x: 300, y: 60}
   positions:
@@ -60,7 +60,7 @@ nodes:
     ui: {x: 2120, y: 170}
   mlm:
     unit: nn.Linear
-    params: {in_features: 64, out_features: 162}
+    params: {in_features: 64, out_features: 164}
     inputs: {input: block2}
     ui: {x: 1860, y: 182}
 outputs: {logits: head, mlm: mlm}

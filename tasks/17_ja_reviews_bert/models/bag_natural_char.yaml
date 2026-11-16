@@ -10,7 +10,7 @@ nodes:
   bag:
     unit: nn.EmbeddingBag
     params:
-      {num_embeddings: 162, embedding_dim: 64, mode: mean, padding_idx: 0}
+      {num_embeddings: 164, embedding_dim: 64, mode: mean, padding_idx: 0}
     inputs: {input: ids}
     ui: {x: 300, y: 60}
   head:

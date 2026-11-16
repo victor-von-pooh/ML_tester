@@ -33,7 +33,7 @@
 │   ├── char_bag.yaml               # ML-CreateArchitecture で組んだ文字の平均のモデル
 │   ├── ja_bert_subword.yaml        # ja_bert の語の数と入力の長さを部分語に合わせたもの
 │   └── subword_bag.yaml            # char_bag の語の数を部分語に合わせたもの
-├── make_data.py                    # data/reviews_ja.csv (ラベル付き) と data/reviews_ja_unlabeled.csv (ラベル無し) を作る
+├── make_data.py                    # data/reviews_ja.csv (ラベル付き) と data/reviews_ja_unlabeled.csv (ラベル無し) を作る. --natural で言い方を増やした版 (reviews_ja_natural*.csv) を, --rows で件数を変えた版を別に作る
 ├── recipe.yaml                     # ML-Fathom で作って保存した前処理のレシピ (文字ごと)
 ├── recipe_subword.yaml             # ML-Fathom が文の区切り方を比べて勧めた部分語のレシピ
 ├── prepare.py                      # 分析と書き出し (outputs/dataset) と, ラベル無しの番号の並び (outputs/corpus.npy). --recipe, --out, --corpus, --source, --unlabeled で変えられる
@@ -200,7 +200,7 @@ ML-EDA `5dcbd77` (文の区切り方の比較と部分語. #14, #15), ML-Fathom 
 
 - 主語: 本体の言い方 9 種 (「商品自体」「{商品}本体」「この{商品}自体」など. 商品の名前は表の `product` の列と同じ), 他の点の言い方を 3 種ずつ
 - 助詞 (は, も, については, に関しては), 主語と述語の間の言葉 (「思ったより」「値段の割に」など. 良し悪しに関係しない)
-- 述語: どの点にも使う 12 組 (「良かった」「気に入った」「文句なしだ」と, その逆) と, 点ごとに足す 2 から 3 組 (本体は「丈夫だ」「使いやすい」, 配送は「早かった」など. どの点にも足すので, 述語だけでは点が分からない)
+- 述語: どの点にも使う 12 組 (「良かった」「気に入った」「文句なしだ」と, その逆) と, 点ごとに足す 2 から 3 組 (本体は「丈夫だ」「使いやすい」, 配送は「早かった」など. 本体に足す述語は他の点にも付くので, 述語だけでは本体か分からない)
 - 句のつなぎ (「けど、」「。ただ、」「。一方で」など)
 
 例: 「正直に言うと本体の作りはしっかりしているけど、包装については思ったより期待外れだ!」 (ラベルは 良い)

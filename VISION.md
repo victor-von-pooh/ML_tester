@@ -1,6 +1,6 @@
 # 全体の方針
 
-ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom の 6 つのリポジトリが, 最終的に何を目指し, どう組み合わさるかをまとめる.
+ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom, ML-Inference, ML-Provide の 8 つのリポジトリが, 最終的に何を目指し, どう組み合わさるかをまとめる.
 これは全体を見渡すためのメモで, 決まりの本体は各リポジトリの文書にある. 各リポジトリは, このメモと ML_tester を前提にせず単独で成り立つようにする.
 
 ## 目指すもの
@@ -15,11 +15,13 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
 | データの分析 | データの形, 分布, 分け方を確かめ, 前処理して学習用に書き出す | ML-EDA, ML-Fathom |
 | モデルの作成・選定 | 部品をつないでモデルを組み立て, 候補を比べる | ML-ModelControl, ML-CreateArchitecture |
 | モデルの学習・評価 | config から学習し, 結果を比べる | ML-Found, ML-Dashboard |
-| 推論 | 学習したモデルで予測する | (まだ無い) |
+| 推論 | 学習したモデルで予測し, 予測から結論を出して価値として提供する | ML-Inference, ML-Provide |
 
-着手したのは「データの分析」「モデルの作成・選定」「モデルの学習・評価」. 他の段階は, この方針に沿って後から足す.
+着手したのは「データの分析」「モデルの作成・選定」「モデルの学習・評価」「推論」. 問題の設定は, この方針に沿って後から足す.
 
 一番難しく, 要になるのは問題の設定. 問題の設定がしっかりできれば, プロジェクトごとの学習のスクリプトを自動で書けるようにすることを目指す. 将来は, 問題の設定の段階がプロジェクト (学習のスクリプトを含む) を作り, 学習・評価の段階がそれを動かす. それまでは, プロジェクトとスクリプトは人が書く.
+
+推論は問題の設定より先に着手した. 学習した実験と新しいデータから予測を元の形で返す部分は, 問題の設定に依存せず, 今ある約束 (データセット, モデルの定義, 実験のディレクトリ) だけで作れるため. 予測から何を結論として得るか (しきい値, 上位いくつを返すか, まとめ方など) は引数として外に出し, 将来は問題の設定が値を埋める. 推論して結論を出し, 価値として提供するのはライブラリの ML-Inference で, ML-Provide はその画面.
 
 ## 方針の柱
 
@@ -31,6 +33,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
    | データの分析 | ML-EDA | ML-Fathom |
    | モデルの作成・選定 | ML-ModelControl | ML-CreateArchitecture |
    | モデルの学習・評価 | ML-Found | ML-Dashboard |
+   | 推論 | ML-Inference | ML-Provide |
 
 2. **段階の間はファイルの約束でつなぐ.**
    ある段階の画面が, 別の段階のライブラリや画面のコードを直接呼ぶことはしない. 段階の間は, 受け渡すファイルの形 (以下, 約束) でつなぐ. 約束の形は, それを定めるライブラリの側のリポジトリが持ち, 版を付けて文書にする. 各リポジトリを単独で作り直しても, 約束を守る限り他に響かない.
@@ -49,7 +52,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
 | データセット (`dataset.yaml`, `format_version` 付き. 分割ごとのデータと前処理のレシピ) | ML-EDA (`docs/DESIGN.md` の「書き出し」) | ML-EDA (ML-Fathom の画面から) | 学習のスクリプト (ML-EDA の `load_dataset` で読む) |
 | モデルの定義 (YAML か JSON, `format_version` 付き) | ML-ModelControl (`docs/DESIGN.md` の「モデルの定義の形」) | ML-CreateArchitecture (手でも書ける) | ML-CreateArchitecture, 学習のスクリプト (ML-ModelControl で組み立てる) |
 | プロジェクトの形 (`configs/default/`, `configs/experiment/`, 学習のスクリプト) | ML-Found (`docs/FORMAT.md`) | 今は人. 将来は問題の設定 | ML-Found, ML-Dashboard |
-| 実験のディレクトリ (config, 起動のしかた, 状態, 記録, 重み. `run.json` と `source.yaml` に形式の版がある) | ML-Found (`docs/FORMAT.md`) | ML-Found | ML-Dashboard, 将来は推論 |
+| 実験のディレクトリ (config, 起動のしかた, 状態, 記録, 重み. `run.json` と `source.yaml` に形式の版がある) | ML-Found (`docs/FORMAT.md`) | ML-Found | ML-Dashboard, ML-Inference (作成中) |
 
 ## 進め方
 
@@ -59,7 +62,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
 | 2 | 約束を, 版を付けた文書と, 形を持つ側のテストにする |
 | 3 | 作成・選定と学習・評価をつなぐ. 今も ML-ModelControl の README の手順 (学習のスクリプトで定義から組み立て, 定義を実験に写す) で学習できる. 定義の置き場の決まりや自動の保存など, 専用の仕組みを入れるかは保留中 |
 | 4 | プロジェクトを中心に, 画面を 1 つのアプリにまとめる |
-| 5 | 問題の設定, 推論を, 同じ「ライブラリと画面」の形で足す (データの分析は ML-EDA と ML-Fathom で着手) |
+| 5 | 問題の設定, 推論を, 同じ「ライブラリと画面」の形で足す (データの分析は ML-EDA と ML-Fathom, 推論は ML-Inference と ML-Provide で着手) |
 
 ## ML_tester の役割
 

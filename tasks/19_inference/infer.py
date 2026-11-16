@@ -78,6 +78,28 @@ def run_settings(task: Path, run: Path) -> tuple[Path, Path]:
     return paths
 
 
+def print_check(info: dict) -> None:
+    """
+    一式を作るときに検証用の分割を推論した評価と, 実験の記録を表示する関数
+
+    Parameters
+    ----------
+    info: dict
+        make_bundle が書いた inference.yaml の中身
+
+    Returns
+    ----------
+    None
+    """
+    # 合わない場合は注意も
+    check = info["check"]
+    print(f"  一式での {check['split']} の {check['metric']}: "
+          f"{check['value']:.6g} (実験の記録 {check['recorded']:.6g}, "
+          f"合う: {check['matches']})")
+    for note in info["notes"]:
+        print(f"  注意: {note}")
+
+
 def reviews(out: Path) -> None:
     """
     17 の部分語の BERT の一式を作り, テスト用の分割, 見分けの組, ラベルの
@@ -110,6 +132,7 @@ def reviews(out: Path) -> None:
     )
     print(f"17 の一式: {bundle.name} (実験 {run.parent.name}/{run.name}, "
           f"{info['run']['monitor']} {info['run']['best_value']:.4f})")
+    print_check(info)
 
     # テスト用の分割の文 (書き出した表のラベルはクラスの番号)
     test = dataset.frames["test"]
@@ -165,6 +188,7 @@ def sales(out: Path) -> None:
     )
     print(f"18 の一式: {bundle.name} (実験 {run.parent.name}/{run.name}, "
           f"{info['run']['monitor']} {info['run']['best_value']:,.0f})")
+    print_check(info)
 
     # 汚れた元のデータをそのまま推論 (過去の値は渡した行から作る)
     result = infer(bundle, DATA_DIR / "store_sales.csv")

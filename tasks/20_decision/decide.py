@@ -8,8 +8,10 @@ import pandas as pd
 import yaml
 
 from ml_eda import load_data, load_dataset
+import numpy as np
+
 from ml_inference import (
-    backtest, decide, load_bundle, make_bundle, predict, remeasure
+    backtest, decide, forecast, load_bundle, make_bundle, predict, remeasure
 )
 
 # このタスクのディレクトリと, 学習の結果を使うタスクのディレクトリ
@@ -19,6 +21,9 @@ DATA_DIR = TASKS.parent / "data"
 
 # 18 で比べる, 足りない損と余る損の組 (売上 1 円あたり)
 SALES_COSTS = [(9, 1), (3, 1), (1, 1), (1, 3)]
+
+# 何段も先まで予測する日の数 (1 週間分の仕入れ)
+STEPS = 7
 
 
 def latest_run(experiment: Path) -> Path:
@@ -339,6 +344,152 @@ def remeasure_decisions(
               f"{-high / 1e6:,.2f} から {-low / 1e6:,.2f})")
 
 
+def week_ahead(
+    bundle: Path, window: pd.DataFrame, origin: pd.Timestamp
+) -> pd.DataFrame:
+    """
+    予測を始める日から 7 日先まで, 店ごとに何段も先まで予測する関数
+
+    Parameters
+    ----------
+    bundle: Path
+        一式のディレクトリ
+    window: pd.DataFrame
+        sales_window の表
+    origin: pd.Timestamp
+        予測を始める日
+
+    Returns
+    ----------
+    rows: pd.DataFrame
+        先の行の予測の表 (step の列) に, 実際の売上 actual を足した表
+    """
+    # 始める日より前の売上だけを渡し, 7 日分を空に
+    end = origin + pd.Timedelta(days=STEPS - 1)
+    part = window[window["date"] <= end].drop(columns="last_week")
+    part = part.reset_index(drop=True)
+    # 実際の売上は写しで持つ (空にする前の値)
+    actual = part["sales"].to_numpy(dtype=float, copy=True)
+    ahead = (part["date"] >= origin).to_numpy()
+    part.loc[ahead, "sales"] = np.nan
+    result = forecast(bundle, part)
+    result["actual"] = actual
+    rows = result[ahead & result["step"].notna().to_numpy()
+                  & np.isfinite(actual)].reset_index(drop=True)
+    # 先の行の印 (行の数の違う並び) は, 表をつなぐときに邪魔なので外す
+    rows.attrs = {}
+
+    return rows
+
+
+def realized_loss(
+    level: np.ndarray, actual: np.ndarray, under: float, over: float
+) -> np.ndarray:
+    """
+    置いた量と実際の売上から, 行ごとの実際の損を求める関数
+
+    Parameters
+    ----------
+    level: np.ndarray
+        置いた量
+    actual: np.ndarray
+        実際の売上
+    under: float
+        1 円足りないときの損
+    over: float
+        1 円余ったときの損
+
+    Returns
+    ----------
+    loss: np.ndarray
+        行ごとの損
+    """
+    # 足りない分と余った分
+    loss = under * np.maximum(actual - level, 0) + over * np.maximum(
+        level - actual, 0
+    )
+
+    return loss
+
+
+def steps_decisions(
+    out: Path, bundle: Path, start: pd.Timestamp
+) -> None:
+    """
+    検証用の期間で段ごとの外れ方を測り, テスト用の期間で 7 日先まで置く
+    量を, 1 つ先の外れ方だけの場合と比べる関数
+
+    Parameters
+    ----------
+    out: Path
+        一式を書く場所
+    bundle: Path
+        18 の一式のディレクトリ (書き換えない)
+    start: pd.Timestamp
+        テスト用の期間の始め
+
+    Returns
+    ----------
+    None
+    """
+    # 検証用の期間 (と前の 30 日) で, 7 段先までの外れ方の測り直し
+    task = TASKS / "18_store_sales"
+    run = latest_run(task / "outputs" / "store_sales")
+    valid = load_dataset(run_settings(task, run)[0]).frames["valid"]
+    first = valid["date"].min()
+    window = sales_window(first)
+    steps = out / "bundle_sales_steps"
+    if steps.exists():
+        shutil.rmtree(steps)
+    shutil.copytree(bundle, steps)
+    measured = remeasure(
+        steps, window[window["date"] < start], horizon=STEPS, time="date",
+        count=(window[window["date"] < start]["date"] >= first).to_numpy()
+    )
+    print("18 の検証用の期間で, 7 日先までの外れ方を測った:")
+    for sentence in measured["sentences"][1:]:
+        print(f"  {sentence}")
+
+    # テスト用の期間で, 7 日おきに 7 日先まで予測 (予測は同じで, 外れ方
+    # だけが違う 2 つの一式で量を決める)
+    days = window.loc[window["date"] >= start, "date"]
+    origins = pd.date_range(start, days.max() - pd.Timedelta(
+        days=STEPS - 1
+    ), freq=f"{STEPS}D")
+    tables = [week_ahead(bundle, window, o).assign(origin=o)
+              for o in origins]
+    rows = pd.concat(tables, ignore_index=True)
+    print(f"テスト用の期間で 7 日おきに 7 日先まで予測した "
+          f"{len(origins)} 回 ({len(rows):,} 行) の, 置く量の実際の損 "
+          "(百万円):")
+    rng = np.random.default_rng(0)
+    for under, over in SALES_COSTS:
+        decision = {"type": "quantity", "under_cost": under,
+                    "over_cost": over}
+        loss = {}
+        for name, path in (("1 つ先の外れ方", bundle),
+                           ("段ごとの外れ方", steps)):
+            level = decide(load_bundle(path), rows, decision)["frame"][
+                "level"
+            ].to_numpy(dtype=float)
+            loss[name] = realized_loss(level, rows["actual"].to_numpy(),
+                                       under, over)
+        point = realized_loss(rows["prediction"].to_numpy(dtype=float),
+                              rows["actual"].to_numpy(), under, over)
+        # 段ごとにした改善と, 予測を始めた日ごとに選び直した 90 % の幅
+        gain = pd.Series(loss["1 つ先の外れ方"] - loss["段ごとの外れ方"])
+        per = gain.groupby(rows["origin"].to_numpy()).sum().to_numpy()
+        totals = [per[rng.integers(0, len(per), len(per))].sum()
+                  for _ in range(2000)]
+        low, high = np.percentile(totals, [5, 95])
+        print(f"  足りない {under} : 余る {over}: 1 つ先の外れ方 "
+              f"{loss['1 つ先の外れ方'].sum() / 1e6:,.1f}, 段ごとの外れ方 "
+              f"{loss['段ごとの外れ方'].sum() / 1e6:,.1f}, 予測の値どおり "
+              f"{point.sum() / 1e6:,.1f} (段ごとの改善 "
+              f"{gain.sum() / 1e6:,.2f}, 90 % の幅 {low / 1e6:,.2f} から "
+              f"{high / 1e6:,.2f})")
+
+
 def reviews_decisions(out: Path) -> None:
     """
     17 のレビューで, 人が確かめる悪いレビューを決める方針を, テスト用の
@@ -423,6 +574,7 @@ def main() -> None:
     # 売上の量と外れ方の測り直しと, レビューの振り分け
     bundle, window, start = sales_decisions(out)
     remeasure_decisions(out, bundle, window, start)
+    steps_decisions(out, bundle, start)
     reviews_decisions(out)
 
 

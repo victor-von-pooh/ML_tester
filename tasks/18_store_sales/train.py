@@ -198,7 +198,7 @@ def main() -> None:
           f"{history.get('valid/mae')[best_epoch - 1]:,.0f} 円")
     evaluate_test(trainer.model, dataset, experiment, center, scale)
 
-    # 推論の一式を実験の中に (前処理の外でした売上の標準化も書く)
+    # 実験の中への推論の一式の作成 (前処理の外でした売上の標準化の記録)
     info = make_bundle(
         Path(experiment.run_dir) / "inference", TASK_DIR / cfg.model.spec,
         path, experiment.run_dir,
@@ -206,11 +206,12 @@ def main() -> None:
         name=cfg.experiment.name
     )
     check = info["check"]
-    experiment.logger.info(
-        f"推論の一式: {check['split']} の {check['metric']} "
-        f"{check['value']:,.1f} (記録 {check['recorded']}, 合う: "
-        f"{check['matches']})"
-    )
+    if check:
+        experiment.logger.info(
+            f"推論の一式: {check['split']} の {check['metric']} "
+            f"{check['value']:,.1f} (記録 {check['recorded']}, 合う: "
+            f"{check['matches']})"
+        )
 
 
 if __name__ == "__main__":

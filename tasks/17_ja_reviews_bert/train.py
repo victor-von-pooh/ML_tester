@@ -191,7 +191,7 @@ def main() -> None:
           f"{history.get('valid/acc')[best_epoch - 1]:.4f}")
     evaluate_test(trainer.model, dataset, experiment, cls_id)
 
-    # 推論の一式を実験の中に (前処理の外で先頭に足した [CLS] も書く)
+    # 実験の中への推論の一式の作成 (前処理の外で先頭に足した [CLS] の記録)
     info = make_bundle(
         Path(experiment.run_dir) / "inference", TASK_DIR / cfg.model.spec,
         path, experiment.run_dir,
@@ -199,11 +199,12 @@ def main() -> None:
         output="logits", name=cfg.experiment.name
     )
     check = info["check"]
-    experiment.logger.info(
-        f"推論の一式: {check['split']} の {check['metric']} "
-        f"{check['value']:.4f} (記録 {check['recorded']}, 合う: "
-        f"{check['matches']})"
-    )
+    if check:
+        experiment.logger.info(
+            f"推論の一式: {check['split']} の {check['metric']} "
+            f"{check['value']:.4f} (記録 {check['recorded']}, 合う: "
+            f"{check['matches']})"
+        )
 
 
 if __name__ == "__main__":

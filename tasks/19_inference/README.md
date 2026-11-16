@@ -45,7 +45,7 @@ CPU で 15 秒ほど (ラベルの無い 100,000 件の推論を含む). 書き�
 
 ## 結果のメモ
 
-ML-Inference `4c95c1b` (何段も先の予測と列の効きは `72cb18b`), ML-EDA `dbec691`, ML-ModelControl `88730ae`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した. 画面は ML-Provide `35619fe`.
+ML-Inference `4c95c1b` (何段も先の予測と列の効きは `72cb18b`. `9ec72d2` で流し直して全ての値が同じことを確認), ML-EDA `dbec691`, ML-ModelControl `88730ae`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した. 画面は ML-Provide `35619fe`.
 
 | 一式 | 使った実験 | 確かめたこと | 一式で推論した値 | 学習のスクリプトの `train.log` の値 |
 | --- | --- | --- | --- | --- |

@@ -35,7 +35,7 @@ ENDINGS = ["。", "!", "…", "。星の数で判断して。"]
 # {product} は商品の名前
 NATURAL_TARGETS = [
     "本体", "商品自体", "製品そのもの", "物自体", "{product}本体",
-    "{product}自体", "肝心の本体", "これ自体", "本体の作り",
+    "{product}自体", "肝心の本体", "この{product}自体", "本体の作り",
 ]
 NATURAL_ASPECTS = {
     "配送": ["配送", "届くまでの日数", "発送の早さ"],
@@ -47,19 +47,31 @@ NATURAL_ASPECTS = {
 }
 NATURAL_PARTICLES = ["は", "は", "も", "については", "に関しては"]
 NATURAL_MODIFIERS = [
-    "", "", "", "正直", "思ったより", "かなり", "少し", "値段の割に",
+    "", "", "", "正直", "思ったより", "全体として", "値段の割に",
     "今のところ", "使ってみると", "個人的には", "最初は気になったが結局",
 ]
+# どの点にも使う述語と, 点ごとに足す述語 (「配送は丈夫だ」のような
+# 組み合わせを作らない. どの点にも足すので, 述語だけでは点が分からない)
 NATURAL_PREDICATES = [
     ("良い", "良くない"), ("良かった", "良くなかった"),
     ("満足できる", "満足できない"), ("気に入った", "気に入らなかった"),
-    ("しっかりしている", "しっかりしていない"), ("丈夫だ", "すぐ壊れた"),
     ("期待通りだ", "期待外れだ"), ("期待以上だった", "期待以下だった"),
     ("悪くない", "悪い"), ("悪くはなかった", "ひどかった"),
     ("不満はない", "不満だ"), ("文句なしだ", "文句しかない"),
-    ("問題なかった", "問題があった"), ("使いやすい", "使いにくい"),
-    ("おすすめできる", "おすすめできない"), ("買ってよかった", "買って後悔した"),
+    ("問題なかった", "問題があった"), ("おすすめできる", "おすすめできない"),
 ]
+NATURAL_EXTRA = {
+    "本体": [
+        ("しっかりしている", "しっかりしていない"), ("丈夫だ", "すぐ壊れた"),
+        ("使いやすい", "使いにくい"),
+    ],
+    "配送": [("早かった", "遅かった"), ("丁寧だった", "雑だった")],
+    "梱包": [("丁寧だった", "雑だった"), ("しっかりしている", "しっかりしていない")],
+    "説明書": [("分かりやすい", "分かりにくい"), ("丁寧だった", "雑だった")],
+    "サポートの対応": [("早かった", "遅かった"), ("丁寧だった", "雑だった")],
+    "付属品": [("使いやすい", "使いにくい"), ("丈夫だ", "すぐ壊れた")],
+    "箱": [("丈夫だ", "すぐ壊れた"), ("しっかりしている", "しっかりしていない")],
+}
 NATURAL_JOINS = ["、", "、", "けど、", "が、", "し、", "。ただ、", "。一方で", "。それに"]
 NATURAL_FILLERS = [
     "", "", "", "正直に言うと", "届いてすぐ見たが", "一週間使って",
@@ -128,7 +140,7 @@ def review(positive: bool, rng: np.random.Generator) -> str:
 
 
 def natural_clause(
-    subject: str, positive: bool, rng: np.random.Generator
+    subject: str, kind: str, positive: bool, rng: np.random.Generator
 ) -> str:
     """
     言い方を増やした版の, 1 つの点についての評価の句を作る関数
@@ -137,6 +149,8 @@ def natural_clause(
     ----------
     subject: str
         評価の対象の言い方
+    kind: str
+        評価の対象 (本体か NATURAL_ASPECTS の鍵. 足す述語を選ぶ)
     positive: bool
         良い評価か
     rng: np.random.Generator
@@ -148,7 +162,8 @@ def natural_clause(
         句 (前置き, 主語, 助詞, 間に挟む言葉, 述語)
     """
     # 間に挟む言葉は良し悪しに関係しない
-    good, bad = NATURAL_PREDICATES[rng.integers(len(NATURAL_PREDICATES))]
+    predicates = NATURAL_PREDICATES + NATURAL_EXTRA[kind]
+    good, bad = predicates[rng.integers(len(predicates))]
     filler = NATURAL_FILLERS[rng.integers(len(NATURAL_FILLERS))]
     particle = NATURAL_PARTICLES[rng.integers(len(NATURAL_PARTICLES))]
     modifier = NATURAL_MODIFIERS[rng.integers(len(NATURAL_MODIFIERS))]
@@ -159,7 +174,9 @@ def natural_clause(
     return text
 
 
-def natural_review(positive: bool, rng: np.random.Generator) -> str:
+def natural_review(
+    positive: bool, rng: np.random.Generator, product: str = "ケトル"
+) -> str:
     """
     言い方を増やした版の 1 件のレビューを作る関数
 
@@ -172,6 +189,8 @@ def natural_review(positive: bool, rng: np.random.Generator) -> str:
         本体が良い評価か
     rng: np.random.Generator
         乱数
+    product: str = "ケトル"
+        商品の名前 (表の product の列と同じ商品)
 
     Returns
     ----------
@@ -179,15 +198,14 @@ def natural_review(positive: bool, rng: np.random.Generator) -> str:
         レビュー
     """
     # 本体の言い方には商品の名前も入る
-    product = str(rng.choice(["イヤホン", "ケトル", "リュック"]))
     target = NATURAL_TARGETS[rng.integers(len(NATURAL_TARGETS))].format(
         product=product
     )
     count = int(rng.integers(1, 4))
     aspects = rng.choice(list(NATURAL_ASPECTS), count, replace=False)
-    parts = [natural_clause(target, positive, rng)] + [
+    parts = [natural_clause(target, "本体", positive, rng)] + [
         natural_clause(
-            str(rng.choice(NATURAL_ASPECTS[str(a)])),
+            str(rng.choice(NATURAL_ASPECTS[str(a)])), str(a),
             bool(rng.random() < 0.5), rng
         )
         for a in aspects
@@ -228,11 +246,25 @@ def main(
     """
     # 本体が良い評価が 7 割. 星の数は評価から決まる (リーク)
     rng = np.random.default_rng(seed)
-    make = natural_review if natural else review
     data_path = NATURAL_PATH if natural else DATA_PATH
     unlabeled_path = NATURAL_UNLABELED_PATH if natural else UNLABELED_PATH
+    if rows != 12000:
+        # 件数を変えた場合は, 名前に件数を付けて別のファイルに
+        data_path = data_path.with_name(f"{data_path.stem}_{rows}.csv")
+        unlabeled_path = unlabeled_path.with_name(
+            f"{unlabeled_path.stem}_{rows}.csv"
+        )
     positive = rng.random(rows) < 0.7
-    texts = [make(bool(p), rng) for p in positive]
+    if natural:
+        # 言い方を増やした版は, 表の商品と文の中の商品の名前をそろえる
+        # (表は半角の「ﾘｭｯｸ」も混ぜ, 文は全角)
+        products = rng.choice(["イヤホン", "ケトル", "ﾘｭｯｸ", "リュック"], rows)
+        texts = [
+            natural_review(bool(p), rng, str(n).replace("ﾘｭｯｸ", "リュック"))
+            for p, n in zip(positive, products)
+        ]
+    else:
+        texts = [review(bool(p), rng) for p in positive]
     stars = np.where(
         positive, rng.integers(4, 6, rows), rng.integers(1, 3, rows)
     )
@@ -240,7 +272,9 @@ def main(
         "review_id": [f"R{100000 + i}" for i in range(rows)],
         "posted": pd.date_range("2025-01-01", periods=rows, freq="37min")
         .strftime("%Y/%m/%d %H:%M"),
-        "product": rng.choice(["イヤホン", "ケトル", "ﾘｭｯｸ", "リュック"], rows),
+        "product": products if natural else rng.choice(
+            ["イヤホン", "ケトル", "ﾘｭｯｸ", "リュック"], rows
+        ),
         "stars": stars,
         "review": texts,
         "label": np.where(positive, "良い", "悪い"),
@@ -258,7 +292,13 @@ def main(
     print(f"保存: {data_path} ({len(frame)} 行, Shift_JIS)")
 
     # ラベルの無いレビュー (同じ作り方. 本体の良し悪しは半々)
-    texts = [make(bool(rng.random() < 0.5), rng) for _ in range(unlabeled)]
+    texts = [
+        natural_review(
+            bool(rng.random() < 0.5), rng,
+            str(rng.choice(["イヤホン", "ケトル", "リュック"]))
+        ) if natural else review(bool(rng.random() < 0.5), rng)
+        for _ in range(unlabeled)
+    ]
     pd.DataFrame({"review": texts}).to_csv(
         unlabeled_path, index=False, encoding="utf-8"
     )
@@ -272,4 +312,9 @@ if __name__ == "__main__":
         "--natural", action="store_true",
         help="言い方を増やした版を reviews_ja_natural*.csv に書く"
     )
-    main(natural=parser.parse_args().natural)
+    parser.add_argument(
+        "--rows", type=int, default=12000,
+        help="ラベル付きの行の数 (既定以外は名前に件数を付けた別のファイル)"
+    )
+    args = parser.parse_args()
+    main(rows=args.rows, natural=args.natural)

@@ -6,8 +6,10 @@ import unicodedata
 import pandas as pd
 import yaml
 
-from ml_eda import load_dataset
-from ml_inference import infer, make_bundle, predict, write_result
+from ml_eda import load_data, load_dataset
+from ml_inference import (
+    explain, forecast, infer, make_bundle, predict, write_result
+)
 
 # このタスクのディレクトリと, 学習の結果を使うタスクのディレクトリ
 TASK_DIR = Path(__file__).resolve().parent
@@ -215,6 +217,68 @@ def sales(out: Path) -> None:
           f"{skipped['reason'].iloc[0] if len(skipped) else 'なし'})")
 
 
+def sales_ahead(out: Path, days: int = 7) -> None:
+    """
+    18 の一式で, テスト用の期間の始めから先の数日を何段も先まで予測し,
+    同じ行の 1 つ先の予測と実際の売上と比べ, 列の効きも求める関数
+
+    Parameters
+    ----------
+    out: Path
+        一式のある場所
+    days: int = 7
+        予測する先の日の数
+
+    Returns
+    ----------
+    None
+    """
+    # テスト用の期間より前の過去の行と, 始めの数日の先の行. 先の行の
+    # 店の表記はそろえる (系列を渡した値で分けるため. 重複もここで除く)
+    bundle = out / "bundle_sales"
+    frame = load_data(DATA_DIR / "store_sales.csv").frame
+    start = load_dataset(
+        TASKS / "18_store_sales" / "outputs" / "dataset"
+    ).frames["test"]["date"].min()
+    history = frame[frame["date"] < start]
+    ahead = frame[(frame["date"] >= start)
+                  & (frame["date"] < start + pd.Timedelta(days=days))]
+    store = ahead["store"].map(
+        lambda name: unicodedata.normalize("NFKC", str(name)).strip()
+    )
+    ahead = ahead.assign(store=store).drop_duplicates()
+    actual = ahead["sales"].to_numpy()
+
+    # 何段も先の予測 (先の行の売上は空) と, 同じ行の 1 つ先の予測 (先の
+    # 行の前の日の売上は実際の値)
+    given = pd.concat([history, ahead.assign(sales=float("nan"))],
+                      ignore_index=True)
+    result = forecast(bundle, given).iloc[len(history):]
+    known = pd.concat([history, ahead], ignore_index=True)
+    single = predict(bundle, known).iloc[len(history):]
+    result = result.assign(
+        actual=actual, single=single["prediction"].to_numpy()
+    )
+    done = result[result["status"] == "ok"]
+    print(f"18 の先の {days} 日 ({len(done)}/{len(result)} 行を予測):")
+    for step, part in [*done.groupby("step"), ("全て", done)]:
+        scale = part["actual"].clip(lower=1)
+        many = (part["prediction"] - part["actual"]).abs()
+        one = (part["single"] - part["actual"]).abs()
+        label = f"{int(step)} 段目" if step != "全て" else "全て"
+        print(f"  {label}: {len(part)} 行, 何段も先 {many.mean():,.0f} 円 "
+              f"({(many / scale).mean() * 100:.1f}%), 1 つ先 "
+              f"{one.mean():,.0f} 円 ({(one / scale).mean() * 100:.1f}%)")
+
+    # テスト用の期間と前の 30 日の行の列の効き
+    window = frame[frame["date"] >= start - pd.Timedelta(days=30)]
+    effects = explain(bundle, window)
+    print("  列の効き: " + ", ".join(
+        f"{item['column']} {item['effect']:,.0f}"
+        for item in effects["columns"] if item["effect"] is not None
+    ))
+
+
 def main() -> None:
     """
     17 と 18 の学習の結果から推論の一式を作り, 推論と結論を確かめる関数
@@ -239,6 +303,7 @@ def main() -> None:
     # 文の分類と, 売上の予測
     reviews(out)
     sales(out)
+    sales_ahead(out)
 
 
 if __name__ == "__main__":

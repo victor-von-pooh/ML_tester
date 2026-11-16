@@ -27,15 +27,23 @@
 │           ├── subword.yaml        # 部分語のデータセットでの微調整
 │           ├── subword_scratch.yaml    # 部分語で, 事前学習をしない BERT
 │           ├── subword_bag.yaml    # 部分語の平均のモデル
+│           ├── pretrain_natural_char.yaml, natural_char.yaml, natural_char_scratch.yaml, natural_char_bag.yaml
+│           │                       # 言い方を増やした版の文字ごとの事前学習, 微調整, 事前学習なし, 平均のモデル
+│           ├── pretrain_natural_subword.yaml, natural_subword.yaml, natural_subword_scratch.yaml, natural_subword_bag.yaml
+│           │                       # 同じく部分語
 │           └── quick.yaml          # 1 エポックで終える (動作の確認用)
 ├── models/
 │   ├── ja_bert.yaml                # ML-CreateArchitecture で組んだ BERT (部分モデル encoder_block を 2 回)
 │   ├── char_bag.yaml               # ML-CreateArchitecture で組んだ文字の平均のモデル
 │   ├── ja_bert_subword.yaml        # ja_bert の語の数と入力の長さを部分語に合わせたもの
-│   └── subword_bag.yaml            # char_bag の語の数を部分語に合わせたもの
+│   ├── subword_bag.yaml            # char_bag の語の数を部分語に合わせたもの
+│   ├── ja_bert_natural_char.yaml, ja_bert_natural_subword.yaml   # 言い方を増やした版に合わせた ja_bert
+│   ├── ja_bert_natural_char_deep.yaml   # ja_bert_natural_char の encoder_block を 4 回にしたもの
+│   └── bag_natural_char.yaml, bag_natural_subword.yaml           # 言い方を増やした版に合わせた平均のモデル
 ├── make_data.py                    # data/reviews_ja.csv (ラベル付き) と data/reviews_ja_unlabeled.csv (ラベル無し) を作る. --natural で言い方を増やした版 (reviews_ja_natural*.csv) を, --rows で件数を変えた版を別に作る
 ├── recipe.yaml                     # ML-Fathom で作って保存した前処理のレシピ (文字ごと)
 ├── recipe_subword.yaml             # ML-Fathom が文の区切り方を比べて勧めた部分語のレシピ
+├── recipe_natural_char.yaml, recipe_natural_subword.yaml   # 言い方を増やした版の, 文字ごとと部分語 (勧め) のレシピ
 ├── prepare.py                      # 分析と書き出し (outputs/dataset) と, ラベル無しの番号の並び (outputs/corpus.npy). --recipe, --out, --corpus, --source, --unlabeled で変えられる
 ├── tokens.py                       # 特別な番号 ([MASK], [CLS]), [CLS] を足す, 定義からモデルを作る
 ├── pretrain.py                     # 事前学習 (MLM). 重みを outputs/pretrained.pt に書く
@@ -126,9 +134,9 @@ python tasks/17_ja_reviews_bert/train.py --experiment configs/experiment/example
 python tasks/17_ja_reviews_bert/train.py --experiment configs/experiment/examples/natural_subword_bag.yaml data.dataset=outputs/dataset_natural48k_subword data.corpus=outputs/corpus_natural48k_subword.npy experiment.name=natural_subword_bag_48k   # 22. 平均のモデル
 ```
 
-23. 文字ごとは, 20 から 22 の `subword` を `char` に変える.
+23. 文字ごとは, 20 から 22 の `subword` を `char` に変える. 4 層の BERT は, 文字ごとの 21 の後ろに `model.spec=models/ja_bert_natural_char_deep.yaml` を足し, `experiment.name` を `natural_char_deep_48k` にする.
 
-CPU (Apple Silicon の Mac) で, 2 は 2 秒ほど, 3 は 2 分半ほど, 4 と 5 は 45 秒ほど, 6 は 5 秒ほど. 7 は 4 秒ほど, 8 は 45 秒ほど, 9 と 10 は 15 秒ほど, 11 は 5 秒ほど. 12 と 13 は数秒, 14 は 1 分半ほど (文字は 4 分ほど), 15 と 17 は 20 秒ほど (文字は 70 秒ほど), 16 は 50 秒ほど, 18 は 3 秒ほど (Python の起動を除く). 21 は 75 秒ほど (文字は 4 分半ほど), 22 は 10 秒ほど. テスト用の正解率と見分けの確かめは, 端末ではなく各実験の `train.log` に残る.
+CPU (Apple Silicon の Mac) で, 2 は 2 秒ほど, 3 は 2 分半ほど, 4 と 5 は 45 秒ほど, 6 は 5 秒ほど. 7 は 4 秒ほど, 8 は 45 秒ほど, 9 と 10 は 15 秒ほど, 11 は 5 秒ほど. 12 と 13 は数秒, 14 は 1 分半ほど (文字は 4 分ほど), 15 と 17 は 20 秒ほど (文字は 70 秒ほど), 16 は 50 秒ほど, 18 は 3 秒ほど (Python の起動を除く). 21 は 75 秒ほど (文字は 4 分半ほど, 4 層は 9 分ほど), 22 は 10 秒ほど. テスト用の正解率と見分けの確かめは, 端末ではなく各実験の `train.log` に残る.
 
 7 から 11 は 1 の元のデータだけを使う (2 から 6 の文字ごとの出力は要らない). 9 は 8 の重み (`outputs/pretrained_subword.pt`) を読むので, 先に 8 を通す. 8 は事前学習の重みを `pretrain.output` に書くので, 動作の確認で 1 エポックだけ動かすと本番の重みを上書きする (3 も同じ). 残したい場合は `pretrain.output=outputs/pretrained_try.pt` のように書き出す先を変える. 8 から 11 の動作の確認には, コマンドの後ろに `trainer.epochs=1` を足す (1 エポックでも見分けの確かめが 6/6 になることがあるので, 確かめには使わない).
 
@@ -243,10 +251,11 @@ ML-Fathom で同じ手順 (目的の列 → 文として読む → 中身の手�
 | 部分語 | 平均 | 48,000 | 30 | 14 | 0.8718 | 0.8693 | 2/6 |
 | 文字 | ja_bert (事前学習なし) | 12,000 | 12 | 8 | 0.7458 | 0.7375 | 3/6 |
 | 文字 | ja_bert (事前学習なし) | 48,000 | 12 | 10 | 0.7878 | 0.7857 | 3/6 |
+| 文字 | ja_bert の 4 層 (事前学習なし) | 48,000 | 12 | 7 | 0.7853 | 0.7882 | 4/6 |
 | 文字 | 平均 | 12,000 | 30 | 21 | 0.7517 | 0.7450 | 3/6 |
 | 文字 | 平均 | 48,000 | 30 | 21 | 0.7836 | 0.7834 | 3/6 |
 
 - 部分語の BERT は, 4 倍のデータで 0.945 になり, 平均のモデル (0.869) を 7.5 ポイント上回り, 見分けの確かめも 6/6 になった. 12,000 件では, この大きさのモデルが主語と述語の結び付きを学ぶにはラベル付きのデータが足りなかった (ラベルの無い 10 万件での事前学習 (部分語の隠したトークンの正解率 0.31) では補えなかった)
-- 文字ごとの BERT は, 4 倍のデータでも 0.786 で, 文字の平均のモデル (0.783) と同じだった. 学習率を変えても, データを増やしても並びの結び付きを学べなかったので, 並びが 113 と長いことが, この大きさのモデル (2 層, 64 次元) と 12 エポックでは越えられないと考えられる (層や次元を増やすことは試していない)
+- 文字ごとの BERT は, 4 倍のデータでも 0.786 で, 文字の平均のモデル (0.783) と同じだった. encoder_block を 4 回にした定義 (`ja_bert_natural_char_deep.yaml`. 16.3 万パラメータ, 2 層は 9.7 万) でも 0.788 で, 7 エポックの後は学習用だけが上がる (12 エポックで学習用 0.908, 検証用 0.768). 学習率, データの件数, 層の数のどれを変えても, 文字ごとの並び (113) からは主語と述語の結び付きを学べなかった (次元 (64) を増やすことは試していない)
 - まとめ: 言い方を増やした版は, 並びを読むモデルが要り, ラベル付きのデータも多く要る問題になった. 区切り方の勧め (部分語) に従うと, 同じ BERT が学べる問題になり, 文字ごとでは学べなかった. 元の版の結果 (上) と合わせると, 区切り方の勧めは, 元の版では「短い並びで同じ問題が解ける」, 言い方を増やした版では「文字ごとでは解けない問題が解ける」ことにつながった
 - 最初に作った版 (セルフレビューの前) では, 主語の「これ自体」が前の他の点を指すとも読め, 文の中の商品の名前が `product` の列と食い違い, 「配送は丈夫だ」のような組み合わせがあった. それを直す前は部分語の BERT (30 エポック) が 0.893 だった. 直すと 0.815 に下がったので, 前の値はデータの癖 (本体らしい述語が他の点に付くなど) に助けられていたと考えられる. 上の表は全て直した後の値

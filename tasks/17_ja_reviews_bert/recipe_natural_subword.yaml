@@ -1,0 +1,23 @@
+# ML-Fathom で言い方を増やしたレビュー (make_data.py --natural) から作って保存したレシピ.
+# 中身の手順は分析が比べて勧めた部分語 (語彙 2000, 長さ 24)
+format_version: 1
+target: label
+task: classification
+steps:
+- op: drop_duplicates
+  columns:
+  - review
+- op: filter_rows
+  column: length
+  compare: '>'
+  value: 0
+split:
+  method: stratified
+  valid: 0.2
+  test: 0.1
+  seed: 0
+item_steps:
+- op: vocabulary
+  unit: subword
+  length: 24
+  max_tokens: 2000

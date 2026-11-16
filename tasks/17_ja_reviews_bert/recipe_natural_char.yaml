@@ -1,0 +1,23 @@
+# ML-Fathom で言い方を増やしたレビュー (make_data.py --natural) から作って保存したレシピ.
+# 中身の手順は区切り方の比較の表の「文字」の「使う」で文字ごと (長さ 112) にしたもの
+format_version: 1
+target: label
+task: classification
+steps:
+- op: drop_duplicates
+  columns:
+  - review
+- op: filter_rows
+  column: length
+  compare: '>'
+  value: 0
+split:
+  method: stratified
+  valid: 0.2
+  test: 0.1
+  seed: 0
+item_steps:
+- op: vocabulary
+  unit: char
+  length: 112
+  max_tokens: 20000

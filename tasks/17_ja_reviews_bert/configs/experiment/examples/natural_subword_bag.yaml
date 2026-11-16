@@ -1,0 +1,15 @@
+# 比べるためのモデル: 言い方を増やしたレビューの部分語の埋め込みの平均
+# (並びを見ない)
+experiment:
+  name: bag_natural_subword
+
+trainer:
+  epochs: 30
+
+data:
+  dataset: outputs/dataset_natural_subword
+  corpus: outputs/corpus_natural_subword.npy
+
+model:
+  spec: models/bag_natural_subword.yaml
+  init: null

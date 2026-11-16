@@ -6,10 +6,8 @@ import numpy as np
 
 from ml_eda import export_dataset, load_data, load_dataset, profile
 
-# このタスクのディレクトリと, 元のデータと書き出す先
+# このタスクのディレクトリ
 TASK_DIR = Path(__file__).resolve().parent
-SOURCE = TASK_DIR.parents[1] / "data" / "reviews_ja.csv"
-UNLABELED = TASK_DIR.parents[1] / "data" / "reviews_ja_unlabeled.csv"
 
 
 def main() -> None:
@@ -31,6 +29,14 @@ def main() -> None:
         "--recipe", default="recipe.yaml", help="レシピ (タスクのディレクトリから)"
     )
     parser.add_argument(
+        "--source", default="data/reviews_ja.csv",
+        help="ラベル付きのレビュー (リポジトリのルートから. 既定は元の版)"
+    )
+    parser.add_argument(
+        "--unlabeled", default="data/reviews_ja_unlabeled.csv",
+        help="ラベルの無いレビュー (リポジトリのルートから. 既定は元の版)"
+    )
+    parser.add_argument(
         "--out", default="outputs/dataset",
         help="データセットの書き出し先 (タスクのディレクトリから)"
     )
@@ -40,18 +46,22 @@ def main() -> None:
     )
     args = parser.parse_args()
     recipe = TASK_DIR / args.recipe
+    # 元のデータはリポジトリのルートから (絶対パスも可)
+    source = TASK_DIR.parents[1] / args.source
+    unlabeled_path = TASK_DIR.parents[1] / args.unlabeled
     dataset_dir = TASK_DIR / args.out
     corpus_path = TASK_DIR / args.corpus
 
     # 元のデータが無ければ作り方の案内と終了
-    if not SOURCE.is_file() or not UNLABELED.is_file():
-        print("data/reviews_ja*.csv がありません. 先に make_data.py を"
-              "実行してください")
+    if not source.is_file() or not unlabeled_path.is_file():
+        print(f"{source.name} か {unlabeled_path.name} がありません. 先に "
+              "make_data.py (言い方を増やした版は --natural) を実行して"
+              "ください")
         sys.exit(1)
 
     # 表として読んだ場合と, 文の列を文のデータとして読んだ場合の気付き
     for options in ({"kind": "table"}, {"text_column": "review"}):
-        data = load_data(SOURCE, **options)
+        data = load_data(source, **options)
         result = profile(data, target="label")
         print(f"読み方 {options}: 種類 {data.kind}, 行 {len(data.frame)}")
         for item in result["findings"]:
@@ -59,7 +69,7 @@ def main() -> None:
                   f"{item['message'][:70]}")
 
     # 文の列として読んだデータの, レシピでの書き出し (語彙は学習用の文から)
-    data = load_data(SOURCE, text_column="review")
+    data = load_data(source, text_column="review")
     info = export_dataset(
         data, recipe, dataset_dir, name="reviews_ja",
         overwrite=True
@@ -69,7 +79,7 @@ def main() -> None:
 
     # ラベルの無いレビューへの, 書き出したときと同じ中身の手順
     dataset = load_dataset(dataset_dir)
-    unlabeled = load_data(UNLABELED, text_column="review")
+    unlabeled = load_data(unlabeled_path, text_column="review")
     corpus = np.stack([
         dataset.transform_item(unlabeled.load_item(i))
         for i in range(len(unlabeled.frame))

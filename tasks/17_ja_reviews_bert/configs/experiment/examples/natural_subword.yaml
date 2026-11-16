@@ -1,0 +1,12 @@
+# 言い方を増やしたレビューの部分語ごとのデータセットで, 事前学習
+# (pretrain_natural_subword.yaml) の後の BERT を微調整する
+experiment:
+  name: ja_bert_natural_subword
+
+data:
+  dataset: outputs/dataset_natural_subword
+  corpus: outputs/corpus_natural_subword.npy
+
+model:
+  spec: models/ja_bert_natural_subword.yaml
+  init: outputs/pretrained_natural_subword.pt

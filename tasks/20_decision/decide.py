@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import shutil
 import sys
 import unicodedata
 
@@ -7,7 +8,9 @@ import pandas as pd
 import yaml
 
 from ml_eda import load_data, load_dataset
-from ml_inference import backtest, decide, make_bundle, predict
+from ml_inference import (
+    backtest, decide, load_bundle, make_bundle, predict, remeasure
+)
 
 # このタスクのディレクトリと, 学習の結果を使うタスクのディレクトリ
 TASK_DIR = Path(__file__).resolve().parent
@@ -156,7 +159,33 @@ def last_week(frame: pd.DataFrame) -> pd.Series:
     return values
 
 
-def sales_decisions(out: Path) -> None:
+def sales_window(start: pd.Timestamp) -> pd.DataFrame:
+    """
+    テスト用の期間と, 過去の値の列のための前の 30 日の売上を返す関数
+
+    Parameters
+    ----------
+    start: pd.Timestamp
+        テスト用の期間の始め
+
+    Returns
+    ----------
+    window: pd.DataFrame
+        元のデータの行 (同じ日と店の重複は 1 行) に, 前の週の同じ曜日の
+        売上の列 last_week を足した表
+    """
+    # 同じ日と店の重複は 1 行に (前処理と同じく, 損を 2 回数えないため)
+    frame = load_data(DATA_DIR / "store_sales.csv").frame
+    window = frame[frame["date"] >= start - pd.Timedelta(days=30)]
+    window = window.assign(_store=store_names(window)).drop_duplicates(
+        ["date", "_store"]
+    ).drop(columns="_store").reset_index(drop=True)
+    window["last_week"] = last_week(window)
+
+    return window
+
+
+def sales_decisions(out: Path) -> tuple[Path, pd.DataFrame, pd.Timestamp]:
     """
     18 の売上で, 損の比ごとに置く量の方針をテスト用の期間でたどり直す
     関数
@@ -168,17 +197,12 @@ def sales_decisions(out: Path) -> None:
 
     Returns
     ----------
-    None
+    result: tuple[Path, pd.DataFrame, pd.Timestamp]
+        一式のディレクトリ, sales_window の表, テスト用の期間の始め
     """
     # テスト用の期間と, 過去の値の列のための前の 30 日
     bundle, start = sales_bundle(out)
-    frame = load_data(DATA_DIR / "store_sales.csv").frame
-    # 同じ日と店の重複は 1 行に (前処理と同じく, 損を 2 回数えないため)
-    window = frame[frame["date"] >= start - pd.Timedelta(days=30)]
-    window = window.assign(_store=store_names(window)).drop_duplicates(
-        ["date", "_store"]
-    ).drop(columns="_store").reset_index(drop=True)
-    window["last_week"] = last_week(window)
+    window = sales_window(start)
     count = (window["date"] >= start).to_numpy() & window[
         "last_week"
     ].notna().to_numpy()
@@ -205,6 +229,109 @@ def sales_decisions(out: Path) -> None:
                      {"type": "quantity", "under_cost": 3, "over_cost": 1})
     for sentence in decided["sentences"] + decided["notes"]:
         print(f"  {sentence}")
+    result = (bundle, window, start)
+
+    return result
+
+
+def remeasured_levels(
+    bundle: Path, window: pd.DataFrame, rows: pd.Series, decision: dict
+) -> pd.Series:
+    """
+    一式で, 選んだ行に置く量を決める関数
+
+    Parameters
+    ----------
+    bundle: Path
+        一式のディレクトリ
+    window: pd.DataFrame
+        sales_window の表 (過去の値の列のために全ての行で予測する)
+    rows: pd.Series
+        量を決める行の印
+    decision: dict
+        量の決め方
+
+    Returns
+    ----------
+    levels: pd.Series
+        行ごとの置く量 (選ばなかった行は欠損)
+    """
+    # 全ての行で予測し, 選んだ行だけで決める
+    table = predict(bundle, window)
+    part = table[rows.to_numpy()].reset_index(drop=True)
+    action = decide(bundle, part, decision)["frame"]["action"]
+    levels = pd.Series(float("nan"), index=window.index)
+    levels[rows.to_numpy()] = pd.to_numeric(action, errors="coerce").to_numpy()
+
+    return levels
+
+
+def remeasure_decisions(
+    out: Path, bundle: Path, window: pd.DataFrame, start: pd.Timestamp
+) -> None:
+    """
+    テスト用の期間の前半の実績で外れ方を測り直し, 後半で前の外れ方の
+    方針と比べる関数
+
+    Parameters
+    ----------
+    out: Path
+        一式を書く場所
+    bundle: Path
+        18 の一式のディレクトリ (書き換えない)
+    window: pd.DataFrame
+        sales_window の表
+    start: pd.Timestamp
+        テスト用の期間の始め
+
+    Returns
+    ----------
+    None
+    """
+    # 期間の前半で測る (一式は写してから書き換える)
+    days = sorted(window.loc[window["date"] >= start, "date"].unique())
+    middle = days[len(days) // 2]
+    recent = out / "bundle_sales_recent"
+    if recent.exists():
+        shutil.rmtree(recent)
+    shutil.copytree(bundle, recent)
+    first = (window["date"] >= start) & (window["date"] < middle)
+    result = remeasure(recent, window, count=first.to_numpy())
+    print(f"18 のテスト用の期間の前半 ({len(days) // 2} 日) で外れ方を"
+          "測り直した:")
+    for sentence in result["sentences"]:
+        print(f"  {sentence}")
+
+    # 後半で, 前の外れ方の方針と測り直した外れ方の方針を比べる (測り直した
+    # 方の量を今のやり方の列として渡すと, 差の 90 % の幅も出る)
+    second = (window["date"] >= middle) & window["last_week"].notna()
+    for name, path in (("前の記録の", bundle), ("測り直した", recent)):
+        check = remeasure(path, window, count=second.to_numpy(), write=False)
+        coverage = check["before"]["coverage"]
+        print(f"  {name}外れ方の 80 % と 90 % の幅が後半の実績を覆った割合: "
+              f"{coverage['80']:.3f}, {coverage['90']:.3f}")
+    old = load_bundle(bundle).info["uncertainty"]
+    split = {"valid": "検証用", "train": "学習用"}.get(old["split"], "")
+    print(f"後半で, 前の記録 ({split}の分割の {old['rows']:,} 行) "
+          "と測り直した外れ方の量の実際の損 (百万円):")
+    for under, over in SALES_COSTS:
+        decision = {"type": "quantity", "under_cost": under,
+                    "over_cost": over}
+        frame = window.assign(remeasured=remeasured_levels(
+            recent, window, second, decision
+        ))
+        replay = backtest(bundle, frame, {**decision,
+                                          "current": "remeasured"},
+                          count=second.to_numpy())
+        gap = replay["gaps"]["今のやり方"]
+        low, high = gap["range"]
+        print(f"  足りない {under} : 余る {over} ({replay['rows']:,} 行): "
+              f"前の記録 {-replay['policies']['この方針'] / 1e6:,.1f}, "
+              f"測り直し {-replay['policies']['今のやり方'] / 1e6:,.1f}, "
+              f"予測の値どおり "
+              f"{-replay['policies']['予測の値どおりに置く'] / 1e6:,.1f} "
+              f"(測り直しの改善 {-gap['gap'] / 1e6:,.1f}, 90 % の幅 "
+              f"{-high / 1e6:,.1f} から {-low / 1e6:,.1f})")
 
 
 def reviews_decisions(out: Path) -> None:
@@ -288,8 +415,9 @@ def main() -> None:
     out = TASK_DIR / args.out
     out.mkdir(parents=True, exist_ok=True)
 
-    # 売上の量と, レビューの振り分け
-    sales_decisions(out)
+    # 売上の量と外れ方の測り直しと, レビューの振り分け
+    bundle, window, start = sales_decisions(out)
+    remeasure_decisions(out, bundle, window, start)
     reviews_decisions(out)
 
 

@@ -1,0 +1,21 @@
+# pretrain.py で使う. 言い方を増やしたレビューの文字ごとのデータセットで,
+# 隠したトークンを当てる (MLM)
+experiment:
+  name: ja_bert_natural_char_pretrain
+
+trainer:
+  epochs: 4
+  monitor: valid/loss
+  mode: min
+  valid_seed: 0
+
+data:
+  dataset: outputs/dataset_natural_char
+  corpus: outputs/corpus_natural_char.npy
+  batch_size: 128
+
+model:
+  spec: models/ja_bert_natural_char.yaml
+
+pretrain:
+  output: outputs/pretrained_natural_char.pt

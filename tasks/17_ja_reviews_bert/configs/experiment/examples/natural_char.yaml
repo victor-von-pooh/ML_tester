@@ -1,0 +1,12 @@
+# 言い方を増やしたレビューの文字ごとのデータセットで, 事前学習
+# (pretrain_natural_char.yaml) の後の BERT を微調整する
+experiment:
+  name: ja_bert_natural_char
+
+data:
+  dataset: outputs/dataset_natural_char
+  corpus: outputs/corpus_natural_char.npy
+
+model:
+  spec: models/ja_bert_natural_char.yaml
+  init: outputs/pretrained_natural_char.pt

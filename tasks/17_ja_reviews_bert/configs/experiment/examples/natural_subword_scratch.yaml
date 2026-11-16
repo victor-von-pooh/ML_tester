@@ -1,0 +1,12 @@
+# 言い方を増やしたレビューの部分語ごとのデータセットで, 事前学習を
+# せずに BERT を最初から学習する
+experiment:
+  name: ja_bert_natural_subword_scratch
+
+data:
+  dataset: outputs/dataset_natural_subword
+  corpus: outputs/corpus_natural_subword.npy
+
+model:
+  spec: models/ja_bert_natural_subword.yaml
+  init: null

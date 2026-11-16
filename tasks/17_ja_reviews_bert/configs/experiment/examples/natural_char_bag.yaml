@@ -1,0 +1,15 @@
+# 比べるためのモデル: 言い方を増やしたレビューの文字の埋め込みの平均
+# (並びを見ない)
+experiment:
+  name: bag_natural_char
+
+trainer:
+  epochs: 30
+
+data:
+  dataset: outputs/dataset_natural_char
+  corpus: outputs/corpus_natural_char.npy
+
+model:
+  spec: models/bag_natural_char.yaml
+  init: null

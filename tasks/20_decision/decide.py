@@ -85,7 +85,8 @@ def sales_bundle(out: Path) -> tuple[Path, pd.Timestamp]:
     result: tuple[Path, pd.Timestamp]
         一式のディレクトリと, テスト用の期間の始め
     """
-    # 学習のスクリプトと同じ, 学習用の平均と標準偏差での売上の標準化
+    # 最新の実験の一式 (売上の標準化は学習のスクリプトと同じ学習用の平均と
+    # 標準偏差) と, テスト用の期間の始め
     task = TASKS / "18_store_sales"
     run = latest_run(task / "outputs" / "store_sales")
     dataset_dir, spec = run_settings(task, run)
@@ -103,6 +104,28 @@ def sales_bundle(out: Path) -> tuple[Path, pd.Timestamp]:
     return result
 
 
+def store_names(frame: pd.DataFrame) -> pd.Series:
+    """
+    店の表記 (全角と半角, 前後の空白) をそろえる関数
+
+    Parameters
+    ----------
+    frame: pd.DataFrame
+        元のデータ
+
+    Returns
+    ----------
+    store: pd.Series
+        そろえた店の名前
+    """
+    # NFKC と前後の空白の除去
+    store = frame["store"].map(
+        lambda name: unicodedata.normalize("NFKC", str(name)).strip()
+    )
+
+    return store
+
+
 def last_week(frame: pd.DataFrame) -> pd.Series:
     """
     店ごとに 7 日前の売上 (今のやり方: 前の週の同じ曜日と同じだけ置く)
@@ -118,10 +141,8 @@ def last_week(frame: pd.DataFrame) -> pd.Series:
     values: pd.Series
         行ごとの 7 日前の同じ店の売上 (無ければ欠損)
     """
-    # 店の表記をそろえ, 重複を除いた日付と店の売上から引く
-    store = frame["store"].map(
-        lambda name: unicodedata.normalize("NFKC", str(name)).strip()
-    )
+    # 表記をそろえた店と, 重複を除いた日付と店の売上からの引き当て
+    store = store_names(frame)
     table = pd.DataFrame({"date": frame["date"], "store": store,
                           "sales": frame["sales"]}).drop_duplicates(
         ["date", "store"]
@@ -152,8 +173,11 @@ def sales_decisions(out: Path) -> None:
     # テスト用の期間と, 過去の値の列のための前の 30 日
     bundle, start = sales_bundle(out)
     frame = load_data(DATA_DIR / "store_sales.csv").frame
+    # 同じ日と店の重複は 1 行に (前処理と同じく, 損を 2 回数えないため)
     window = frame[frame["date"] >= start - pd.Timedelta(days=30)]
-    window = window.reset_index(drop=True)
+    window = window.assign(_store=store_names(window)).drop_duplicates(
+        ["date", "_store"]
+    ).drop(columns="_store").reset_index(drop=True)
     window["last_week"] = last_week(window)
     count = (window["date"] >= start).to_numpy() & window[
         "last_week"

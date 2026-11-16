@@ -4,12 +4,11 @@ import shutil
 import sys
 import unicodedata
 
+import numpy as np
 import pandas as pd
 import yaml
 
 from ml_eda import load_data, load_dataset
-import numpy as np
-
 from ml_inference import (
     backtest, decide, forecast, load_bundle, make_bundle, predict, remeasure
 )
@@ -368,7 +367,7 @@ def week_ahead(
     end = origin + pd.Timedelta(days=STEPS - 1)
     part = window[window["date"] <= end].drop(columns="last_week")
     part = part.reset_index(drop=True)
-    # 実際の売上は写しで持つ (空にする前の値)
+    # 空にする前の実際の売上の写し
     actual = part["sales"].to_numpy(dtype=float, copy=True)
     ahead = (part["date"] >= origin).to_numpy()
     part.loc[ahead, "sales"] = np.nan
@@ -376,7 +375,7 @@ def week_ahead(
     result["actual"] = actual
     rows = result[ahead & result["step"].notna().to_numpy()
                   & np.isfinite(actual)].reset_index(drop=True)
-    # 先の行の印 (行の数の違う並び) は, 表をつなぐときに邪魔なので外す
+    # 表をつなぐときに邪魔な, 先の行の印 (行の数の違う並び) の除去
     rows.attrs = {}
 
     return rows
@@ -432,20 +431,24 @@ def steps_decisions(
     ----------
     None
     """
-    # 検証用の期間 (と前の 30 日) で, 7 段先までの外れ方の測り直し
+    # 検証用の期間 (と前の 30 日) での測り直し. 比べる一式も同じ行で
+    # 1 つ先の外れ方だけを測り直す (段ごとの記録の有無だけが違う)
     task = TASKS / "18_store_sales"
     run = latest_run(task / "outputs" / "store_sales")
     valid = load_dataset(run_settings(task, run)[0]).frames["valid"]
     first = valid["date"].min()
     window = sales_window(first)
+    past = window[window["date"] < start]
+    mark = (past["date"] >= first).to_numpy()
+    one = out / "bundle_sales_one"
     steps = out / "bundle_sales_steps"
-    if steps.exists():
-        shutil.rmtree(steps)
-    shutil.copytree(bundle, steps)
-    measured = remeasure(
-        steps, window[window["date"] < start], horizon=STEPS, time="date",
-        count=(window[window["date"] < start]["date"] >= first).to_numpy()
-    )
+    for path in (one, steps):
+        if path.exists():
+            shutil.rmtree(path)
+        shutil.copytree(bundle, path)
+    remeasure(one, past, count=mark)
+    measured = remeasure(steps, past, horizon=STEPS, time="date",
+                         count=mark)
     print("18 の検証用の期間で, 7 日先までの外れ方を測った:")
     for sentence in measured["sentences"][1:]:
         print(f"  {sentence}")
@@ -467,7 +470,7 @@ def steps_decisions(
         decision = {"type": "quantity", "under_cost": under,
                     "over_cost": over}
         loss = {}
-        for name, path in (("1 つ先の外れ方", bundle),
+        for name, path in (("1 つ先の外れ方", one),
                            ("段ごとの外れ方", steps)):
             level = decide(load_bundle(path), rows, decision)["frame"][
                 "level"

@@ -38,6 +38,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
 2. **段階の間はファイルの約束でつなぐ.**
    ある段階の画面が, 別の段階のライブラリや画面のコードを直接呼ぶことはしない. 段階の間は, 受け渡すファイルの形 (以下, 約束) でつなぐ. 約束の形は, それを定めるライブラリの側のリポジトリが持ち, 版を付けて文書にする. 各リポジトリを単独で作り直しても, 約束を守る限り他に響かない.
    例外として, プロジェクトの学習のスクリプトは利用者のコードなので, 複数の段階のライブラリを使ってよい (ML-Found で学習し, ML-ModelControl でモデルを組み立てるなど).
+   推論の段階のライブラリ ML-Inference も, 前の段階の約束 (前処理のレシピ, モデルの定義) を新しいデータにかけるために, その約束を持つライブラリ (ML-EDA, ML-ModelControl) を使う. 約束の中身を正しく扱えるのは約束を持つライブラリだけなので, 写して作り直さない. 画面 (ML-Provide) は ML-Inference だけを使う.
 3. **実験だけで再現と推論ができるようにする (目標).**
    1 つの実験のディレクトリに, 使った config, モデルの定義, 重みが揃い, そこから再現も推論もできることを目指す. 今は, ML-Found が config, 起動のしかた, 状態, 記録, 重みを残し, コードは git の commit id と未コミットの差分で記録する. モデルの定義は, 学習のスクリプトが実験のディレクトリに写す (ML-ModelControl の README の手順).
 4. **全体を束ねるのは「プロジェクト」(目標).**
@@ -49,10 +50,11 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
 
 | 約束 | 形を持つリポジトリ | 作るもの | 読むもの |
 | --- | --- | --- | --- |
-| データセット (`dataset.yaml`, `format_version` 付き. 分割ごとのデータと前処理のレシピ) | ML-EDA (`docs/DESIGN.md` の「書き出し」) | ML-EDA (ML-Fathom の画面から) | 学習のスクリプト (ML-EDA の `load_dataset` で読む) |
-| モデルの定義 (YAML か JSON, `format_version` 付き) | ML-ModelControl (`docs/DESIGN.md` の「モデルの定義の形」) | ML-CreateArchitecture (手でも書ける) | ML-CreateArchitecture, 学習のスクリプト (ML-ModelControl で組み立てる) |
+| データセット (`dataset.yaml`, `format_version` 付き. 分割ごとのデータと前処理のレシピ) | ML-EDA (`docs/DESIGN.md` の「書き出し」) | ML-EDA (ML-Fathom の画面から) | 学習のスクリプト (ML-EDA の `load_dataset` で読む), ML-Inference (前処理を新しいデータにかける) |
+| モデルの定義 (YAML か JSON, `format_version` 付き) | ML-ModelControl (`docs/DESIGN.md` の「モデルの定義の形」) | ML-CreateArchitecture (手でも書ける) | ML-CreateArchitecture, 学習のスクリプト (ML-ModelControl で組み立てる), ML-Inference |
 | プロジェクトの形 (`configs/default/`, `configs/experiment/`, 学習のスクリプト) | ML-Found (`docs/FORMAT.md`) | 今は人. 将来は問題の設定 | ML-Found, ML-Dashboard |
-| 実験のディレクトリ (config, 起動のしかた, 状態, 記録, 重み. `run.json` と `source.yaml` に形式の版がある) | ML-Found (`docs/FORMAT.md`) | ML-Found | ML-Dashboard, ML-Inference (作成中) |
+| 実験のディレクトリ (config, 起動のしかた, 状態, 記録, 重み. `run.json` と `source.yaml` に形式の版がある) | ML-Found (`docs/FORMAT.md`) | ML-Found | ML-Dashboard, ML-Inference (重みと `run.json`) |
+| 推論の一式 (`inference.yaml`, `format_version` 付き. モデルの定義, 重み, データセットの説明とレシピ, 入力と出力のつなぎ方, 結論の決め方の既定値) | ML-Inference (`docs/DESIGN.md` の「推論の一式の形」) | ML-Inference (学習のスクリプトか ML-Provide の画面から) | ML-Inference, ML-Provide |
 
 ## 進め方
 
@@ -66,7 +68,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
 
 ## ML_tester の役割
 
-ML_tester は動作確認の場. 各リポジトリを利用者の立場で使い, 機能するかを確かめ, 気付いたことを記録する. 今は主に ML-Found (と, 結果を見る ML-Dashboard) を確かめている. タスク 13 は, ML-ModelControl の定義から組み立てたモデルを ML-Found で学習し, モデルの作成と学習の交点を確かめる. タスク 14 は, ML-EDA で前処理して書き出したデータセットを ML-Found で学習し, データの分析と学習の交点を確かめる. タスク 15 と 16 は同じ交点を, 中身の手順で配列にする画像と点群で確かめる. タスク 17 は, ML-Fathom で前処理した文と ML-CreateArchitecture で組んだ BERT を ML-Found で学習し, 3 つの段階を通しで確かめる. タスク 18 は同じ流れを, 汚れた表と店ごとの複数の系列で確かめる.
+ML_tester は動作確認の場. 各リポジトリを利用者の立場で使い, 機能するかを確かめ, 気付いたことを記録する. 今は主に ML-Found (と, 結果を見る ML-Dashboard) を確かめている. タスク 13 は, ML-ModelControl の定義から組み立てたモデルを ML-Found で学習し, モデルの作成と学習の交点を確かめる. タスク 14 は, ML-EDA で前処理して書き出したデータセットを ML-Found で学習し, データの分析と学習の交点を確かめる. タスク 15 と 16 は同じ交点を, 中身の手順で配列にする画像と点群で確かめる. タスク 17 は, ML-Fathom で前処理した文と ML-CreateArchitecture で組んだ BERT を ML-Found で学習し, 3 つの段階を通しで確かめる. タスク 18 は同じ流れを, 汚れた表と店ごとの複数の系列で確かめる. タスク 19 は, 17 と 18 の学習の結果から推論の一式を作り, 推論と結論が学習のときの評価と同じになるかを確かめる.
 
 - 各リポジトリは ML_tester を前提にしない. 手順書, 例, テストは, 各リポジトリだけで完結させる
 - 機能を ML_tester に集約しない. 機能は各リポジトリに足す

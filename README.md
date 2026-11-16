@@ -17,7 +17,8 @@ pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@f01b8c8"   # 14 から 18 で使う (all に部分語の tokenizers も入る)
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@dbec691"   # 14 から 19 で使う (all に部分語の tokenizers も入る)
+pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@8714a68"   # 19 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 ```
 
@@ -60,6 +61,7 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 16 | `tasks/16_eda_pointcloud` | ML-EDA で配列にした点群のデータセットの学習 | 合成した形の点群 | PLY, PCD, xyz の混在, 点の数の違い, 座標が数でない点を中身の手順でそろえ, 新しい点群に同じ手順 (データの分析と学習の交点) |
 | 17 | `tasks/17_ja_reviews_bert` | 日本語のレビューを画面で組んだ BERT で分類 | 合成した日本語のレビュー (汚れた csv とラベル無しの文) | ML-Fathom で文の列を前処理, ML-CreateArchitecture で組んだ BERT を事前学習 (MLM) と微調整, 文字の平均のモデルと比べる (3 つの段階を通しで). ML-Fathom が勧めた部分語の区切りでも比べる |
 | 18 | `tasks/18_store_sales` | 店ごとの日々の売上の予測 | 合成した 12 店の売上 (円の付いた数, 混在した日付, 重複) | ML-Fathom で店ごとの時系列として前処理 (店ごとのずらし), ML-CreateArchitecture で組んだモデルで回帰, 店をまたいだずらしと比べる |
+| 19 | `tasks/19_inference` | 学習したモデルで推論し, 結論を出す | 17 と 18 のデータ | 17 と 18 の学習の結果から ML-Inference で推論の一式を作り, 学習のときのテスト用の評価と同じ値になるかを確かめる. 結論 (保留, 値の帯, 店ごと) と ML-Provide の画面 (推論の段階) |
 
 各タスクのディレクトリは次の構成にする.
 

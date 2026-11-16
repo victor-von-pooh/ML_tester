@@ -1,9 +1,10 @@
 import argparse
 from pathlib import Path
 import sys
+import unicodedata
 
-import numpy as np
 import pandas as pd
+import yaml
 
 from ml_eda import load_dataset
 from ml_inference import infer, make_bundle, predict, write_result
@@ -54,6 +55,29 @@ def latest_run(experiment: Path) -> Path:
     return run
 
 
+def run_settings(task: Path, run: Path) -> tuple[Path, Path]:
+    """
+    実験の config から, 学習に使ったデータセットとモデルの定義を返す関数
+
+    Parameters
+    ----------
+    task: Path
+        タスクのディレクトリ
+    run: Path
+        実験のディレクトリ
+
+    Returns
+    ----------
+    paths: tuple[Path, Path]
+        データセットのディレクトリと, モデルの定義のファイル
+    """
+    # 上書き (data.dataset=... など) も含めた, 学習のときの config
+    config = yaml.safe_load((run / "config.yaml").read_text(encoding="utf-8"))
+    paths = (task / config["data"]["dataset"], task / config["model"]["spec"])
+
+    return paths
+
+
 def reviews(out: Path) -> None:
     """
     17 の部分語の BERT の一式を作り, テスト用の分割, 見分けの組, ラベルの
@@ -68,19 +92,18 @@ def reviews(out: Path) -> None:
     ----------
     None
     """
-    # 学習のスクリプトが [CLS] (語彙の数 + 1) を先頭に足していたことを書く
+    # 学習のスクリプトが先頭に足した [CLS] (語彙の数 + 1) の一式への記録
     task = TASKS / "17_ja_reviews_bert"
-    dataset_dir = task / "outputs" / "dataset_natural48k_subword"
+    run = latest_run(task / "outputs" / "natural_subword_scratch_48k")
+    dataset_dir, spec = run_settings(task, run)
     dataset = load_dataset(dataset_dir)
     vocabulary = next(
         s["state"]["vocabulary"] for s in dataset.recipe["item_steps"]
         if s["op"] == "vocabulary"
     )
-    run = latest_run(task / "outputs" / "natural_subword_scratch_48k")
     bundle = out / "bundle_reviews"
     info = make_bundle(
-        bundle, task / "models" / "ja_bert_natural_subword.yaml",
-        dataset_dir, run,
+        bundle, spec, dataset_dir, run,
         inputs={"ids": {"source": "items", "prepend": [len(vocabulary) + 1]}},
         output="logits", conclusion={"min_confidence": 0.9},
         name="ja_reviews_subword", overwrite=True
@@ -125,19 +148,18 @@ def sales(out: Path) -> None:
     ----------
     None
     """
-    # 学習のスクリプトが目的の値を学習用の平均と標準偏差で変えていた
+    # 学習用の平均と標準偏差での目的の値の変換 (train.py と同じ求め方)
     task = TASKS / "18_store_sales"
-    dataset_dir = task / "outputs" / "dataset"
-    dataset = load_dataset(dataset_dir)
-    _, y_train = dataset.arrays("train")
-    scale = {"center": float(y_train.mean()),
-             "scale": float(y_train.std(ddof=1))}
     run = latest_run(task / "outputs" / "store_sales")
+    dataset_dir, spec = run_settings(task, run)
+    dataset = load_dataset(dataset_dir)
+    _, y_train = dataset.tensors("train")
+    scale = {"center": y_train.mean().item(), "scale": y_train.std().item()}
     bundle = out / "bundle_sales"
     bands = [{"label": "少ない", "upper": 500000},
              {"label": "ふつう", "upper": 1000000}, {"label": "多い"}]
     info = make_bundle(
-        bundle, task / "models" / "sales_mlp.yaml", dataset_dir, run,
+        bundle, spec, dataset_dir, run,
         target_scale=scale, conclusion={"bands": bands, "group_by": "store"},
         name="store_sales", overwrite=True
     )
@@ -150,16 +172,16 @@ def sales(out: Path) -> None:
     for sentence in result["sentences"][:3]:
         print(f"  {sentence}")
 
-    # テスト用の期間 (重複した行を除く) の誤り
+    # テスト用の期間の誤り. 重複は学習のときと同じく, 店の表記をそろえて
+    # から元の全ての列で比べて除く
     frame = result["frame"]
     start = dataset.frames["test"]["date"].min()
-    dates = pd.to_datetime(frame["date"])
-    period = frame[(dates >= start) & (frame["status"] == "ok")]
-    period = period.loc[
-        ~period.drop(columns=["reason"]).duplicated(
-            subset=["date", "store", "sales"]
-        )
-    ]
+    period = frame[(frame["date"] >= start) & (frame["status"] == "ok")]
+    original = period[["date", "store", "temperature", "promo", "sales"]]
+    original = original.assign(store=original["store"].map(
+        lambda name: unicodedata.normalize("NFKC", str(name)).strip()
+    ))
+    period = period.loc[~original.duplicated()]
     error = (period["prediction"] - period["sales"]).abs()
     print(f"  テスト用の期間の平均絶対誤差 (一式で推論): {error.mean():,.0f} 円 "
           f"({len(period):,} 行), 平均の割合の誤差: "
@@ -189,7 +211,6 @@ def main() -> None:
     args = parser.parse_args()
     out = TASK_DIR / args.out
     out.mkdir(parents=True, exist_ok=True)
-    np.set_printoptions(precision=4)
 
     # 文の分類と, 売上の予測
     reviews(out)

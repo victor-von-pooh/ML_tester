@@ -10,6 +10,7 @@ from ml_eda import Dataset, load_dataset
 from ml_found import (
     Experiment, Trainer, load_project_config, start_experiment
 )
+from ml_inference import make_bundle
 from tokens import add_cls, load_model, special_ids
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
@@ -189,6 +190,21 @@ def main() -> None:
     print(f"ベストの検証用の正解率: "
           f"{history.get('valid/acc')[best_epoch - 1]:.4f}")
     evaluate_test(trainer.model, dataset, experiment, cls_id)
+
+    # 実験の中への推論の一式の作成 (前処理の外で先頭に足した [CLS] の記録)
+    info = make_bundle(
+        Path(experiment.run_dir) / "inference", TASK_DIR / cfg.model.spec,
+        path, experiment.run_dir,
+        inputs={"ids": {"source": "items", "prepend": [cls_id]}},
+        output="logits", name=cfg.experiment.name
+    )
+    check = info["check"]
+    if check:
+        experiment.logger.info(
+            f"推論の一式: {check['split']} の {check['metric']} "
+            f"{check['value']:.4f} (記録 {check['recorded']}, 合う: "
+            f"{check['matches']})"
+        )
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18 で使う
 pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@dbec691"   # 14 から 19 で使う (all に部分語の tokenizers も入る)
-pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@4c95c1b"   # 19 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
+pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@e203d01"   # 17 から 19 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 ```
 

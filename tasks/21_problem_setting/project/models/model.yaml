@@ -1,0 +1,41 @@
+format_version: 1
+name: sozai_mlp
+inputs:
+  x:
+    shape:
+    - 64
+    - 12
+nodes:
+  fc1:
+    unit: nn.Linear
+    inputs:
+      input: x
+    params:
+      in_features: 12
+      out_features: 64
+  act1:
+    unit: nn.ReLU
+    params: {}
+    inputs:
+      input: fc1
+  fc2:
+    unit: nn.Linear
+    inputs:
+      input: act1
+    params:
+      in_features: 64
+      out_features: 64
+  act2:
+    unit: nn.ReLU
+    params: {}
+    inputs:
+      input: fc2
+  out:
+    unit: nn.Linear
+    inputs:
+      input: act2
+    params:
+      in_features: 64
+      out_features: 1
+outputs:
+  y: out

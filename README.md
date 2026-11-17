@@ -16,9 +16,10 @@ source .venv/bin/activate
 pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
-pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@dbec691"   # 14 から 19 で使う (all に部分語の tokenizers も入る)
-pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@2956775"   # 17 から 20 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
+pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18, 21 で使う
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@dbec691"   # 14 から 21 で使う (all に部分語の tokenizers も入る)
+pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@226c1fc"   # 17 から 21 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
+pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@96738d2"   # 21 で使う (依存の pandas と PyYAML は上で入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 ```
 
@@ -28,7 +29,7 @@ pip install transformers==5.22.2          # 04 の段階 2 で使う
 
 1. 上の「導入」で `.venv` を作っておく. 学習に使う Python は, 登録したときにタスクのディレクトリから上に向かって仮想環境を探して決まるので, 先に作ると `.venv` が自動で選ばれる
 2. ML-Dashboard を ML_tester とは別のディレクトリに clone し, その README の「導入と起動」の手順で起動して, 表示されたトークン付きの URL を開く
-3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 18 のタスクが候補に出る (submodule の ML-Found の例は対象外). そのまま「18 件を追加」で登録する
+3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 19 のプロジェクト (01 から 18 と, 21 の `project/`. 19 と 20 は学習しないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外). そのまま「19 件を追加」で登録する
 
 clone した直後は実験が無いので, 各タスクの README の手順で学習するか, 画面から起動すると一覧に出る.
 
@@ -63,6 +64,7 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 18 | `tasks/18_store_sales` | 店ごとの日々の売上の予測 | 合成した 12 店の売上 (円の付いた数, 混在した日付, 重複) | ML-Fathom で店ごとの時系列として前処理 (店ごとのずらし), ML-CreateArchitecture で組んだモデルで回帰, 店をまたいだずらしと比べる |
 | 19 | `tasks/19_inference` | 学習したモデルで推論し, 結論を出す | 17 と 18 のデータ | 17 と 18 の学習の結果から ML-Inference で推論の一式を作り, 学習のときのテスト用の評価と同じ値になるかを確かめる. 結論 (保留, 値の帯, 店ごと) と ML-Provide の画面 (推論の段階) |
 | 20 | `tasks/20_decision` | 予測から意思決定へ | 17 と 18 のデータ | 18 の売上の予測から置く量 (損の比と予測の外れ方), 17 のレビューから人が確かめるもの (損の比のしきい値, 人手の上限) を決め, 予測どおりと今のやり方と過去のデータで比べる (ML-Inference の意思決定) |
+| 21 | `tasks/21_problem_setting` | 問題の設定から推論まで | 合成した総菜の売れた数 | ML-Quest の問題の設定から骨組みを書き出し, 受け渡しの値でデータセットとモデルの定義を置いて学習し, 問題の設定の損得と比べる相手と成功の基準でたどり直す (5 つの段階の通し) |
 
 各タスクのディレクトリは次の構成にする.
 

@@ -1,0 +1,73 @@
+format_version: 1
+name: 総菜の作る量
+created_at: '2026-11-17T22:04:47+09:00'
+updated_at: '2026-11-17T22:04:47+09:00'
+issue:
+  owner: 店長
+  pain: 総菜の廃棄が多く, 夕方には品切れも出る
+  current: 前の週の同じ曜日と同じ数を作る
+  kpi:
+    name: 廃棄と欠品の損
+    unit: 円 / 月
+    better: lower
+    current: 1200000
+    target: 960000
+decomposition:
+- cause: 作る量が勘で決まる
+  lever: 作る量を売れる数の予測から決める
+  ml: true
+- cause: 夕方の値引きが遅い
+  lever: 値引きの時刻を決めておく
+  ml: false
+ml:
+  use: true
+  reason: 品と日による売れ方の違いが大きく, 前の週と同じでは追えない
+  predict: 翌日の品ごとの売れる数
+  row: 店, 品, 日ごとの 1 行
+  task: forecasting
+  target: sales
+  time_column: date
+  series_by:
+  - store
+  - item
+  available_lag: 2
+  horizon: 1
+  baseline: 前の週の同じ曜日と同じ数
+information:
+  columns:
+  - date
+  - store
+  - item
+  - sales
+  - temperature_forecast
+  - promo
+  - customers
+  known:
+  - store
+  - item
+  - temperature_forecast
+  - promo
+  unknown:
+  - customers
+action:
+  who: 店長
+  when: 前の日の 17 時
+  what: 品ごとの作る量
+  decision:
+    type: quantity
+    under_cost: 200
+    over_cost: 150
+  basis: 欠品は粗利 200 円, 廃棄は原価 150 円
+evaluation:
+  metric: mae
+  link: 誤差が小さいほど作る量の外れが減り, 廃棄と欠品の損が減る
+verification:
+  method: both
+  backtest: 過去 3 か月で, 今のやり方と損を比べる
+  trial: 1 店で 4 週間
+  success: 廃棄と欠品の損が今のやり方より 2 割少ない
+operation:
+  review: 月に 1 回
+  approver: 本部
+  stop: 損が今のやり方より悪い月が 2 回続いたら止める
+  remeasure: 月に 1 回, 前の月の実績で外れ方を確かめ, 本部が承認したら書き戻す

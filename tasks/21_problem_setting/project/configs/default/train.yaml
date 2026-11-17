@@ -1,0 +1,28 @@
+# ML-Found が使う設定 (ML-Quest が問題の設定から書き出した骨組み)
+experiment:
+  name: sales_forecasting
+  seed: 0
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+
+trainer:
+  epochs: 50
+  # 問題の設定の「学習で見る指標」
+  monitor: valid/mae
+  mode: min
+  early_stopping:
+    use: true
+    patience: 10
+
+# プロジェクト固有の設定
+data:
+  # ML-EDA (ML-Fathom) で書き出すデータセット (プロジェクトのディレクトリから)
+  dataset: outputs/dataset
+  batch_size: 64
+
+model:
+  # ML-ModelControl の形のモデルの定義 (ML-CreateArchitecture で組む)
+  spec: models/model.yaml

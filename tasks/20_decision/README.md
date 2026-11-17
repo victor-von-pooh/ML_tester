@@ -43,7 +43,7 @@ CPU で 20 秒ほど.
 
 ## 結果のメモ
 
-ML-Inference `2956775`, ML-EDA `dbec691`, ML-ModelControl `88730ae`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した. 18 は `store_sales` の `2026-11-16/22-54-31` (シード 0), 17 は `natural_subword_scratch_48k` の `2026-11-16/22-54-56` を使った.
+ML-Inference `226c1fc` (`2956775` でも同じ出力), ML-EDA `dbec691`, ML-ModelControl `88730ae`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した. 18 は `store_sales` の `2026-11-16/22-54-31` (シード 0), 17 は `natural_subword_scratch_48k` の `2026-11-16/22-54-56` を使った.
 
 ### 18 の売上で量を決める
 

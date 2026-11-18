@@ -47,6 +47,8 @@ CPU で 15 秒ほど (ラベルの無い 100,000 件の推論を含む). 書き�
 
 ML-Inference `4c95c1b` (何段も先の予測と列の効きは `72cb18b`. `9ec72d2` で流し直して全ての値が同じことを確認), ML-EDA `dbec691`, ML-ModelControl `88730ae`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した. 画面は ML-Provide `35619fe`.
 
+2026-11-18 に ML-Inference `1ec6970`, ML-EDA `b08a5bc` で, 17 と 18 を動かし直した実験から流し直し, 下の値が全て同じだった.
+
 | 一式 | 使った実験 | 確かめたこと | 一式で推論した値 | 学習のスクリプトの `train.log` の値 |
 | --- | --- | --- | --- | --- |
 | 17 `bundle_reviews` (部分語の BERT. `prepend` [CLS]) | `natural_subword_scratch_48k` の `2026-11-16/22-54-56` (シード 0. 検証用の正解率 0.9416) | テスト用の分割 4,796 件の正解率 | 0.9445 | 0.9445 |

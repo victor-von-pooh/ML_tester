@@ -47,7 +47,7 @@ python tasks/21_problem_setting/evaluate.py         # たどり直し
 
 ## 結果のメモ
 
-ML-Quest `96738d2`, ML-Inference `226c1fc`, ML-EDA `dbec691`, ML-ModelControl `88730ae`, PyTorch 2.15.0, Apple Silicon の Mac (device は auto で MPS) で実行した.
+ML-Quest `6d7d6da`, ML-Inference `226c1fc`, ML-EDA `dbec691`, ML-ModelControl `88730ae`, PyTorch 2.15.0, Apple Silicon の Mac (device は auto で MPS) で実行した (2026-11-18 に ML-Quest を `96738d2` から上げて全ての手順を動かし直した. 問い (4 の決めること, 5 の機械学習の受け持ちの順), データの写し, 書き戻しの部品, 今のやり方の列の受け渡しが変わった. 見本の答えから書き出す problem.yaml, train.py, configs は同じ. 骨組みの README (`project/README.md`) は, 要約の文の順 (決めることが予測することの前), 損得の表示 (項目の名前), 過去の値の列の案内 (ML-EDA の lags と移動平均の gap) が変わった. 下の数は全て同じだった).
 
 - 確かめ (`check`) は 0 件. 受け渡しの値は, 目的の列 `sales`, 時系列の予測, 時刻の順の分割, 時刻の列 `date`, 系列を分ける列 `store` と `item`, 過去の値の列の最も小さいずらし幅 2, 学習に使ってよい列 `store`, `item`, `temperature_forecast`, `promo` (とこれらから作る列), 除く列 `customers`, 監視する指標 `valid/mae`
 - 学習に使う列は 12 (気温の予報, 特売, 2 日前と 7 日前の売れた数, 曜日, 店と品のワンホット). 骨組みの `train.py` は Early Stopping でエポック 37 で止まり, ベストはエポック 27 の検証用の平均絶対誤差 9.33 個 (学習は 8 秒ほど). 推論の一式の確かめは記録と合った

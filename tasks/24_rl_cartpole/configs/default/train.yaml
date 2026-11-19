@@ -1,0 +1,69 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: cartpole
+  seed: 42
+  device: cpu
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.01
+
+trainer:
+  epochs: 20
+  # 評価のエピソードの報酬の和の平均が大きいほど良い
+  monitor: valid/reward
+  mode: max
+
+# プロジェクト固有の設定
+env:
+  id: CartPole-v1
+  # 検証 (評価のエピソード) の乱数の種
+  valid_seed: 10000
+
+rollout:
+  # 1 エポックのエピソード数と, 1 回の更新のエピソード数
+  episodes: 20
+  batch_episodes: 5
+  gamma: 0.99
+  temperature: 1.0
+  epsilon: 0.0
+
+evaluation:
+  # 学習中の検証のエピソード数
+  episodes: 10
+  # 書き出した方策を守り付きで動かすエピソード数と乱数の種
+  guarded_episodes: 10
+  guarded_seed: 20000
+
+loss:
+  entropy_coef: 0.01
+
+model:
+  hidden_dim: 64
+
+# 書き出す方策の守り (policy/). 範囲は人が決めて承認する
+guards:
+  # 選んでよい行動 (0: 左に押す, 1: 右に押す)
+  allowed_actions: [0, 1]
+  # 止める条件. 台車の位置 (m) と棒の角度 (rad) の絶対値の上限
+  position_limit: 2.0
+  angle_limit: 0.18
+  # 外れたときの動き (stop, handover, action) と, action の場合の行動
+  fallback: stop
+  fallback_action: null
+
+# 守りの働きを確かめる練習 (止める条件を狭めた別の一式. 実際には使わない)
+drills:
+  - name: narrow_stop
+    allowed_actions: [0, 1]
+    position_limit: 0.3
+    angle_limit: 0.05
+    fallback: stop
+    fallback_action: null
+  - name: narrow_fallback
+    allowed_actions: [0, 1]
+    position_limit: 0.3
+    angle_limit: 0.05
+    fallback: action
+    fallback_action: 0

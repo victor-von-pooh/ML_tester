@@ -13,7 +13,7 @@ git clone --recursive https://github.com/victor-von-pooh/ML_tester.git
 cd ML_tester
 python3.13 -m venv .venv    # Python 3.13 で動作確認
 source .venv/bin/activate
-pip install -e "./ML-Found[examples]"    # scikit-learn も入る
+pip install -e "./ML-Found[examples,rl]"    # scikit-learn と, 24 で使う Gymnasium (追加の依存 rl) も入る
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18, 21 で使う
@@ -29,7 +29,7 @@ pip install transformers==5.22.2          # 04 の段階 2 で使う
 
 1. 上の「導入」で `.venv` を作っておく. 学習に使う Python は, 登録したときにタスクのディレクトリから上に向かって仮想環境を探して決まるので, 先に作ると `.venv` が自動で選ばれる
 2. ML-Dashboard を ML_tester とは別のディレクトリに clone し, その README の「導入と起動」の手順で起動して, 表示されたトークン付きの URL を開く
-3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 21 のプロジェクト (01 から 18 と, 21 の `project/`, 22, 23. 19 と 20 は学習しないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外). そのまま「21 件を追加」で登録する
+3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 22 のプロジェクト (01 から 18 と, 21 の `project/`, 22 から 24. 19 と 20 は学習しないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外). そのまま「22 件を追加」で登録する
 
 clone した直後は実験が無いので, 各タスクの README の手順で学習するか, 画面から起動すると一覧に出る.
 
@@ -67,6 +67,7 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 21 | `tasks/21_problem_setting` | 問題の設定から推論まで | 合成した総菜の売れた数 | ML-Quest の問題の設定から骨組みを書き出し, 受け渡しの値でデータセットとモデルの定義を置いて学習し, 問題の設定の損得と比べる相手と成功の基準でたどり直す (5 つの段階の通し) |
 | 22 | `tasks/22_image_masks` | 画像と領域の対の学習 (書き出しの版 2) | ML-EDA の合成の見本の画像と領域 | `export_image_masks` で版 2 に書き出し (正解の出どころ synthetic), `load_items` を torch の Dataset に包んで領域の分割を学習, IoU (データの分析と学習の交点) |
 | 23 | `tasks/23_capture_clouds` | 多視点の撮影から点群を作る (書き出しの版 2) | ML-EDA の合成の見本の撮影と正確な点群 | `export_capture_clouds` の正規化, `load_items` の撮影の深度から点に戻して点群を予測, Chamfer 距離を `trainer.valid_every_n_epochs` で数エポックおきに測ってベストを選ぶ, 新しい撮影に `normalize_capture` |
+| 24 | `tasks/24_rl_cartpole` | CartPole の方策の強化学習と守り | Gymnasium の CartPole (シミュレータ) | `ml_found.rl` の `RolloutLoader` と `ReinforceStep` で学習 (`valid/reward`, max), 守り (選んでよい行動, 止める条件, 外れたときの動き) と一緒に書き出し, 読み直して守り付きで動かし結果の数を守る指標の表に. 実機での実行は道具の外で, 配備と守りの範囲は人が承認する |
 
 各タスクのディレクトリは次の構成にする.
 

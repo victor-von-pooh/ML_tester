@@ -1,0 +1,35 @@
+# ML-Found が使う設定, 書かなかった項目は ML-Found の既定値
+experiment:
+  name: clouds
+  seed: 0
+  device: cpu
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+
+trainer:
+  epochs: 100
+  # Chamfer 距離は 3 エポックごとと最後のエポック (100) だけ求める
+  valid_every_n_epochs: 3
+  monitor: valid/chamfer
+  mode: min
+  early_stopping:
+    use: true
+    # 検証の回数で数える (5 回 = 15 エポック)
+    patience: 5
+
+# プロジェクト固有の設定
+data:
+  # prepare.py が ML-EDA で書き出すデータセット (タスクのディレクトリから)
+  dataset: outputs/dataset
+  batch_size: 8
+  # 深度から戻した点から選ぶ数と, 選ぶ乱数の種
+  input_points: 512
+  seed: 0
+
+model:
+  channels: 32
+  hidden: 256
+  output_points: 256

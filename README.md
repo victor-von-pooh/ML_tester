@@ -17,7 +17,7 @@ pip install -e "./ML-Found[examples]"    # scikit-learn も入る
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18, 21 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@b08a5bc"   # 14 から 21 で使う (all に部分語の tokenizers も入る)
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@ebc045e"   # 14 から 23 で使う (all に部分語の tokenizers も入る. 22 と 23 は書き出しの版 2 で ebc045e から)
 pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@1ec6970"   # 17 から 21 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
 pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@6d7d6da"   # 21 で使う (依存の pandas と PyYAML は上で入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
@@ -29,7 +29,7 @@ pip install transformers==5.22.2          # 04 の段階 2 で使う
 
 1. 上の「導入」で `.venv` を作っておく. 学習に使う Python は, 登録したときにタスクのディレクトリから上に向かって仮想環境を探して決まるので, 先に作ると `.venv` が自動で選ばれる
 2. ML-Dashboard を ML_tester とは別のディレクトリに clone し, その README の「導入と起動」の手順で起動して, 表示されたトークン付きの URL を開く
-3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 19 のプロジェクト (01 から 18 と, 21 の `project/`. 19 と 20 は学習しないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外). そのまま「19 件を追加」で登録する
+3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 21 のプロジェクト (01 から 18 と, 21 の `project/`, 22, 23. 19 と 20 は学習しないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外). そのまま「21 件を追加」で登録する
 
 clone した直後は実験が無いので, 各タスクの README の手順で学習するか, 画面から起動すると一覧に出る.
 
@@ -65,6 +65,8 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 19 | `tasks/19_inference` | 学習したモデルで推論し, 結論を出す | 17 と 18 のデータ | 17 と 18 の学習の結果から ML-Inference で推論の一式を作り, 学習のときのテスト用の評価と同じ値になるかを確かめる. 結論 (保留, 値の帯, 店ごと) と ML-Provide の画面 (推論の段階) |
 | 20 | `tasks/20_decision` | 予測から意思決定へ | 17 と 18 のデータ | 18 の売上の予測から置く量 (損の比と予測の外れ方), 17 のレビューから人が確かめるもの (損の比のしきい値, 人手の上限) を決め, 予測どおりと今のやり方と過去のデータで比べる (ML-Inference の意思決定) |
 | 21 | `tasks/21_problem_setting` | 問題の設定から推論まで | 合成した総菜の売れた数 | ML-Quest の問題の設定から骨組みを書き出し, 受け渡しの値でデータセットとモデルの定義を置いて学習し, 問題の設定の損得と比べる相手と成功の基準でたどり直す (5 つの段階の通し) |
+| 22 | `tasks/22_image_masks` | 画像と領域の対の学習 (書き出しの版 2) | ML-EDA の合成の見本の画像と領域 | `export_image_masks` で版 2 に書き出し (正解の出どころ synthetic), `load_items` を torch の Dataset に包んで領域の分割を学習, IoU (データの分析と学習の交点) |
+| 23 | `tasks/23_capture_clouds` | 多視点の撮影から点群を作る (書き出しの版 2) | ML-EDA の合成の見本の撮影と正確な点群 | `export_capture_clouds` の正規化, `load_items` の撮影の深度から点に戻して点群を予測, Chamfer 距離を `trainer.valid_every_n_epochs` で数エポックおきに測ってベストを選ぶ, 新しい撮影に `normalize_capture` |
 
 各タスクのディレクトリは次の構成にする.
 

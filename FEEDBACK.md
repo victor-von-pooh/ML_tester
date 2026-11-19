@@ -35,6 +35,7 @@
 - **config の 2 段構え**: default に無い項目のエラー, クラスを変えたときの引数の切り替え, `diff.yaml` の差分の記録, `${trainer.epochs}` の参照が README の通りに動いた (01, 02)
 - **継承のフック**: `step`, `on_epoch_start`, `on_epoch_end`, `update_parameters`, `state_dict`, `resume` を上書きして, AUC (03), 複数ラベルの F1 (04), RMSE (05), closure による更新 (06), KL annealing (09), GAN の 3 通りの書き分け (10), EMA (11) を書けた (`3aca743` の時点. その後 PR #1 で, `extra_state_dict` と `load_extra_state_dict` を上書きすれば状態を加えて戻せるようになった)
 - **外部のモデル**: Hugging Face の DistilBERT, qiskit の量子回路 (`TorchConnector`) を `nn.Module` としてそのまま載せられた
+- **検証の間隔** (`db71917`): 23 で `trainer.valid_every_n_epochs: 3` にすると, 検証と `on_epoch_end` の重い評価 (Chamfer 距離) はエポック 3 の倍数と予定の最後のエポックだけになり, ベストモデルは検証したエポックから選ばれ, Early Stopping は検証の回数で数えた (96 エポックで 32 回検証, ベストは 81, 5 回改善せずに 96 で停止). 学習曲線は検証したエポックだけを点で描いた. README の説明どおり
 - **出力先**: 同じ秒に始めた実験も連番 (`_1`) の別の出力先になり, 並行して動かしても上書きされなかった (06 のレビューで同じ秒に始めた 2 つの実験が別の出力先になったことを確認)
 
 ## ML-Found での対応状況
@@ -124,3 +125,4 @@ submodule を `8a6a69c` に更新した後に, 全タスクの全ての config (
 | 12 | 外部ライブラリの乱数 (qiskit の `algorithm_globals`, Estimator の雑音や Sampler の測定に使う `seed`) は `fix_seed` と再開時の乱数の保存 (`get_rng_state`) の対象外. 固定しないと同じ config でも結果がずれる (固定しない 2 回で検証用の正解率が最大 0.033 違った) | `train.py` で `algorithm_globals.random_seed` などに `experiment.seed` を自分で渡す (このタスクで 2 回の結果が完全に一致することを確認) | 外部の乱数の固定と状態の保存, 復元を登録できる仕組み (例: `start_experiment(..., extra_seeders=[...])`). → ML-Found の PR #24 の `register_rng` で対応し, このタスクも `algorithm_globals` を登録する形に変えた |
 | 12 | `train.log` のモデルの構造は `print(model)` なので, 量子層のように中身を `nn.Module` の子として持たないモデルは `TorchConnector()` とだけ出て, 回路の構成が記録されない | モデルに `extra_repr` を書く, または自分でログに書く | 小さな問題. README で, 再現に必要なモデルの情報は `extra_repr` で出すよう勧める. → ML-Found の PR #28 で, パラメータとバッファの一覧を `model_summary.csv` に残すようになった (回路の構成は `extra_repr` が必要なまま) |
 | 13 | ML-Found はモデルの定義 (ML-ModelControl) を知らないので, 定義を実験の出力先に写すのは学習のスクリプトの仕事になり, ML-Dashboard の「この設定でもう一度起動」も起動した時点の `models/` の定義から組み立てる (前の実験の後に定義を書き換えると違うモデルになる) | 学習のスクリプトで定義を `model_spec.yaml` として出力先に写す. 同じモデルで起動し直す場合は, その `model_spec.yaml` を `models/` に写してから起動する | ML-Found だけの問題ではなく, 定義の置き場とプロジェクトの結び方 (VISION.md で保留中) と合わせて決める. 決まるまでは今の回避策で足りる |
+| 22, 23 | (ML-Found `db71917`, ML-EDA `ebc045e`) ML-EDA の書き出しの版 2 は正解の出どころ (`target.origin`. `synthetic`, `process` など) を持つが, ML-Found の実験には写す決まった場所が無い. 指標が「何との一致か」(正解そのものか, 今ある処理との一致か) が実験のディレクトリと ML-Dashboard から分からない | 学習のスクリプトが `train.log` に出どころを書く (22, 23 の `train.py`) | 波 2 の `task.yaml` (受け持ち, 出力の意味, 作り方) に, 正解の出どころ (type, name, settings) を写す欄を足す. ML-Dashboard は指標の横に出どころを出す |

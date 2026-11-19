@@ -1,4 +1,5 @@
 from collections import Counter
+import json
 from pathlib import Path
 import sys
 from typing import Any
@@ -74,13 +75,15 @@ def run_guarded(policy: Any, env: Any, episodes: int, seed: int) -> dict:
     Returns
     ----------
     summary: dict
-        episodes, reward (報酬の和の平均), steps (歩数の合計),
-        stopped (stop か handover で終えたエピソード数), status ごとの数
+        episodes, reward (報酬の和の平均), steps (環境を進めた歩数の
+        合計), decisions (act を呼んだ数. 止めた判断を含む), stopped
+        (stop か handover で終えたエピソード数), status ごとの数
     """
     # 1 歩ごとに守りを当てた行動を決め, 返った status を数える
     counts = Counter()
     rewards = []
     stopped = 0
+    steps = 0
     for index in range(episodes):
         observation, _ = env.reset(seed=seed + index)
         total = 0.0
@@ -95,11 +98,13 @@ def run_guarded(policy: Any, env: Any, episodes: int, seed: int) -> dict:
                 result["action"]
             )
             total += float(reward)
+            steps += 1
             done = terminated or truncated
         rewards.append(total)
     summary = {
         "episodes": episodes, "reward": sum(rewards) / len(rewards),
-        "steps": sum(counts.values()), "stopped": stopped
+        "steps": steps, "decisions": sum(counts.values()),
+        "stopped": stopped
     }
     for status in STATUSES:
         summary[status] = counts[status]
@@ -121,11 +126,11 @@ def describe_guards(guards: dict) -> str:
     text: str
         選んでよい行動, 観測の上限, 外れたときの動き
     """
-    # 上限は下限と対称なので上限だけ
+    # 上限は下限と対称なので上限だけ. 値は JSON の書き方 (制限なしは null)
     fallback = guards["fallback"]
     text = (
-        f"allowed_actions {guards['allowed_actions']}, "
-        f"observation_high {guards['observation_high']}, "
+        f"allowed_actions {json.dumps(guards['allowed_actions'])}, "
+        f"observation_high {json.dumps(guards['observation_high'])}, "
         f"fallback {fallback['kind']}"
     )
     if fallback["kind"] == "action":
@@ -159,6 +164,7 @@ def evaluate_guards(
     rows: list[dict]
         守りごとの結果の行 (name, guards と run_guarded の値)
     """
+    # 追加の依存 rl が要る関数なので, 確認の後に関数の中で読み込み
     from ml_found.rl import export_policy, load_policy
 
     # 本番の候補 (policy/) と, 止める条件を狭めた練習 (drills/<名前>/)
@@ -193,7 +199,8 @@ def evaluate_guards(
         rows.append(row)
         text = (
             f"守り付きの評価 {name}: 報酬の和の平均 {row['reward']:.1f}, "
-            f"歩数 {row['steps']}, 止めたエピソード {row['stopped']}, "
+            f"歩数 {row['steps']}, 判断 {row['decisions']}, "
+            f"止めたエピソード {row['stopped']}, "
             + ", ".join(f"{status} {row[status]}" for status in STATUSES)
         )
         experiment.logger.info(text)
@@ -215,7 +222,7 @@ def main() -> None:
     ----------
     None
     """
-    # 追加の依存 rl (Gymnasium) が無ければ入れ方を示して止まる.
+    # 追加の依存 rl (Gymnasium) が無ければ入れ方を示して終了.
     # 出力先を作る前の確認
     try:
         require("rl")
@@ -227,10 +234,12 @@ def main() -> None:
         make_env
     )
 
-    # config と実験. 方策は受け持ち (role) の選択肢に無いので null
+    # config と実験. 方策は受け持ちでは効果を見積もる (effect) の扱い.
+    # 出力の形 (output) と正解の種類 (target.kind) は決まった値が無く null
     cfg, diff = load_project_config(str(TASK_DIR))
     experiment = start_experiment(cfg, diff, str(TASK_DIR))
     write_task(experiment, {
+        "role": "effect",
         "what": "CartPole の観測 (台車の位置と速さ, 棒の角度と角速度) から"
         "押す向きを選ぶ方策",
         "target": {

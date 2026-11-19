@@ -56,11 +56,13 @@ guards:
 # 守りの働きを確かめる練習 (止める条件を狭めた別の一式. 実際には使わない)
 drills:
   - name: narrow_stop
+    allowed_actions: [0, 1]
     position_limit: 0.3
     angle_limit: 0.05
     fallback: stop
     fallback_action: null
   - name: narrow_fallback
+    allowed_actions: [0, 1]
     position_limit: 0.3
     angle_limit: 0.05
     fallback: action

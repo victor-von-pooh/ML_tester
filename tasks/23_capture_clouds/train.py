@@ -287,7 +287,8 @@ def evaluate_test(
     Returns
     ----------
     rows: list[dict]
-        answer (model か input_points), chamfer, fscore_1cm の行
+        answer (model か input_points), chamfer, fscore_1cm と, 入力の点
+        との差 (chamfer_diff, fscore_1cm_diff. 比べる相手の行は 0) の行
     """
     # モデルの予測と, 深度から戻した点をそのまま答えにした場合
     model = model.cpu().eval()
@@ -305,6 +306,9 @@ def evaluate_test(
         experiment.logger.info(text)
         print(text)
         rows.append({"answer": answer, **metrics})
+    for row in rows:
+        row["chamfer_diff"] = row["chamfer"] - reference["chamfer"]
+        row["fscore_1cm_diff"] = row["fscore_1cm"] - reference["fscore_1cm"]
 
     return rows
 
@@ -489,12 +493,13 @@ def main() -> None:
     rows = evaluate_test(trainer.model, tensors["test"], experiment)
 
     # テスト用の評価の表 (入力の点との比べ) と見本を実験のディレクトリに
-    test_items = dataset.split("test")
-    ids = [test_items[index]["id"] for index in range(len(test_items))]
+    # id は分割の表から (件の中身を読み直さない)
+    ids = [str(value) for value in dataset.split("test").rows["id"]]
     save_evaluation(
         experiment, "test_chamfer", rows, "test",
         description="テスト用の分割の Chamfer 距離 (メートル) と 1 cm の "
-        "F 値. input_points は深度から戻した点をそのまま答えにした場合",
+        "F 値. input_points は深度から戻した点をそのまま答えにした場合. "
+        "_diff はその値との差",
         baseline="input_points", epoch=best_epoch
     )
     save_cloud_samples(

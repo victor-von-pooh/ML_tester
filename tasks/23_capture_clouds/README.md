@@ -108,5 +108,5 @@ ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac
 
 - `trainer.valid_every_n_epochs` は README の説明どおりに動いた. `on_epoch_end` を継承して `phase == "valid"` のときだけ Chamfer 距離を求めると, 検証しないエポックでは呼ばれないので, 重い評価の書き方が素直だった (`phase` が `train` のときは空の辞書を返す)
 - (ML-Found `db71917` で) 正解の出どころ (`target.origin`) を実験に残す決まった場所が無いので, 学習のスクリプトが `train.log` に書いた. ML-Found `888b8b8` の `task.yaml` で解消した. `task_from_dataset` が `target.origin` (type, name, settings), `role: predict`, `target.kind: point_cloud`, `dataset` (`path: outputs/dataset`, `name: capture_clouds`, `format_version: 2`) を埋め, 学習のスクリプトは `output`, `what`, `method` を足すだけで済んだ
-- `evaluations/test_chamfer.json` は `epoch: 81`, `baseline: input_points` で, `answer` の列 (`model` と `input_points`) の 2 行. 比べる相手の行を同じ表に入れるか, 差の列を作るかは決まっていない (FORMAT.md は「列の中身はプロジェクトが決める」). ここでは行で並べた
+- `evaluations/test_chamfer.json` は `epoch: 81`, `baseline: input_points` で, `answer` の列 (`model` と `input_points`) の 2 行と, 比べる相手との差の列 (`chamfer_diff`, `fscore_1cm_diff`. モデルの行で 0.01575 m と -0.4252). FORMAT.md は `baseline` を「差の列を持つ場合」とし, 列の中身はプロジェクトが決めるので, 比べる相手の行と差の列の両方を書いた
 - 点群の見本は書き出しの正規化した座標 (メートル) のまま書いた. `save_sample` に座標の決まり (正規化の `shift` など) を添える欄は無く, `caption` に文で書いた. 元の座標で見たい場合に戻す手がかりが見本の一覧に残らない

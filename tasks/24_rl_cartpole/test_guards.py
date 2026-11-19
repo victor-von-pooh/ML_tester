@@ -102,6 +102,7 @@ def test_out_of_bounds_stops(tmp_path: Path, observation: list) -> None:
     ----------
     None
     """
+    # 範囲の外の観測では行動を返さずに止める
     pytest.importorskip("gymnasium")
     policy = exported_policy(tmp_path, "guards")
     result = policy.act(np.array(observation, dtype=np.float32))
@@ -123,6 +124,7 @@ def test_inside_bounds_acts(tmp_path: Path) -> None:
     ----------
     None
     """
+    # 範囲の中 (速さと角速度は制限なし) では選んでよい行動
     pytest.importorskip("gymnasium")
     policy = exported_policy(tmp_path, "guards")
     result = policy.act(np.array([1.9, 5.0, -0.17, -5.0], dtype=np.float32))
@@ -144,6 +146,7 @@ def test_drill_fallback_action(tmp_path: Path) -> None:
     ----------
     None
     """
+    # 練習の狭い範囲の外では決めた行動 0
     pytest.importorskip("gymnasium")
     policy = exported_policy(tmp_path, "narrow_fallback")
     result = policy.act(np.array([0.5, 0.0, 0.0, 0.0], dtype=np.float32))
@@ -169,6 +172,7 @@ def test_missing_gymnasium_shows_install(
     ----------
     None
     """
+    # Gymnasium だけを隠し, 学習の前の確認で終了すること
     monkeypatch.setattr(
         requirements, "module_found",
         HiddenModules(requirements.module_found, {"gymnasium"})

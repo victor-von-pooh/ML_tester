@@ -52,7 +52,7 @@ class PointDecoder(nn.Module):
         self.hidden = hidden
         self.num_points = num_points
 
-        # 全結合の層で決まった数の点の座標を出す
+        # 決まった数の点の座標を出す全結合の層
         self.fc1 = nn.Linear(self.in_features, self.hidden)
         self.fc2 = nn.Linear(self.hidden, self.hidden)
         self.fc3 = nn.Linear(self.hidden, self.num_points * 3)
@@ -74,7 +74,7 @@ class PointDecoder(nn.Module):
         points: torch.Tensor
             (バッチ, 出す点の数, 3) の座標
         """
-        # 特徴から座標を並べた値を出して形を戻す
+        # 特徴から座標を並べた値と, 点ごとの形への戻し
         h = self.relu(self.fc1(feature))
         h = self.relu(self.fc2(h))
         points = self.fc3(h).view(-1, self.num_points, 3)
@@ -113,7 +113,7 @@ class CloudPredictor(nn.Module):
         points: torch.Tensor
             (バッチ, 出す点の数, 3) の予測した点群
         """
-        # 入力の点の特徴から点群を出す
+        # 入力の点の特徴からの点群
         points = self.decoder(self.encoder(x))
 
         return points

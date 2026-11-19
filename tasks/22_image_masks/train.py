@@ -60,7 +60,7 @@ class MaskDataset(Dataset):
             クラスの番号
         """
         # load_items の 1 件は (高さ, 幅, チャンネル) の uint8 と
-        # (高さ, 幅) の整数. 画像は書き込めない配列なので写してから
+        # (高さ, 幅) の整数. 画像は書き込めない配列なので写したもの
         item = self.items[index]
         image = torch.from_numpy(np.array(item["image"])).permute(2, 0, 1)
         mask = torch.from_numpy(self.lookup[item["mask"]])
@@ -122,7 +122,7 @@ class SegmentationTrainer(Trainer):
         predicted = logits.argmax(dim=1)
         acc = (predicted == y).float().mean()
 
-        # IoU はエポック全体の画素数から求めるので貯める
+        # IoU はエポック全体の画素数から求めるので, その貯め置き
         counts = confusion_counts(predicted, y, len(self.names))
         self.intersection += counts[0]
         self.union += counts[1]
@@ -170,7 +170,7 @@ def confusion_counts(
     result: tuple[torch.Tensor, torch.Tensor]
         クラスごとの重なり (予測と正解の両方) と和 (どちらか) の画素数
     """
-    # クラスごとに予測と正解の画素の集合を比べる
+    # クラスごとの予測と正解の画素の集合の比較
     intersection = torch.zeros(count)
     union = torch.zeros(count)
     for index in range(count):
@@ -203,7 +203,7 @@ def iou_metrics(
     metrics: dict
         miou (背景を除き, 和が 0 でないクラスの平均) と iou_<名前>
     """
-    # 和が 0 のクラス (予測にも正解にも無い) は平均から除く
+    # 和が 0 のクラス (予測にも正解にも無い) は平均の対象外
     metrics = {}
     values = []
     for index, name in enumerate(names):
@@ -232,7 +232,7 @@ def class_lookup(classes: Optional[list]) -> tuple[np.ndarray, list[str]]:
     result: tuple[np.ndarray, list[str]]
         値 (0 から 255) から番号の表 (知らない値は -1) と, 番号の順の名前
     """
-    # 値の小さい順に番号を付ける (背景の 0 が番号 0)
+    # 値の小さい順の番号 (背景の 0 が番号 0)
     if not classes:
         raise ValueError("領域の値の名前 (classes) がありません")
     ordered = sorted(classes, key=class_value)

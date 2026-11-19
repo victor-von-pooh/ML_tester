@@ -57,8 +57,8 @@ def main() -> None:
               f"{entry['shape']}, 単位 {entry['units']}, 決まり "
               f"{entry['convention']}")
 
-    # 学習のスクリプトと同じ読み方で読み直し, 正解の点群の中心が原点の
-    # 近くに来たか (正規化は姿勢だけから決めるので, ちょうど 0 ではない)
+    # 学習のスクリプトと同じ読み方での読み直しと, 正解の点群の中心の確認
+    # (正規化は姿勢だけから決めるので, 原点の近くだがちょうど 0 ではない)
     dataset = load_items(DATASET_DIR)
     item = dataset.split("train")[0]
     capture = item["capture"]

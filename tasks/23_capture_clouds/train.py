@@ -91,7 +91,7 @@ class CaptureTrainer(Trainer):
         metrics: dict
             検証では chamfer (メートル) と fscore_1cm, 他は空
         """
-        # 検証の間隔で, 検証しないエポックには呼ばれない
+        # 学習の段階は毎エポック空. 検証の段階は検証するエポックだけの呼び出し
         if phase != "valid":
             metrics = {}
             return metrics
@@ -151,7 +151,7 @@ def cloud_metrics(predicted: torch.Tensor, target: torch.Tensor) -> dict:
         chamfer (距離の平均. メートル) と fscore_1cm (1 cm 以内の点の
         適合率と再現率の調和平均の平均)
     """
-    # 勾配は要らない (on_epoch_end は no_grad の外で呼ばれる)
+    # 勾配の計算は不要 (on_epoch_end は no_grad の外での呼び出し)
     with torch.no_grad():
         pairs = torch.cdist(predicted, target)
         to_target = pairs.min(dim=2).values
@@ -196,7 +196,7 @@ def backproject(
     ValueError
         カメラの軸が OpenGL でない場合, 深度が無い場合, 点が無い場合
     """
-    # カメラの軸は OpenGL (+X 右, +Y 上, -Z 前) だけ扱う
+    # 扱うカメラの軸は OpenGL (+X 右, +Y 上, -Z 前) だけ
     axes = str(capture["convention"].get("camera_axes", "OpenGL"))
     if not axes.startswith("OpenGL"):
         raise ValueError(f"カメラの軸が OpenGL ではありません: {axes}")
@@ -317,7 +317,10 @@ def predict_new(
     None
     """
     # 新しい撮影を実験のディレクトリに写して正規化 (書き出しと同じ決まり)
-    sources = sorted((NEW_DIR / "captures").iterdir())
+    place = NEW_DIR / "captures"
+    sources = sorted(
+        path for path in place.iterdir() if path.is_dir()
+    ) if place.is_dir() else []
     if not sources:
         print("新しい撮影がありません. make_data.py を実行してください")
         return
@@ -327,7 +330,7 @@ def predict_new(
     shift = summary["shift"]
     same = np.allclose(shift, capture_shift(source))
 
-    # 写した撮影を読み, 予測を元の座標に戻して (- shift) 元の点群と比べる
+    # 写した撮影の読み込みと, 元の座標に戻した予測 (- shift) と元の点群の比較
     rng = np.random.default_rng(cfg.data.seed)
     x = backproject(read_capture(copied), cfg.data.input_points, rng)
     with torch.no_grad():

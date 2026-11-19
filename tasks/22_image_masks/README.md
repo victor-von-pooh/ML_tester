@@ -80,5 +80,5 @@ ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac
 
 ### 気付いたこと (ML-EDA)
 
-- `load_items` が返す画像の配列は書き込めない (`np.asarray` で Pillow の画像から作るため). そのまま `torch.from_numpy` に渡すと PyTorch の警告 (`The given NumPy array is not writable`) が出る. ここでは `np.array` で写してから渡した. 領域は値の表で番号にするときに新しい配列になるので出ない
+- `load_items` が返す画像の配列は書き込めない (`np.asarray` で Pillow の画像から作るため). そのまま `torch.from_numpy` に渡すと PyTorch の警告 (`The given NumPy array is not writable`) が出る. ここでは `np.array` で写してから渡した. 領域の配列は書き込めるので出ない (同じ `load_items` でも項目によって違う)
 - 版 2 の説明の `classes` は `value` と `name` の並び (値の順) で, 領域の値をそのままクラスの番号にしてよいかは書かれない. 値から番号の表は学習のスクリプトで作った. 値が 0 から続かない領域 (255 を境界にするなど) でも同じ書き方で済む

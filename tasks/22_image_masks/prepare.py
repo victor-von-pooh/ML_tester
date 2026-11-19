@@ -53,7 +53,7 @@ def main() -> None:
         print(f"項目 {name}: {entry['kind']} ({entry['role']}), 形 "
               f"{entry['shape']}, 型 {entry['dtype']}")
 
-    # 学習のスクリプトと同じ読み方で 1 件を読み直す
+    # 学習のスクリプトと同じ読み方での 1 件の読み直し
     dataset = load_items(DATASET_DIR)
     item = dataset.split("train")[0]
     print(f"読み直し: id {item['id']}, 画像 {item['image'].shape} "

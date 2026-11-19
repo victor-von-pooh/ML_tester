@@ -11,7 +11,8 @@ from ml_eda import ItemSplit, capture_shift, load_items, normalize_capture
 from ml_eda.items import read_capture  # 1 つの撮影を配列で読む (公開外)
 from ml_eda.media import read_cloud  # 1 つの点群を読む (公開外)
 from ml_found import (
-    Experiment, Trainer, load_project_config, start_experiment
+    Experiment, Trainer, describe_origin, load_project_config, save_evaluation,
+    save_sample, start_experiment, task_from_dataset, write_task
 )
 from make_data import NEW_DIR
 from model import CloudPredictor
@@ -21,6 +22,9 @@ TASK_DIR = Path(__file__).resolve().parent
 
 # F 値の距離のしきい値 (メートル)
 FSCORE_THRESHOLD = 0.01
+
+# 見本に残すテスト用の件の数
+SAMPLE_COUNT = 2
 
 
 class CaptureTrainer(Trainer):
@@ -267,7 +271,7 @@ def split_tensors(
 def evaluate_test(
     model: nn.Module, tensors: tuple[torch.Tensor, torch.Tensor],
     experiment: Experiment
-) -> None:
+) -> list[dict]:
     """
     テスト用の分割の Chamfer 距離を, 入力の点そのものと比べて記録する関数
 
@@ -282,7 +286,8 @@ def evaluate_test(
 
     Returns
     ----------
-    None
+    rows: list[dict]
+        answer (model か input_points), chamfer, fscore_1cm の行
     """
     # モデルの予測と, 深度から戻した点をそのまま答えにした場合
     model = model.cpu().eval()
@@ -290,11 +295,60 @@ def evaluate_test(
     with torch.no_grad():
         predicted = cloud_metrics(model(x), y)
     reference = cloud_metrics(x, y)
-    for label, metrics in (("モデル", predicted), ("入力の点", reference)):
+    rows = []
+    for answer, label, metrics in (
+        ("model", "モデル", predicted),
+        ("input_points", "入力の点", reference),
+    ):
         text = (f"テスト用 ({label}): chamfer {metrics['chamfer']:.5f} m, "
                 f"fscore_1cm {metrics['fscore_1cm']:.4f}")
         experiment.logger.info(text)
         print(text)
+        rows.append({"answer": answer, **metrics})
+
+    return rows
+
+
+def save_cloud_samples(
+    model: nn.Module, tensors: tuple[torch.Tensor, torch.Tensor],
+    ids: list[str], experiment: Experiment, epoch: int
+) -> None:
+    """
+    テスト用の最初の数件の予測と正解の点群を見本に書く関数
+
+    Parameters
+    ----------
+    model: nn.Module
+        学習した後のモデル (ベストモデルの重み)
+    tensors: tuple[torch.Tensor, torch.Tensor]
+        テスト用の入力と正解
+    ids: list[str]
+        テスト用の件の id (tensors と同じ順)
+    experiment: Experiment
+        実験 (samples/ に書く)
+    epoch: int
+        見本を作った重みのエポック (ベストモデルのエポック)
+
+    Returns
+    ----------
+    None
+    """
+    # 1 件ごとに予測と正解の 2 つの点群 (書き出しの正規化した座標)
+    model = model.cpu().eval()
+    x, y = tensors
+    with torch.no_grad():
+        predicted = model(x[:SAMPLE_COUNT])
+    for index in range(len(predicted)):
+        pairs = (
+            ("pred", predicted[index], "予測した点群"),
+            ("truth", y[index], "正解の点群"),
+        )
+        for suffix, points, label in pairs:
+            save_sample(
+                experiment, f"test_{ids[index]}_{suffix}", points,
+                epoch=epoch, kind="point_cloud", split="test",
+                caption=f"{label} (書き出しの正規化した座標. メートル)"
+            )
 
 
 def predict_new(
@@ -376,8 +430,17 @@ def main() -> None:
               f"{info['target']['kind']}")
         sys.exit(1)
 
+    # 何の実験か (受け持ち, 正解の種類と出どころ) を dataset.yaml から
+    # 埋める. 誤りは出力先を作る前に見つける
+    task = task_from_dataset(cfg.data.dataset, project_dir=str(TASK_DIR))
+    task.update({
+        "output": "shape", "what": "撮影ごとの物の表面の点群",
+        "method": "scratch"
+    })
+
     # 正解の出どころを実験に残す (指標はこの出どころとの一致)
     experiment = start_experiment(cfg, diff, str(TASK_DIR))
+    task = write_task(experiment, task)
     origin = info["target"]["origin"]
     experiment.logger.info(
         f"データセット: {info['name']} (版 {info['format_version']}), "
@@ -415,14 +478,29 @@ def main() -> None:
     best_epoch = trainer.checkpoint.best_epoch
     values = history.get("valid/chamfer")
     print(f"保存先: {experiment.run_dir}")
-    print(f"正解の出どころ: {origin['type']} ({origin['name']})")
+    print(f"正解の出どころ: {origin['type']} ({origin['name']}). "
+          f"{describe_origin(task['target']['origin'])}")
     print(f"学習したエポック数: {len(history.records)}")
     print(f"検証したエポック: {trainer.judged}")
     print(f"valid/chamfer の無いエポックの数: "
           f"{sum(value is None for value in values)}")
     print(f"ベストモデルのエポック: {best_epoch}")
     print(f"ベストの検証用の Chamfer 距離: {values[best_epoch - 1]:.5f} m")
-    evaluate_test(trainer.model, tensors["test"], experiment)
+    rows = evaluate_test(trainer.model, tensors["test"], experiment)
+
+    # テスト用の評価の表 (入力の点との比べ) と見本を実験のディレクトリに
+    test_items = dataset.split("test")
+    ids = [test_items[index]["id"] for index in range(len(test_items))]
+    save_evaluation(
+        experiment, "test_chamfer", rows, "test",
+        description="テスト用の分割の Chamfer 距離 (メートル) と 1 cm の "
+        "F 値. input_points は深度から戻した点をそのまま答えにした場合",
+        baseline="input_points", epoch=best_epoch
+    )
+    save_cloud_samples(
+        trainer.model, tensors["test"], ids, experiment, best_epoch
+    )
+    print(f"評価と見本: {experiment.run_dir}/evaluations, samples")
     predict_new(trainer.model, cfg, experiment)
 
 

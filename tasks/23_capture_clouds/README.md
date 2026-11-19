@@ -10,7 +10,9 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 - 損失は 2 乗の距離の Chamfer (plain PyTorch の `torch.cdist`). 指標は距離の Chamfer (メートル) と 1 cm 以内の F 値で, `on_epoch_end` の検証のときだけ求める. `trainer.valid_every_n_epochs: 3` なので, 検証はエポック 3, 6, 9, ... と最後のエポックだけ. `valid/chamfer` (小さいほど良い) でベストモデルを選ぶ
 - 書き出しに入れない新しい撮影に `normalize_capture` で同じ正規化をかけて予測し, `shift` を引いて元の座標に戻して元の点群と比べる (推論の段階の準備)
 
-**測っているもの**: 指標は正解の出どころとの一致. ここでは出どころが `synthetic` (形の式から置いた面の上の点) なので, 本当の形との一致になる. 実際の撮影で, 正解が今ある処理 (別の復元の道具など) の出力 (`process`) なら, 測れるのはその処理との一致で, モデルはその処理を超えられない. 学習のスクリプトは出どころを `train.log` に残す.
+**測っているもの**: 指標は正解の出どころとの一致. ここでは出どころが `synthetic` (形の式から置いた面の上の点) なので, 本当の形との一致になる. 実際の撮影で, 正解が今ある処理 (別の復元の道具など) の出力 (`process`) なら, 測れるのはその処理との一致で, モデルはその処理を超えられない. 学習のスクリプトは出どころを ML-Found の `task.yaml` (`task_from_dataset` で `dataset.yaml` から埋める) と `train.log` に残す.
+
+学習の後に, テスト用の Chamfer 距離と F 値の表を, 入力の点そのものを比べる相手 (`baseline: input_points`) にして `evaluations/test_chamfer.json` (`save_evaluation`) に, テスト用の最初の 2 件の予測と正解の点群を `samples/test_<id>_pred/` と `samples/test_<id>_truth/` の `epoch_<ベストのエポック>.ply` (`save_sample`) に書く. 守る指標 (`guard`) の表は書かない (問題の設定で守る指標を決めていない課題なので).
 
 ## ディレクトリ構成
 
@@ -26,7 +28,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 ├── prepare.py                      # 版 2 に書き出し (正解の出どころは synthetic), 読み直して正規化を確かめる
 ├── model.py                        # CloudPredictor (点の特徴と, 決まった数の点を出す全結合の層)
 ├── train.py                        # 深度から点に戻して学習, 検証のエポックだけ Chamfer 距離, 新しい撮影の予測
-└── outputs/                        # dataset/ (書き出したデータセット) と clouds/<日付>/<時刻>/ (実験. git の管理外)
+└── outputs/                        # dataset/ (書き出したデータセット) と clouds/<日付>/<時刻>/ (実験. task.yaml, evaluations/, samples/ を含む. git の管理外)
 ```
 
 ## データ
@@ -55,6 +57,8 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 - [x] ベストモデルは検証したエポックの中から選ばれ, Early Stopping の待つ回数は検証の回数で数える
 - [x] 学習曲線 (`chamfer_curve.png`) は検証したエポックだけを点で描く
 - [x] 新しい撮影に `normalize_capture` で同じ正規化をかけられ, その `shift` は `capture_shift` と一致する. 予測から `shift` を引くと元の座標で元の点群と比べられる
+- [x] `task_from_dataset` で `dataset.yaml` (版 2) から受け持ち, 正解の種類と出どころを埋め, 出力の形 (`shape`), 意味, 作り方 (`scratch`) を足して `write_task` で `task.yaml` に書ける
+- [x] テスト用の表を比べる相手つきで `save_evaluation` で, 予測と正解の点群を `save_sample` (`kind="point_cloud"`. PLY) で実験のディレクトリに書ける
 
 ## 実行方法
 
@@ -74,10 +78,11 @@ CPU で, 1 と 2 は 1 秒ほど, 3 は 6 秒ほど (Python の起動を含む).
 - 2 で `版: 2, 受け持ち: predict, 正解の種類: point_cloud`, 正解の出どころ `{'type': 'synthetic', 'name': 'ml_eda.synthetic.write_shape_captures', ...}`, 分割 `{'train': {'items': 24}, 'valid': {'items': 8}, 'test': {'items': 8}}`, 注意なし. 正解の点群の中心は原点から数 mm
 - 3 で端末に出る「検証したエポック」が 3 の倍数 (と最後のエポック) だけになる. quick では `[3, 4]`. `train.log` には出さないので, 後から見る場合は `history.csv` の `valid/chamfer` の空でない行を見る
 - 3 でテスト用の Chamfer 距離が `train.log` に残る. 深度から戻した点をそのまま答えにした場合 (入力の点) も並べて記録する
+- 実験のディレクトリに `task.yaml`, `evaluations/test_chamfer.json`, `samples/index.json` と 4 つの点群 (`samples/test_<id>_pred/epoch_<ベストのエポック>.ply` と `_truth`) ができる
 
 ## 結果のメモ
 
-ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した (2026-11-19).
+ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した (2026-11-19). ML-Found `888b8b8` (`task.yaml`, 評価, 見本を書くように変えた後) で 3 を再実行し, 下の表の値と完全に同じだった (2026-11-20).
 
 | 実験 | 学習したエポック | 検証したエポック | ベストのエポック | 検証用の Chamfer 距離 (ベスト) | テスト用の Chamfer 距離 | テスト用の F 値 (1 cm) |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -102,4 +107,6 @@ ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac
 ### 気付いたこと (ML-Found)
 
 - `trainer.valid_every_n_epochs` は README の説明どおりに動いた. `on_epoch_end` を継承して `phase == "valid"` のときだけ Chamfer 距離を求めると, 検証しないエポックでは呼ばれないので, 重い評価の書き方が素直だった (`phase` が `train` のときは空の辞書を返す)
-- 正解の出どころ (`target.origin`) を実験に残す決まった場所が無いので, 学習のスクリプトが `train.log` に書いた. ML-Dashboard の一覧からは, 指標が何との一致かが分からない. 波 2 の `task.yaml` (受け持ち, 出力の意味, 作り方) に正解の出どころを写す欄があるとよい
+- (ML-Found `db71917` で) 正解の出どころ (`target.origin`) を実験に残す決まった場所が無いので, 学習のスクリプトが `train.log` に書いた. ML-Found `888b8b8` の `task.yaml` で解消した. `task_from_dataset` が `target.origin` (type, name, settings), `role: predict`, `target.kind: point_cloud`, `dataset` (`path: outputs/dataset`, `name: capture_clouds`, `format_version: 2`) を埋め, 学習のスクリプトは `output`, `what`, `method` を足すだけで済んだ
+- `evaluations/test_chamfer.json` は `epoch: 81`, `baseline: input_points` で, `answer` の列 (`model` と `input_points`) の 2 行. 比べる相手の行を同じ表に入れるか, 差の列を作るかは決まっていない (FORMAT.md は「列の中身はプロジェクトが決める」). ここでは行で並べた
+- 点群の見本は書き出しの正規化した座標 (メートル) のまま書いた. `save_sample` に座標の決まり (正規化の `shift` など) を添える欄は無く, `caption` に文で書いた. 元の座標で見たい場合に戻す手がかりが見本の一覧に残らない

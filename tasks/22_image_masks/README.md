@@ -9,7 +9,9 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 - 学習のスクリプトは `load_items` の分割を torch の `Dataset` に包むだけで, ファイルの組を自分で探さない. クラスの数と名前, 画像のチャンネル数は `dataset.yaml` から決める
 - 指標は背景を除いた IoU の平均 (`valid/miou`). エポック全体の画素数から求めるので `on_epoch_end` で返す
 
-**測っているもの**: 指標は正解の出どころとの一致. ここでは出どころが `synthetic` (作った正確な正解) なので, 正解そのものとの一致になる. 出どころが `process` (今ある処理の出力) なら, 測れるのはその処理との一致で, モデルはその処理を超えられない. 学習のスクリプトは出どころを `train.log` に残す.
+**測っているもの**: 指標は正解の出どころとの一致. ここでは出どころが `synthetic` (作った正確な正解) なので, 正解そのものとの一致になる. 出どころが `process` (今ある処理の出力) なら, 測れるのはその処理との一致で, モデルはその処理を超えられない. 学習のスクリプトは出どころを ML-Found の `task.yaml` (`task_from_dataset` で `dataset.yaml` から埋める) と `train.log` に残す.
+
+学習の後に, テスト用の IoU の表を `evaluations/test_iou.json` (`save_evaluation`) に, テスト用の最初の 3 件の入力, 正解, 予測を並べた画像を `samples/test_<id>/epoch_<ベストのエポック>.png` (`save_sample`) に書く. 守る指標 (`guard`) の表は書かない (問題の設定で守る指標を決めていない課題なので).
 
 ## ディレクトリ構成
 
@@ -25,7 +27,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 ├── prepare.py                      # 版 2 に書き出し (正解の出どころは synthetic), 読み直して確かめる
 ├── model.py                        # TinyUNet (1 段だけ縮めて戻す U-Net)
 ├── train.py                        # load_items を torch の Dataset に包んで学習, IoU を記録
-└── outputs/                        # dataset/ (書き出したデータセット) と masks/<日付>/<時刻>/ (実験. git の管理外)
+└── outputs/                        # dataset/ (書き出したデータセット) と masks/<日付>/<時刻>/ (実験. task.yaml, evaluations/, samples/ を含む. git の管理外)
 ```
 
 ## データ
@@ -46,6 +48,8 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 - [x] クラスの数と名前, 入力のチャンネル数を `dataset.yaml` から決められる (学習のスクリプトに書かない)
 - [x] 学習のスクリプトが正解の出どころを `train.log` に残す
 - [x] IoU を `on_epoch_end` で求め, `valid/miou` でベストモデルを選ぶ. テスト用の分割でも同じ数え方で評価する
+- [x] `task_from_dataset` で `dataset.yaml` (版 2) から受け持ち, 正解の種類と出どころを埋め, 出力の形 (`region`), 意味, 作り方 (`scratch`) を足して `write_task` で `task.yaml` に書ける
+- [x] テスト用の IoU の表を `save_evaluation` で, 入力, 正解, 予測を並べた画像を `save_sample` で実験のディレクトリに書ける
 
 ## 実行方法
 
@@ -64,10 +68,11 @@ CPU で, 1 と 2 は 1 秒ほど, 3 は 5 秒ほど (Python の起動を含む).
 
 - 2 で `版: 2, 受け持ち: predict, 正解の種類: mask`, 正解の出どころ `{'type': 'synthetic', 'name': 'ml_eda.synthetic.write_image_masks', ...}`, 分割 `{'train': {'items': 36}, 'valid': {'items': 12}, 'test': {'items': 12}}`, 注意なし
 - 3 で検証用の mIoU が 1 に近くなる. テスト用の IoU と正解の出どころは `train.log` にも残る
+- 実験のディレクトリに `task.yaml`, `evaluations/test_iou.json`, `samples/index.json` と `samples/test_<id>/epoch_<ベストのエポック>.png` (3 件) ができる
 
 ## 結果のメモ
 
-ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した (2026-11-19).
+ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した (2026-11-19). ML-Found `888b8b8` (`task.yaml`, 評価, 見本を書くように変えた後) で 3 を再実行し, 下の表の値と完全に同じだった (2026-11-20).
 
 | 実験 | 学習したエポック | ベストのエポック | 検証用の mIoU (ベスト) | テスト用の IoU (円 / 四角 / 背景) | テスト用の mIoU |
 | --- | --- | --- | --- | --- | --- |
@@ -77,8 +82,16 @@ ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac
 - 測っているのは, 正解の出どころ `synthetic` (`ml_eda.synthetic.write_image_masks`, count 60, size 32x32, seed 0) との一致. 合成の正確な正解なので, IoU が 1 に近いのは「正解そのものに近い」ことを表す. 図形がはっきりしているので, 高い値は想定どおり
 - 別のディレクトリから実行しても `history.csv` が完全に一致した
 - 版 2 の書き出しから学習まで, 学習のスクリプトに組の探し方, クラスの数, チャンネル数を書かずにつながった
+- `task.yaml` には `role: predict`, `target.kind: mask`, `target.origin` (type, name, settings), `dataset` (`path: outputs/dataset`, `name: image_masks`, `format_version: 2`) が埋まり, 足した `output: region`, `what`, `method: scratch` と一緒に書かれた. `describe_origin` は「正解は作った正確な値 (ml_eda.synthetic.write_image_masks). 実際のデータでの性能は別に確かめる」を返した
+- `evaluations/test_iou.json` は `epoch: 29`, `guard: false` で, クラスごとの行と `miou` の行を持つ. 見本は `samples/test_sample_005/epoch_0029.png` など 3 つ (左から入力, 正解, 予測. 96x32)
 
 ### 気付いたこと (ML-EDA)
 
 - `load_items` が返す画像の配列は書き込めない (`np.asarray` で Pillow の画像から作るため). そのまま `torch.from_numpy` に渡すと PyTorch の警告 (`The given NumPy array is not writable`) が出る. ここでは `np.array` で写してから渡した. 領域の配列は書き込めるので出ない (同じ `load_items` でも項目によって違う)
 - 版 2 の説明の `classes` は `value` と `name` の並び (値の順) で, 領域の値をそのままクラスの番号にしてよいかは書かれない. 値から番号の表は学習のスクリプトで作った. 値が 0 から続かない領域 (255 を境界にするなど) でも同じ書き方で済む
+
+### 気付いたこと (ML-Found)
+
+- `output`, `what`, `method` は `dataset.yaml` に無いので, 学習のスクリプトが書く. `output` の値 (ここでは `region`) は ML-Quest の出力の形から選ぶが, 学習の側からは問題の設定の受け渡しを読む決まった口が無く, 手で写した
+- 見本の画像は, 領域 (クラスの番号) をそのまま渡すと 0 から 2 の暗い画像になるので, 番号を濃淡に広げ, 入力と並べる処理を書いた (`mask_picture`). 領域の見本 (番号と色の表) を受け取る `kind` があると, ML-Dashboard で色分けして出せる
+- 評価の表の 1 行目からクラスごとの行で, 平均 (`miou`) も同じ列の行として足した. 表の中の「まとめの行」を区別する決まりは無い

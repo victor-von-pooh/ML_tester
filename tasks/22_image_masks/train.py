@@ -9,12 +9,16 @@ from torch.utils.data import DataLoader, Dataset
 
 from ml_eda import ItemSplit, load_items
 from ml_found import (
-    Experiment, Trainer, load_project_config, start_experiment
+    Experiment, Trainer, describe_origin, load_project_config, save_evaluation,
+    save_sample, start_experiment, task_from_dataset, write_task
 )
 from model import TinyUNet
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
 TASK_DIR = Path(__file__).resolve().parent
+
+# 見本に残すテスト用の件の数
+SAMPLE_COUNT = 3
 
 
 class MaskDataset(Dataset):
@@ -269,7 +273,7 @@ def class_value(entry: dict) -> int:
 def evaluate_test(
     trainer: SegmentationTrainer, loader: DataLoader,
     experiment: Experiment
-) -> None:
+) -> dict:
     """
     テスト用の分割の IoU を記録する関数
 
@@ -284,7 +288,8 @@ def evaluate_test(
 
     Returns
     ----------
-    None
+    metrics: dict
+        miou と iou_<名前>
     """
     # 学習と同じ数え方で, ベストモデルの予測の重なりと和
     model = trainer.model.cpu().eval()
@@ -299,6 +304,104 @@ def evaluate_test(
     text = ", ".join(f"{key} {value:.4f}" for key, value in metrics.items())
     experiment.logger.info(f"テスト用の IoU: {text}")
     print(f"テスト用の IoU: {text}")
+
+    return metrics
+
+
+def iou_table(metrics: dict, names: list[str]) -> list[dict]:
+    """
+    テスト用の IoU を, クラスごとの 1 行の表にする関数
+
+    Parameters
+    ----------
+    metrics: dict
+        evaluate_test の miou と iou_<名前>
+    names: list[str]
+        クラスの名前 (番号 0 が背景)
+
+    Returns
+    ----------
+    rows: list[dict]
+        class, iou, in_miou (平均に含めたか) の行と, 最後に miou の行
+    """
+    # 和が 0 のクラスは値なし (None は JSON の null)
+    rows = []
+    for index, name in enumerate(names):
+        value = metrics.get(f"iou_{name}")
+        rows.append({
+            "class": name, "iou": value,
+            "in_miou": index > 0 and value is not None
+        })
+    rows.append({"class": "miou", "iou": metrics["miou"], "in_miou": False})
+
+    return rows
+
+
+def mask_picture(mask: np.ndarray, count: int) -> np.ndarray:
+    """
+    クラスの番号の領域を, 見て分かる濃淡の画像にする関数
+
+    Parameters
+    ----------
+    mask: np.ndarray
+        (高さ, 幅) のクラスの番号
+    count: int
+        クラス数
+
+    Returns
+    ----------
+    picture: np.ndarray
+        (高さ, 幅, 3) の uint8 (背景が黒, 番号が大きいほど明るい灰色)
+    """
+    # 番号を 0 から 255 に広げて 3 チャンネルに
+    scale = 255 // max(count - 1, 1)
+    gray = (np.clip(mask, 0, count - 1) * scale).astype(np.uint8)
+    picture = np.repeat(gray[:, :, None], 3, axis=2)
+
+    return picture
+
+
+def save_mask_samples(
+    trainer: SegmentationTrainer, dataset: MaskDataset,
+    experiment: Experiment, epoch: int
+) -> None:
+    """
+    テスト用の最初の数件の入力, 正解, 予測を並べた画像を見本に書く関数
+
+    Parameters
+    ----------
+    trainer: SegmentationTrainer
+        学習した後の Trainer (ベストモデルの重み)
+    dataset: MaskDataset
+        テスト用の Dataset
+    experiment: Experiment
+        実験 (samples/ に書く)
+    epoch: int
+        見本を作った重みのエポック (ベストモデルのエポック)
+
+    Returns
+    ----------
+    None
+    """
+    # 1 件ずつ予測し, 左から入力, 正解, 予測を横に並べた 1 枚の画像
+    model = trainer.model.cpu().eval()
+    count = len(trainer.names)
+    for index in range(min(SAMPLE_COUNT, len(dataset))):
+        image, mask = dataset[index]
+        with torch.no_grad():
+            predicted = model(image[None])[0].argmax(dim=0).numpy()
+        source = (image.permute(1, 2, 0).numpy() * 255).round()
+        if source.shape[2] == 1:
+            source = np.repeat(source, 3, axis=2)
+        picture = np.concatenate([
+            source.astype(np.uint8), mask_picture(mask.numpy(), count),
+            mask_picture(predicted, count)
+        ], axis=1)
+        save_sample(
+            experiment, f"test_{dataset.items[index]['id']}", picture,
+            epoch=epoch, kind="image", split="test",
+            caption="左から入力, 正解の領域, 予測した領域 (黒が背景)"
+        )
 
 
 def main() -> None:
@@ -327,8 +430,17 @@ def main() -> None:
     lookup, names = class_lookup(dataset.entries["mask"].get("classes"))
     channels = dataset.entries["image"]["shape"][2]
 
+    # 何の実験か (受け持ち, 正解の種類と出どころ) を dataset.yaml から
+    # 埋める. 誤りは出力先を作る前に見つける
+    task = task_from_dataset(cfg.data.dataset, project_dir=str(TASK_DIR))
+    task.update({
+        "output": "region", "what": "画素ごとの領域 (背景, 円, 四角)",
+        "method": "scratch"
+    })
+
     # 正解の出どころを実験に残す (指標はこの出どころとの一致)
     experiment = start_experiment(cfg, diff, str(TASK_DIR))
+    task = write_task(experiment, task)
     origin = info["target"]["origin"]
     experiment.logger.info(
         f"データセット: {info['name']} (版 {info['format_version']}), "
@@ -340,11 +452,13 @@ def main() -> None:
     )
 
     # load_items の分割を torch の Dataset に包む
+    datasets = {}
     loaders = {}
     for name in ("train", "valid", "test"):
+        datasets[name] = MaskDataset(dataset.split(name), lookup)
         loaders[name] = DataLoader(
-            MaskDataset(dataset.split(name), lookup),
-            batch_size=cfg.data.batch_size, shuffle=name == "train"
+            datasets[name], batch_size=cfg.data.batch_size,
+            shuffle=name == "train"
         )
 
     # チャンネル数とクラス数はデータセットの説明から
@@ -358,12 +472,22 @@ def main() -> None:
     # 結果の表示とテスト用の評価
     best_epoch = trainer.checkpoint.best_epoch
     print(f"保存先: {experiment.run_dir}")
-    print(f"正解の出どころ: {origin['type']} ({origin['name']})")
+    print(f"正解の出どころ: {origin['type']} ({origin['name']}). "
+          f"{describe_origin(task['target']['origin'])}")
     print(f"学習したエポック数: {len(history.records)}")
     print(f"ベストモデルのエポック: {best_epoch}")
     print(f"ベストの検証用の mIoU: "
           f"{history.get('valid/miou')[best_epoch - 1]:.4f}")
-    evaluate_test(trainer, loaders["test"], experiment)
+    metrics = evaluate_test(trainer, loaders["test"], experiment)
+
+    # テスト用の評価の表と見本を実験のディレクトリに残す
+    save_evaluation(
+        experiment, "test_iou", iou_table(metrics, names), "test",
+        description="テスト用の分割のクラスごとの IoU (ベストモデル). "
+        "miou は背景を除いた平均", epoch=best_epoch
+    )
+    save_mask_samples(trainer, datasets["test"], experiment, best_epoch)
+    print(f"評価と見本: {experiment.run_dir}/evaluations, samples")
 
 
 if __name__ == "__main__":

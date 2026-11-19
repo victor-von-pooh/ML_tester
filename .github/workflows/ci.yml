@@ -27,3 +27,19 @@ jobs:
             echo "手元の環境の絶対パスが書かれています"
             exit 1
           fi
+
+  # 24 の守りのテスト (学習しない. 範囲の外の観測で止まること)
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      # CPU の PyTorch を先に入れ, ML-Found と追加の依存 rl (Gymnasium)
+      - run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e "./ML-Found[rl]" pytest
+      - run: python -m pytest -q tasks/24_rl_cartpole

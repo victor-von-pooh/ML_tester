@@ -179,7 +179,7 @@
 
 まだのもの: 学習済みのモデルのライセンスの読み取り (相談 10. 版を上げずに入れられるので波 1 の残り), 検証の間隔 (相談 6. 学習の設定に欄を足すので波 2. 下の波 2 の進み具合で入れた). 答えは 6 の節. 画面の欄 (ML-Fathom で正解の欠けた行を残すかを選ぶ欄) は次の作業.
 
-### 波 2 の進み具合 (2026-11-19 の夜まで)
+### 波 2 の進み具合 (2026-11-20 まで)
 
 相談 (6 の節) の答えのうち, 次を入れ, ML_tester のタスクで最初の利用者として通した.
 
@@ -187,12 +187,17 @@
 | --- | --- | --- |
 | データの分析 | 書き出しの約束 `dataset.yaml` の版 2 (相談 3, 4, 16). 画像と領域の対 (`export_image_masks`), 撮影と点群の対 (`export_capture_clouds`. 姿勢だけから決めた平行移動を撮影と点群に. 推論のときの `normalize_capture`, `capture_shift`), 読み込み `load_items`, 正解の出どころ `target.origin`, 合成の見本 `ml_eda.synthetic`. 版 1 で書けるものは版 1 のまま | 22 (画像と領域), 23 (撮影と点群) |
 | 学習・評価 | 検証の間隔 `trainer.valid_every_n_epochs` (相談 6). 検証したエポックだけで最良, 打ち切り, ReduceLROnPlateau の学習率の調整を判定し, 最後のエポックは必ず検証する | 23 (Chamfer 距離を 3 エポックおきに) |
+| 学習・評価 | 実験のディレクトリの任意のファイル (5 の節の波 2): `task.yaml` (`write_task`, `dataset.yaml` の版 2 から埋める `task_from_dataset`, 指標が何との一致かの文 `describe_origin`), データ全体の評価 `evaluations/` (`save_evaluation`. 比べる相手, 守る指標の表), 見本 `samples/<名前>/epoch_NNNN.<拡張子>` (`save_sample`. 画像, 文, 音, 点群) | 22 (IoU の表, 入力と正解と予測を並べた画像), 23 (入力の点と比べる Chamfer 距離の表, 予測と正解の点群) |
+| 学習・評価 | 追加の依存の登録簿 (`require`, `describe_requirements`. 相談 9), 強化学習 `ml_found.rl` (`RolloutLoader`, `EvaluationLoader`, `ReinforceStep`, `make_env`. 相談 8), 守りと一緒の方策の書き出し (`export_policy`, `load_policy`, `apply_guards`. 方策の一式 `policy/` の版 1) | 24 (CartPole. 守り付きで動かした結果の数を守る指標の表に. 範囲の外の観測で止まるテスト) |
 
-通して分かったこと (詳細は 22 と 23 の README, FEEDBACK.md).
+通して分かったこと (詳細は 22 から 24 の README, FEEDBACK.md).
 
-- 正解の出どころは書き出しの説明に残るが, 学習の実験には写す場所が無く, 学習のスクリプトが `train.log` に書いた. 波 2 の `task.yaml` に写す欄があるとよい
+- 正解の出どころは書き出しの説明に残るが, 学習の実験には写す場所が無く, 学習のスクリプトが `train.log` に書いた. 波 2 の `task.yaml` に写す欄があるとよい (その後 ML-Found の `task.yaml` で解消. 22 と 23 は `task_from_dataset` で埋める)
 - 撮影の深度がカメラの前の向きの距離か光線に沿った距離か, 画素の中心で数えるかが, 版 2 の説明の座標の決まりに無い. 写した新しい撮影を配列で読む関数 (`read_capture`) は公開の名前に無い
 - 説明の `source` に手元のパスが残る (版 2 は渡した文字のまま, 版 1 は常に絶対パス)
+- `task.yaml` の `output`, `what`, `method` は `dataset.yaml` に無く, 学習のスクリプトが書く. 問題の設定 (ML-Quest) の受け渡しから読む決まった口は無い
+- 方策は `task.yaml` の受け持ちにも出力の形にも選択肢が無く, 環境の報酬に当たる正解の出どころも無い (24 は null と `unknown` で書いた)
+- 書き出した方策を守り付きで動かして `status` を数える評価は, 学習のスクリプトが書いた (`EvaluationLoader` は守りを当てない). 一式と環境から結果の数を返す関数が ML-Found にあると, 推論の段階と画面でも同じ数え方になる. 実機での実行は道具の外で, 配備と守りの範囲は人が承認する (24 の README)
 
 ## 6. 決めたこと (相談の答え. 2026-11-19)
 

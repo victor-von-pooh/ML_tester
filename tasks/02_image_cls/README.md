@@ -90,9 +90,8 @@ model:
   hidden_dim: 128
 ```
 
-`OneCycleLR` は全体のステップ数 (`epochs × steps_per_epoch`) が必要だが, `steps_per_epoch` はバッチ数で決まるので config だけでは書けない.
-下の結果のときは, `train.py` で `load_config` の後, `start_experiment` の前に DataLoader を作り, `cfg.scheduler.params.steps_per_epoch` に `len(train_loader)` (= 422) を書き込んでいた (`scheduler.interval: epoch` の場合は 1).
-その後 ML-Found が, `OneCycleLR` の総ステップ数を書かない場合に `fit` で学習用データのバッチ数から補うようになったので (`interval: epoch` なら 1), `train.py` の書き込みはやめた. 補った値は `config.yaml` と `train.log` に残る.
+`OneCycleLR` は全体のステップ数 (`epochs × steps_per_epoch`) が必要だが, `steps_per_epoch` はバッチ数で決まる.
+config に書かない場合は, ML-Found が `fit` で学習用データのバッチ数から補う (このタスクでは 422, `interval: epoch` なら 1). 補った値は `config.yaml` と `train.log` に残る.
 
 experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples/` に置き, `--experiment` で切り替える.
 
@@ -105,12 +104,12 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 ## 確かめる ML-Found の機能
 
 - [x] `experiment.device: auto` で cuda または mps が選ばれ, バッチが自動でデバイスに移る (この環境では mps)
-- [x] `scheduler.interval: step` で学習率がバッチごとに更新される. ただし `lr_curve.png` にはエポックの開始時点の値しか出ない (下の「気付いたこと」. その後 ML-Found の PR #8 で, 更新ごとの学習率が `lr_steps.csv` と `lr_steps.png` に残るようになった)
-- [x] `OneCycleLR` の `steps_per_epoch` を config で無理なく指定できるか → config だけでは書けず, `train.py` で書き込む必要があった (その後 ML-Found の PR #9 で, 書かなければ自動で補われるようになった)
-- [ ] 勾配クリッピングが効いている → ML-Found は勾配のノルムを記録しないので確かめられなかった (その後 ML-Found の PR #1 で `trainer.log_grad_norm: true` により `train/grad_norm` を記録できるようになった). 実験 3 と比べても結果の差は小さい
+- [x] `scheduler.interval: step` で学習率がバッチごとに更新される. `lr_curve.png` にはエポックの開始時点の値が出て, 更新ごとの学習率は `lr_steps.csv` と `lr_steps.png` に残る
+- [x] `OneCycleLR` の `steps_per_epoch` を config で無理なく指定できるか → 書かなければ ML-Found が学習用データのバッチ数から補う
+- [ ] 勾配クリッピングが効いている → `trainer.log_grad_norm: true` を加えると, クリップ前の勾配のノルムのエポックの平均が `train/grad_norm` に記録される. このタスクではまだ確かめていない. 実験 3 (クリッピングなし) と比べる
 - [x] `final_model.pt` を別のスクリプト (`evaluate.py`) から読み込んでテスト用データで評価できる
-- [x] `DataLoader` の `num_workers > 0` で問題が起きない (macOS の spawn を含む). `train.py` は `if __name__ == "__main__":` で守っているので問題なかった
-- [x] 検証時に `model.eval()` になっている. ベストモデルを推論モードで検証用データに使った正解率 0.9300 が `history.csv` の `valid/acc` と一致し, 学習モード (BatchNorm がバッチの統計を使う) では 0.9282 と異なった
+- [x] `DataLoader` の `num_workers > 0` で問題が起きない (macOS の spawn を含む). `train.py` は `if __name__ == "__main__":` で守っているので問題ない
+- [x] 検証時に `model.eval()` になっている. 実験 1 のベストモデルを推論モードで検証用データに使った正解率 0.9300 が `history.csv` の `valid/acc` と一致し, 学習モード (BatchNorm がバッチの統計を使う) では 0.9282 と異なる
 
 ## 期待する結果
 
@@ -119,8 +118,8 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 
 ## 予想される問題
 
-- `OneCycleLR` の `steps_per_epoch` はバッチ数に依存するので, config だけでは決めにくい → その通りだった (その後 ML-Found の PR #9 で, 書かなければ自動で補われるようになった)
-- 進捗バーがエポック単位なので, 1 エポックが長い場合にバッチの進み具合が見えない → このタスクでは 1 エポックが約 5 秒なので困らなかった
+- `OneCycleLR` の `steps_per_epoch` はバッチ数に依存するので, config だけでは決めにくい → 書かなければ ML-Found が補うので, config に書く必要は無い
+- 進捗バーがエポック単位なので, 1 エポックが長い場合にバッチの進み具合が見えない → このタスクでは 1 エポックが数秒なので困らない. 長い場合は `trainer.progress_bar_batches` でバッチ単位の進捗バーを出せる
 
 ## 実行方法
 
@@ -137,12 +136,12 @@ python tasks/02_image_cls/train.py --experiment configs/experiment/examples/work
 python tasks/02_image_cls/train.py --experiment configs/experiment/examples/cpu.yaml       # 実験 5
 
 # テスト用データでの評価 (<日付>/<時刻> は train.py が最後に表示する「保存先」の YYYY-MM-DD/HH-MM-SS)
-python tasks/02_image_cls/evaluate.py outputs/fashion_mnist/2026-11-08/17-38-22
+python tasks/02_image_cls/evaluate.py outputs/fashion_mnist/<日付>/<時刻>
 
 # タスクのディレクトリからでも同じ
 cd tasks/02_image_cls
 python train.py --experiment configs/experiment/examples/cpu.yaml
-python evaluate.py outputs/fashion_mnist/2026-11-08/17-38-22
+python evaluate.py outputs/fashion_mnist/<日付>/<時刻>
 ```
 
 - `--experiment` と `evaluate.py` の出力先のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す. そのため `outputs/fashion_mnist/...` とも `tasks/02_image_cls/outputs/fashion_mnist/...` とも書ける
@@ -150,36 +149,27 @@ python evaluate.py outputs/fashion_mnist/2026-11-08/17-38-22
 
 ## 結果のメモ
 
-2026-11-08, ML-Found `3aca743`, PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13 で実行.
+PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13 での値.
 
-| 実験 | デバイス | エポック数 | ベストのエポック | 検証用データの正解率 | テスト用データの正解率 | 学習時間 (1 エポックあたり) |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 差分なし (OneCycleLR) | mps | 15 | 15 | 0.9300 | **0.9258** | 75.4 秒 (5.0 秒) |
-| 2 `steplr` | mps | 15 | 11 | 0.9305 | 0.9222 | 72.8 秒 (4.9 秒) |
-| 3 `no_clip` | mps | 15 | 15 | 0.9275 | 0.9226 | 70.8 秒 (4.7 秒) |
-| 4 `workers0` | mps | 15 | 14 | 0.9302 | 0.9270 | 90.1 秒 (6.0 秒) |
-| 5 `cpu` | cpu | 3 | 3 | 0.9250 | 0.9200 | 35.5 秒 (11.8 秒) |
+| 実験 | デバイス | エポック数 | ベストのエポック | 検証用データの正解率 | テスト用データの正解率 |
+| --- | --- | --- | --- | --- | --- |
+| 1 差分なし (OneCycleLR) | mps | 15 | 15 | 0.9300 | **0.9258** |
+| 2 `steplr` | mps | 15 | 11 | 0.9305 | 0.9222 |
+| 3 `no_clip` | mps | 15 | - | - | - |
+| 4 `workers0` | mps | 15 | - | - | - |
+| 5 `cpu` | cpu | 3 | 3 | 0.9250 | 0.9200 |
 
-- 全ての実験でテスト用データの正解率が目標の 0.91 を超えた. クラスごとでは Shirt (0.775) が最も低い. 実験 1 では, テスト用の Shirt 1,000 枚のうち T-shirt/top に 89 枚, Coat に 62 枚, Pullover に 44 枚を間違えた
-- 実験 1 は学習用データの正解率が 0.999 に達し, `valid/loss` はエポック 7 で最小 (0.238) になった後, エポック 9 以降は上がり続けた (15 で 0.400, 過学習). 一方で `valid/acc` は上下しながらも最後のエポックで最大になったので, `valid/acc` を監視したベストモデルは最後のエポックになった
-- 実験 1 の `lr_curve.png` は OneCycleLR の山形 (0.0004 → 約 0.0099 → 0.0002) になった. 本当の最大値 0.01 はエポックの途中にあるので記録されない (下の「気付いたこと」). 実験 2 の学習率は 5 エポックごとに 0.001 → 0.0005 → 0.00025 と半分になった
-- 実験 2 では Scheduler のクラスを変えたので, default の `max_lr` と `epochs` が捨てられたことが `diff.yaml` に出た
-- 実験 5 では `trainer.epochs: 3` に合わせて `scheduler.params.epochs` も 3 になり, `diff.yaml` にも出た. `${trainer.epochs}` の参照は ML-Found の config でそのまま使える
-- このタスクでは mps が cpu の約 2.4 倍速かった (01 の小さな MLP とは逆). ワーカーなし (`num_workers: 0`) は `num_workers: 2` より約 2 割遅かった. どちらも 1 回ずつの計測
+- 実験 3 と 4 は数値を載せていない. 流した場合は, `history.csv` の `valid/acc` と `evaluate.py` のテスト用データの正解率を実験 1 と比べる. 実験 4 は学習時間 (`train.log` の最後の「学習時間」) を実験 1 と比べる
+- 載せた実験はテスト用データの正解率が目標の 0.91 を超える. クラスごとでは Shirt (実験 1 で 0.775) が最も低い
+- 実験 1 は学習用データの正解率が 0.999 に達し, `valid/loss` はエポック 7 で最小 (0.238) になった後, エポック 9 以降は上がり続ける (15 で 0.400, 過学習). 一方で `valid/acc` は上下しながらも最後のエポックで最大になるので, `valid/acc` を監視したベストモデルは最後のエポックになる
+- 実験 1 の `train.log` には「OneCycleLR の引数を学習用データから補いました: steps_per_epoch=422」と出る
+- 実験 1 の `lr_curve.png` は OneCycleLR の山形 (0.0004 → 約 0.0099 → 0.0002) になる. エポックの開始時点の値なので, 本当の最大値 0.01 は出ない. 更新ごとの `lr_steps.csv` と `lr_steps.png` には, 最大値 0.01 がエポック 5 の途中 (6330 ステップ中のステップ 1899) に出る. `interval: step` の実験 (1, 3, 4, 5) は `lr_steps.csv` と `lr_steps.png` が出る
+- 実験 2 の学習率は 5 エポックごとに 0.001 → 0.0005 → 0.00025 と半分になる. Scheduler のクラスを変えたので, default の `max_lr` と `epochs` が捨てられたことが `diff.yaml` に出る
+- 実験 5 では `trainer.epochs: 3` に合わせて `scheduler.params.epochs` も 3 になり, `diff.yaml` にも出る. `${trainer.epochs}` の参照は ML-Found の config でそのまま使える
+- 学習時間は `train.log` の最後の「学習時間」に出る. 他の学習と GPU を分け合うと mps の学習時間は大きく延びる
 
 ### ML-Found について気付いたこと
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
-- データの量で決まる Scheduler の引数 (`OneCycleLR` の `steps_per_epoch` や `total_steps`) を config から渡す仕組みが無い (Scheduler を自分で作って `Trainer` に渡すことはできるが, その場合は `config.yaml` に残らない). `load_config` と `start_experiment` の間で `cfg` を書き換えれば動き, `config.yaml` にも残るが, この順番は利用者が知っている必要がある. `start_experiment` の後に書き換えると `config.yaml` と実際の設定がずれる. また `diff.yaml` は `load_config` の時点で決まるので, 書き込んだ値は差分に出ない (`3aca743` の時点. その後 ML-Found の PR #9 で `OneCycleLR` の総ステップ数を学習用データから補うようになり, PR #29 で `CosineAnnealingLR` の `T_max` などに `auto` と書くと学習全体のステップ数で補うようになった (PR #31 で, 書けない引数の `auto` はエラーになった). 補った値は `config.yaml` と `train.log` に残る)
-- `lr` はエポックの開始時点の値だけが `history.csv` と `lr_curve.png` に記録されるので, `interval: step` の場合はエポックの中の変化が見えず, 最後のステップの後の学習率も残らない (`3aca743` の時点. その後 ML-Found の PR #8 で, `interval: step` の場合は更新ごとの学習率が `lr_steps.csv` と `lr_steps.png` に残るようになった)
-- 勾配のノルムが記録されないので, 勾配クリッピングが効いているか (どのくらいの頻度で切られているか) を確かめられない. `nn.utils.clip_grad_norm_` はクリップ前のノルムを返すが, `Trainer.update_parameters` はその値を捨てている (`3aca743` の時点. その後 ML-Found の PR #1 で, `trainer.log_grad_norm` でクリップ前のノルムを `train/grad_norm` として記録できるようになった)
-- ML-Found は `final_model.pt` を学習したデバイスのまま保存する (このタスクでは `mps:0` のテンソル). ML-Found の README の読み込み例 (`torch.load(...)`) には `map_location` が無いので, mps の無い環境ではそのままでは読めない. `evaluate.py` では `map_location="cpu"` を付けた (`3aca743` の時点. その後 ML-Found の PR #1 で, `final_model.pt` は cpu のテンソルで保存するようになった)
-
-### 最新の ML-Found での再実行 (2026-11-13)
-
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直した. 5 つの実験の `history.csv` は全て一致し, 実験 1 のテスト用データの正解率 (0.9258) とクラスごとの値も同じだった.
-
-- 学習時間 (`24f18c2`): 80.6 秒 (5.4 秒), 79.2 秒 (5.3 秒), 77.7 秒 (5.2 秒), 99.2 秒 (6.6 秒), 44.4 秒 (14.8 秒). 以前より 1 割ほど (cpu の実験 5 は 2.5 割) 長いが, 他の学習を並べずに流しても差があり, 原因は特定していない
-- 今は `train.py` で `steps_per_epoch` を書き込まず, ML-Found が補う (`train.log` に「OneCycleLR の引数を学習用データから補いました: steps_per_epoch=422」)
-- `interval: step` の実験 (1, 3, 4, 5) は `lr_steps.csv` と `lr_steps.png` が出る. 実験 1 では学習率の最大値 0.01 がエポック 5 の途中 (6330 ステップ中のステップ 1899) に残る
+- `final_model.pt` は cpu のテンソルで保存されるので, mps の無い環境でもそのまま読める. `evaluate.py` は `map_location="cpu"` も付けている

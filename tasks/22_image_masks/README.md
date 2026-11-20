@@ -38,7 +38,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 | 版 2 の説明 | `format_version: 2`, `role: predict`, `target.kind: mask`, `target.origin.type: synthetic`. 項目 `image` (入力, 形 `[32, 32, 3]`, uint8) と `mask` (正解, 形 `[32, 32]`, 値 0, 1, 2 と名前) |
 | 分割 | 1 件ごとに無作為に, 学習用 36, 検証用 12, テスト用 12 (`split: {method: random, valid: 0.2, test: 0.2, seed: 0}`) |
 
-用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる (版 2 は `ebc045e` から).
+用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる.
 
 ## 確かめること
 
@@ -49,7 +49,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 - [x] 学習のスクリプトが正解の出どころを `train.log` に残す
 - [x] IoU を `on_epoch_end` で求め, `valid/miou` でベストモデルを選ぶ. テスト用の分割でも同じ数え方で評価する
 - [x] `task_from_dataset` で `dataset.yaml` (版 2) から受け持ち, 正解の種類と出どころを埋め, 出力の形 (`region`), 意味, 作り方 (`scratch`) を足して `write_task` で `task.yaml` に書ける
-- [x] テスト用の IoU の表を `save_evaluation` で, 入力, 正解, 予測を並べた画像を `save_sample` で実験のディレクトリに書ける
+- [x] テスト用の IoU の表を `save_evaluation` で, 入力の画像と, 正解と予測の領域 (`kind="mask"`) を `save_sample` で実験のディレクトリに書ける
 
 ## 実行方法
 

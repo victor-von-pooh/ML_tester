@@ -3,9 +3,8 @@
 ## 目的
 
 全データを 1 度に流すフルバッチ学習で, 2 階の情報を使う LBFGS が使えるかを確かめる.
-実験した時点 (ML-Found `3aca743`) の ML-Found は closure を渡す更新手順に対応していなかったので, **動かないことを確かめ, どこでどう失敗するかを記録する** のがこのタスクの主な目的だった. ML-Found の PR #1 で closure が必要な Optimizer を自動で見分けて対応したので, 今は回避策なしで LBFGS を使える.
-あわせて, `Trainer` を継承して closure を渡す回避策がどこまで書けるかも確かめる.
-ML-Found の TODO の項目 2 (closure を渡す更新手順への対応) の動作確認にも使う.
+ML-Found は closure が必要な Optimizer を見分けて `optimizer.step(closure)` を呼ぶので, LBFGS は `Trainer` のままで学習できる.
+あわせて, `Trainer` を継承して closure を自分で渡す書き方 (`ClosureTrainer`) が同じ結果になるかも確かめる.
 
 ## ディレクトリ構成
 
@@ -94,21 +93,20 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 
 ## 確かめる ML-Found の機能
 
-- [x] フルバッチ (`[data]` を渡す形) で数千エポック回したときの速度とログの量. 5000 エポックで `train.log` は 5,108 行 (845 KB). 学習時間の大部分はチェックポイントの保存だった (下の「気付いたこと」)
-- [x] LBFGS を指定したときに, どこで, どんなエラーになるか → `Trainer.update_parameters` の `optimizer.step()` で `TypeError: LBFGS.step() missing 1 required positional argument: 'closure'`
-- [x] エラーが分かりやすいか. 学習を始める前に気付けるか → torch のエラーがそのまま出るので原因は分かるが, ML-Found が closure に対応していないことは分からない. 最初のバッチの更新で初めて失敗し, 学習結果の無い出力先が残る. エラーは端末にだけ出て, `train.log` には残らない (`3aca743` の時点. その後 ML-Found の PR #1 で LBFGS を自動で見分けて closure を渡すようになり, PR #33 で closure が必要かを登録簿の仕様とクラスの属性 `requires_closure` で決めるようになった. 下の「最新の ML-Found での再実行」を参照)
-- [x] (PINN を試す場合) 検証時に `torch.set_grad_enabled(False)` の中で `torch.autograd.grad` を呼べずに失敗するか → 失敗した. エポック 1 の検証で `RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn`. `step` の中で `torch.enable_grad()` を使えば回避できた (実験 5 と 6)
+- [x] フルバッチ (`[data]` を渡す形) で数千エポック回したときの速度とログの量. 5000 エポックで `train.log` は約 5,100 行. 学習時間の大部分はチェックポイントの保存 (下の「気付いたこと」)
+- [x] LBFGS を `Trainer` のままで使える → ML-Found が closure が必要な Optimizer を登録簿の仕様とクラスの属性 `requires_closure` で見分け, `train.log` に「更新の手順: closure を Optimizer に渡して更新」と出る. 実験 2 の `history.csv` は `ClosureTrainer` の実験 3 と完全に一致する
+- [x] (PINN を試す場合) 検証時に `torch.set_grad_enabled(False)` の中で `torch.autograd.grad` を呼べずに失敗するか → 失敗する. エポック 1 の検証で `RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn`. `step` の中で `torch.enable_grad()` を使うか, `trainer.valid_grad: true` を書けば学習できる (実験 5 と 6)
 
 ## 期待する結果
 
 - Adam: 検証用データの MSE が 1e-4 程度
-- LBFGS: ML-Found `3aca743` では失敗した. 対応後 (PR #1 以降) は Adam より少ないエポックで MSE が 1e-5 程度まで下がる
+- LBFGS: Adam より少ないエポックで MSE が 1e-5 程度まで下がる
 
 ## 予想される問題
 
-- LBFGS は `optimizer.step(closure)` が必要だが, `Trainer.update_parameters` は `optimizer.step()` を固定で呼ぶ → その通りだった
-- エポック数が多いと, 毎エポックの `last.pt` の保存とログの出力が学習そのものより遅くなる可能性がある. 保存やログの間隔を設定できると良さそう → 保存はその通りで, 学習時間の 8 割以上を占めた. ログの出力は 2000 エポックで 0.1 秒程度で問題にならなかった
-- PINN では検証時にも入力に対する勾配が必要だが, `run_epoch` は検証時に勾配の計算を止める → その通りだった (実験 5)
+- LBFGS は `optimizer.step(closure)` が必要 → ML-Found が見分けて closure を渡すので, 問題にならない
+- エポック数が多いと, 毎エポックの `last.pt` の保存とログの出力が学習そのものより遅くなる可能性がある → 保存はその通りで, 学習時間の大部分を占める. `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられる
+- PINN では検証時にも入力に対する勾配が必要だが, `run_epoch` は既定では検証時に勾配の計算を止める → その通り (実験 5)
 
 ## 実行方法
 
@@ -117,15 +115,15 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 
 ```bash
 # リポジトリのルートから
-python tasks/06_func_approx/train.py                                                            # 実験 1 (約 45 秒)
-python tasks/06_func_approx/train.py --experiment configs/experiment/examples/lbfgs.yaml          # 実験 2 (ML-Found 3aca743 ではエラー, 今は学習できる)
+python tasks/06_func_approx/train.py                                                            # 実験 1 (1 分以内)
+python tasks/06_func_approx/train.py --experiment configs/experiment/examples/lbfgs.yaml          # 実験 2
 python tasks/06_func_approx/train.py --experiment configs/experiment/examples/lbfgs_closure.yaml  # 実験 3
-python tasks/06_func_approx/train.py --experiment configs/experiment/examples/adam_closure.yaml   # 実験 4 (約 45 秒)
+python tasks/06_func_approx/train.py --experiment configs/experiment/examples/adam_closure.yaml   # 実験 4 (1 分以内)
 ```
 
 - `.venv` を有効にしない場合は, リポジトリの `.venv/bin/python` を絶対パスか, 実行した場所からの相対パスで指定する
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
-- 実験 2 は, ML-Found `3aca743` では最初の更新でエラーになり, 学習結果の無い出力先が残った. 今は ML-Found が closure を渡すので学習でき, 結果は実験 3 と一致する
+- 実験 2 は ML-Found が closure を渡すので学習でき, 結果は実験 3 と一致する
 - 進捗バーは表示しない設定にしている. 学習時間は `train.log` の最後の「学習時間」に出る. 時間の目安は Apple Silicon の Mac での値
 
 ## PINN (実験 5 と 6)
@@ -142,63 +140,41 @@ python tasks/06_func_approx/train.py --experiment configs/experiment/examples/ad
 
 ```bash
 python tasks/06_func_approx/train_pinn.py                                                               # 実験 5 (エラー)
-python tasks/06_func_approx/train_pinn.py --experiment configs/experiment/examples/pinn_force_grad.yaml  # 実験 6 (学習時間 約 3 秒)
+python tasks/06_func_approx/train_pinn.py --experiment configs/experiment/examples/pinn_force_grad.yaml  # 実験 6
+python tasks/06_func_approx/train_pinn.py trainer.valid_grad=true                                       # 実験 5 に ML-Found の設定を加えたもの
 ```
 
-| 実験 | 検証時の勾配 | 結果 | ベストのエポック | 検証用の損失 | ベストのエポックでの厳密解との最大誤差 | 学習時間 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 5 回避策なし | ML-Found のまま (無効) | エポック 1 の検証で `RuntimeError` | - | - | - | - |
-| 6 `pinn_force_grad` | `step` の中で `torch.enable_grad()` | 3000 エポック学習 | 2988 | 1.11e-5 | **2.47e-4** | 3.2 秒 |
+| 実験 | 検証時の勾配 | 結果 | ベストのエポック | 検証用の損失 | ベストのエポックでの厳密解との最大誤差 |
+| --- | --- | --- | --- | --- | --- |
+| 5 回避策なし | ML-Found のまま (無効) | エポック 1 の検証で `RuntimeError` | - | - | - |
+| 6 `pinn_force_grad` | `step` の中で `torch.enable_grad()` | 3000 エポック学習 | 2988 | 1.11e-5 | **2.47e-4** |
 
-- 実験 5 は学習のエポック 1 は通り, 検証 (`fit` から呼ばれる 2 回目の `run_epoch`) の `step` で失敗した. `x` は `requires_grad_(True)` にしているが, 勾配の計算が止まった中で求めた `u` が計算グラフを持たないので, `torch.autograd.grad(u.sum(), x)` が失敗する. 学習結果の無い出力先が残る. エラーは `train.log` の最後と `run.json` (`failed`) にも残る (ML-Found `3aca743` では端末にだけ出た). この出力先は消してよい. 今は ML-Found の `trainer.valid_grad: true` を書けば, 回避策なしで学習できる (PR #1)
+- 実験 5 は学習のエポック 1 は通り, 検証 (`fit` から呼ばれる 2 回目の `run_epoch`) の `step` で失敗する. `x` は `requires_grad_(True)` にしているが, 勾配の計算が止まった中で求めた `u` が計算グラフを持たないので, `torch.autograd.grad(u.sum(), x)` が失敗する. 学習結果の無い出力先が残る. エラーは `train.log` の最後と `run.json` (`failed`) にも残る. この出力先は消してよい. ML-Found の `trainer.valid_grad: true` を書けば, 回避策なしで学習でき, 結果は実験 6 と同じになる
 - 実験 6 は, `step` の中で順伝播と微分を `torch.enable_grad()` で囲めば, 検証でも 2 階微分を計算できた. ML-Found の `run_epoch` が `step` を `torch.set_grad_enabled(False)` で囲んでいても, 内側で有効にし直せる. 検証では `x` に対する微分だけを求めて `backward` はしないので, パラメータの勾配には影響しない
-- 実験 6 の最大誤差は `valid/loss` で選んだベストのエポック (2988) の値で, 最後のエポック (3000) では 1.55e-4 だった
+- 実験 6 の最大誤差は `valid/loss` で選んだベストのエポック (2988) の値で, 最後のエポック (3000) では 1.55e-4
 
 ## 結果のメモ
 
-2026-11-08, ML-Found `3aca743`, PyTorch 2.15.0, macOS (Apple Silicon), Python 3.13, cpu で実行.
-同じ環境なら同じ結果になる (再現のレビューで全ての `history.csv` が一致した). PyTorch の版や OS が違う場合は一致しないことがある.
+PyTorch 2.15.0, macOS (Apple Silicon), Python 3.13, cpu での値.
+同じ環境なら同じ結果になる (流し直すと全ての `history.csv` が一致する). PyTorch の版や OS が違う場合は一致しないことがある.
 
-| 実験 | Trainer | エポック数 | ベストのエポック | 検証用 MSE | 検証用の最大誤差 | 学習時間 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 Adam | `Trainer` | 5000 | 4952 | **1.85e-6** | 3.64e-3 | 44.9 秒 |
-| 2 LBFGS | `Trainer` | - | - | エラー (`3aca743` では想定通り. 今は学習でき, 下の「最新の ML-Found での再実行」を参照) | - | - |
-| 3 LBFGS | `ClosureTrainer` | 200 | 19 | **5.88e-6** | 1.34e-2 | 1.7 秒 |
-| 4 Adam | `ClosureTrainer` | 5000 | 4952 | 1.85e-6 | 3.64e-3 | 42.3 秒 |
+| 実験 | Trainer | エポック数 | ベストのエポック | 検証用 MSE | 検証用の最大誤差 |
+| --- | --- | --- | --- | --- | --- |
+| 1 Adam | `Trainer` | 5000 | 4952 | **1.85e-6** | 3.64e-3 |
+| 2 LBFGS | `Trainer` | 200 | 19 | **5.88e-6** | 1.34e-2 |
+| 3 LBFGS | `ClosureTrainer` | 200 | 19 | **5.88e-6** | 1.34e-2 |
+| 4 Adam | `ClosureTrainer` | 5000 | 4952 | 1.85e-6 | 3.64e-3 |
 
-- 実験 1 は予想 (1e-4) より 2 桁小さい検証用 MSE まで下がった. 学習用 MSE はエポック 5000 で 1.05e-4 と, 雑音の分散 (1e-4) の下限に達していた
-- 実験 2 は `TypeError: LBFGS.step() missing 1 required positional argument: 'closure'` で止まった
-- 実験 3 は, エポック 19 (LBFGS の 1 回の `step` は最大 20 回の内部反復, ここまでで損失と勾配の計算は約 450 回) で学習用 MSE が 1.09e-4 と雑音の下限の近くまで下がった. その後は LBFGS の `tolerance_change` による終了判定で, パラメータが全く動かなくなった (エポック 20 以降の記録は全て同じ値). Adam が 4952 エポックかけた所に 19 エポックで近づいた (検証用 MSE は Adam の 3 倍程度, 学習用 MSE は Adam の 1.05e-4 より少し高い 1.09e-4)
-- 実験 4 は `history.csv` が実験 1 と完全に一致した. `ClosureTrainer` は勾配法の Optimizer でも同じ結果になる (ただし closure の中で順伝播をもう 1 回行うので, 順伝播の回数は 2 倍)
-- 実験 1 の学習時間は 44.9 秒だったが, `trainer.checkpoint.save_last: false` と `save_best: false` にすると 6.1 秒になった (記録は同じ). 素の PyTorch で同じ 5000 回の学習と検証を回すと 3.5 秒だった. 学習時間の 8 割以上がチェックポイントの保存 (`torch.save` の中の pickle) で, cProfile でも保存の pickle が大部分を占めた
+- 実験 1 は予想 (1e-4) より 2 桁小さい検証用 MSE まで下がる. 学習用 MSE はエポック 5000 で 1.05e-4 と, 雑音の分散 (1e-4) の下限に達する
+- 実験 2 と 3 は `history.csv` が完全に一致する. ML-Found が渡す closure と `ClosureTrainer` の closure は同じ計算になる
+- 実験 3 は, エポック 19 (LBFGS の 1 回の `step` は最大 20 回の内部反復, ここまでで損失と勾配の計算は約 450 回) で学習用 MSE が 1.09e-4 と雑音の下限の近くまで下がる. その後は LBFGS の `tolerance_change` による終了判定で, パラメータが全く動かなくなる (エポック 20 以降の記録は全て同じ値). Adam が 4952 エポックかけた所に 19 エポックで近づく (検証用 MSE は Adam の 3 倍程度, 学習用 MSE は Adam の 1.05e-4 より少し高い 1.09e-4)
+- 実験 4 は `history.csv` が実験 1 と完全に一致する. `ClosureTrainer` は勾配法の Optimizer でも同じ結果になる (ただし closure の中で順伝播をもう 1 回行うので, 順伝播の回数は 2 倍)
+- 学習時間は `train.log` の最後の「学習時間」に出る. 実験 1 は `trainer.checkpoint.save_last: false` と `save_best: false` にすると数分の 1 になる (記録は同じ)
 
 ### ML-Found について気付いたこと
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
-- closure を渡す更新手順に対応していないので, LBFGS は最初の更新で `TypeError` になる (TODO の項目 2 の通り). エラーは torch のものがそのまま出るので, ML-Found が対応していないことは利用者には分からない (`3aca743` の時点. その後 ML-Found の PR #1 で LBFGS を自動で見分けて closure を渡すようになり, 実験 2 は `Trainer` のままで学習できる. PR #33 で, closure が必要かを登録簿の仕様とクラスの属性 `requires_closure` で決めるようになった)
-- `Trainer` を継承して回避できたが, `update_parameters` は損失しか受け取らないので, closure で損失を計算し直すためにバッチを `step` で `self` に保存する必要があった. また元の `update_parameters` の勾配クリッピングと Scheduler の処理を自分で写す必要がある (このタスクの `ClosureTrainer` では両方を写した)
+- `Trainer` を継承して closure を自分で渡す場合, `update_parameters` は損失しか受け取らないので, closure で損失を計算し直すためにバッチを `step` で `self` に保存する必要がある. また元の `update_parameters` の勾配クリッピングと Scheduler の処理を自分で写す必要がある (このタスクの `ClosureTrainer` では両方を写した). LBFGS を使うだけなら, ML-Found が closure を渡すので継承は要らない
 - 記録される `train/loss` は, `update_parameters` の前に `step` で計算した損失, つまり前のエポックの更新の後のパラメータでの損失. これはどの Optimizer でも同じだが, LBFGS は 1 回の `step` の中でパラメータが大きく動くので, 記録と現在のパラメータの差が大きい
-- チェックポイントは, `last.pt` を毎エポック, `best.pt` (中身は同じ) を改善したエポックごとに保存する (実験 1 では 5000 エポック中 2351 回改善). どちらにもモデルと Optimizer の状態, `history` の全ての記録, 乱数の状態, ベストモデルの重みが入る. そのため 1 エポックが短いフルバッチ学習では保存が学習時間の大部分を占め (5000 エポックで 44.9 秒が保存をやめると 6.1 秒), 記録が増えるほど 1 回の保存も重くなる (`last.pt` は 2000 エポックで 459 KB, 5000 エポックで 906 KB). 保存の間隔を設定できると良い (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられるようになり, PR #10 で `best_weights_only: true` で `best.pt` を重みだけにできるようになった. `best.pt` は今も改善のたびに保存する)
-
-### 最新の ML-Found での再実行 (2026-11-13)
-
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直し, 学習時間は `e2df46e` でも測り直した. 実験 1, 3, 4, 6 の `history.csv` は全て一致した.
-
-- 実験 2 (LBFGS を `Trainer` のまま使う) は今は学習でき, 200 エポックでベストはエポック 19, MSE 5.88e-6, 最大誤差 1.34e-2. `history.csv` は実験 3 と完全に一致した
-- 実験 5 (PINN) は同じエラーで止まり, エラーは `train.log` と `run.json` (`failed`) にも残った
-- 学習時間 (`e2df46e`): 実験 1 は 42.7 秒, 実験 3 は 1.65 秒, 実験 6 は 3.01 秒で, 以前とほぼ同じ. `24f18c2` では 1 エポックが短いので状態のファイルの書き込みが効き, 53.3 秒, 2.05 秒, 12.8 秒だった (ML-Found の PR #18 で直した)
-
-### チェックポイントの保存の時間 (2026-11-13)
-
-ML-Found の PR #38 で, チェックポイントの中の記録を列ごとの数の配列 (テンソル) で持つようになった. 実験 1 (5000 エポック, 既定の保存) を測り直した.
-
-| ML-Found | 学習時間 | `best.pt` | `last.pt` |
-| --- | --- | --- | --- |
-| `29e33bd` (記録は辞書のリスト) | 41.0 秒 | 864 KB | 907 KB |
-| `42ad8aa` (PR #38 の後) | 13.2 秒 | 397 KB | 436 KB |
-| 保存しない (`save_best: false`, `save_last: false`) | 4.3 秒 | - | - |
-
-- `history.csv` は 3 つとも同じだった
-- 保存の時間の大部分は, 毎回の保存で記録を全て pickle することだった. 残りの約 9 秒は, `best.pt` と `last.pt` を毎エポック書く分. ML-Found の `trainer.checkpoint.every_n_epochs` と `best_weights_only: true` で減らせる
-
+- チェックポイントは, `last.pt` を毎エポック, `best.pt` を改善したエポックごとに保存する (実験 1 では 5000 エポック中 2351 回改善). どちらにもモデルと Optimizer の状態, `history` の全ての記録, 乱数の状態が入る (既定では `last.pt` にベストモデルの重みも入る). そのため 1 エポックが短いフルバッチ学習では保存が学習時間の大部分を占める. 実験 1 の 5000 エポックの後で `best.pt` は約 400 KB, `last.pt` は約 440 KB. `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空け, `best_weights_only: true` で `best.pt` を重みだけにすると減らせる. `best.pt` は改善のたびに保存する

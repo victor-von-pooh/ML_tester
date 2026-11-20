@@ -95,7 +95,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 
 - [x] ReduceLROnPlateau が `valid/loss` を見て学習率を下げ, `lr_curve.png` に階段状に出る
 - [x] ReduceLROnPlateau の `mode` を省略すると `trainer.mode` に合わせられる (`training/optim.py` の `build_scheduler` で確認. 実験 1 は `trainer.mode` も torch の既定値も `min` なので, 実験では区別できない)
-- [x] `mode` や `interval` が食い違うと分かりやすいエラーになる. ML-Found `3aca743` ではエラーになるのが出力先を作った後で, 学習結果の無い出力先が残った (下の「気付いたこと」). その後 ML-Found の PR #1 で, 出力先を作る前にエラーになるようになった
+- [x] `mode` や `interval` が食い違うと分かりやすいエラーになる. エラーは出力先を作る前に起きるので, 学習結果の無い出力先は残らない
 - [x] `custom_optim.Lion` のように `.` を含む名前で自作の Optimizer を読み込める. `train.py` のあるディレクトリは Python が自動で import の探索先に入れるので, 別のディレクトリから実行しても読み込めた
 - [x] `on_epoch_end` で求めた RMSE と, `step` で求めた RMSE の違い (下の結果を参照)
 
@@ -106,8 +106,8 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 
 ## 予想される問題
 
-- 指標の平均の扱い (RMSE, R² など) は利用者が気付きにくいので, ドキュメントでの注意か, 合計と件数を返す仕組みがあると良さそう → 差は小さかったが, バッチの RMSE の平均は全てのエポックで全体の RMSE 以下だった
-- `train.py` を別のディレクトリから実行すると, `custom_optim` が import の探索先に無くて読み込めない可能性がある → 問題なかった. Python はスクリプトのディレクトリを探索先の先頭に入れるため
+- 指標の平均の扱い (RMSE, R² など) は利用者が気付きにくいので, ドキュメントでの注意か, 合計と件数を返す仕組みがあると良さそう → 差は小さいが, バッチの RMSE の平均は全てのエポックで全体の RMSE 以下になる
+- `train.py` を別のディレクトリから実行すると, `custom_optim` が import の探索先に無くて読み込めない可能性がある → 問題ない. Python はスクリプトのディレクトリを探索先の先頭に入れるため
 
 ## 実行方法
 
@@ -125,36 +125,29 @@ python tasks/05_tabular_reg/train.py --experiment configs/experiment/examples/pl
 
 - `--experiment` のパスは, 絶対パス, タスクのディレクトリから, 実行した場所から, の順に探す
 - 実験 1 と 2 の出力先には, `config.yaml`, `diff.yaml`, `train.log`, `history.csv`, 学習曲線 (`loss`, `mae`, `rmse`, `rmse_batch`, `lr`), `best.pt`, `last.pt`, `final_model.pt` (未コミットの変更があれば `git_diff.patch`) が入る
-- 実験 3 と 4 は, 出力先を作る前にエラーで止まる (出力先は作られない. ML-Found `3aca743` では `config.yaml`, `diff.yaml`, `train.log` だけを含む出力先が残った)
+- 実験 3 と 4 は, 出力先を作る前にエラーで止まる (出力先は作られない)
 - 学習時間は `train.log` の最後の「学習時間」に出る
 
 ## 結果のメモ
 
-2026-11-08, ML-Found `3aca743`, PyTorch 2.15.0, scikit-learn 1.9.1, macOS (Apple Silicon), Python 3.13, cpu で実行.
-同じ環境なら同じ結果になる (実験 2 を別のディレクトリから実行し直して `history.csv` が一致した). OS やライブラリの版が違う場合は一致しないことがある.
+PyTorch 2.15.0, scikit-learn 1.9.1, macOS (Apple Silicon), Python 3.13, cpu での値.
+同じ環境なら同じ結果になる (流し直すと `history.csv` が一致する). OS やライブラリの版が違う場合は一致しないことがある.
 
-| 実験 | 止まったエポック | ベストのエポック | 検証用 RMSE (`rmse`) | 検証用 RMSE (`rmse_batch`) | 検証用 MAE | 学習時間 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 Adam | 111 | 91 | **0.5161** | 0.5133 | 0.3499 | 6.8 秒 |
-| 2 `lion` (Lion) | 123 | 103 | **0.5132** | 0.5107 | 0.3466 | 6.5 秒 |
-| 3 `plateau_max` | - | - | エラー (想定通り) | - | - | - |
-| 4 `plateau_step` | - | - | エラー (想定通り) | - | - | - |
+| 実験 | 止まったエポック | ベストのエポック | 検証用 RMSE (`rmse`) | 検証用 RMSE (`rmse_batch`) | 検証用 MAE |
+| --- | --- | --- | --- | --- | --- |
+| 1 Adam | 111 | 91 | **0.5161** | 0.5133 | 0.3499 |
+| 2 `lion` (Lion) | 123 | 103 | **0.5132** | 0.5107 | 0.3466 |
+| 3 `plateau_max` | - | - | エラー (想定通り) | - | - |
+| 4 `plateau_step` | - | - | エラー (想定通り) | - | - |
 
-- 実験 1 と 2 はどちらも目標の RMSE 0.55 (5.5 万ドル) を下回った. Lion は Adam と同程度で, わずかに良かった
-- 実験 1 の学習率は, ReduceLROnPlateau で 0.001 から 0.00000098 まで 10 回半分になった (`lr_curve.png` は階段状). エポック 22 から 27 まで `valid/loss` が改善しなかったので, エポック 28 から 0.0005 になった
-- 実験 3 は `ValueError: ReduceLROnPlateau の mode (max) が trainer.mode (min) と違います`, 実験 4 は `ValueError: ReduceLROnPlateau は scheduler.interval を epoch にしてください` で止まった
-- 実験 1 と 2 の全てのエポックで, `rmse_batch` (バッチごとの RMSE のサンプル数での重み付き平均) は `rmse` (エポック全体の RMSE) 以下だった. 平方根は上に凸なので, バッチごとに平方根をとってから平均すると全体の RMSE 以下になる (全てのバッチの二乗誤差の平均が等しい場合だけ一致). 検証用データでの差はベストのエポックで約 0.003, 最大で 0.005 だった
+- 実験 1 と 2 はどちらも目標の RMSE 0.55 (5.5 万ドル) を下回る. Lion は Adam と同程度で, わずかに良い
+- 実験 1 の学習率は, ReduceLROnPlateau で 0.001 から 0.00000098 まで 10 回半分になる (`lr_curve.png` は階段状). エポック 22 から 27 まで `valid/loss` が改善しないので, エポック 28 から 0.0005 になる
+- 実験 3 は `ValueError: ReduceLROnPlateau の mode (max) が trainer.mode (min) と違います`, 実験 4 は `ValueError: ReduceLROnPlateau は scheduler.interval を epoch にしてください` で止まる
+- 実験 1 と 2 の全てのエポックで, `rmse_batch` (バッチごとの RMSE のサンプル数での重み付き平均) は `rmse` (エポック全体の RMSE) 以下になる. 平方根は上に凸なので, バッチごとに平方根をとってから平均すると全体の RMSE 以下になる (全てのバッチの二乗誤差の平均が等しい場合だけ一致). 検証用データでの差はベストのエポックで約 0.003, 最大で 0.005
 
 ### ML-Found について気付いたこと
 
 [FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
-- ReduceLROnPlateau の `mode` や `interval` の食い違いは, `Trainer` を作るとき (`start_experiment` の後) に確かめられるので, エラーで止まっても `config.yaml`, `diff.yaml`, `train.log` (と `git_diff.patch`) だけを含む出力先が残る. 01 の「default に無い項目」のエラーは `load_config` で起きるので出力先が作られなかったのと対照的 (`3aca743` の時点. その後 ML-Found の PR #1 で, これらの食い違いは出力先を作る前にエラーになった)
-- エラーで止まった場合, `train.log` にはエラーの内容が書かれず, 最後の行は途中の記録 (このタスクでは「目的変数の標準偏差」) のままになる. 後から出力先を見ても, 失敗した実験だと分かりにくい (`3aca743` の時点. その後 ML-Found の PR #1 で学習の途中のエラーは `train.log` にも書かれるようになり, PR #2 で失敗した実験は `run.json` の状態が `failed` になった. PR #16 で `Trainer` の作成で起きたエラーも両方に残る. このタスクのエラーは, 今は出力先を作る前に止まる)
-- `step` で RMSE を返すと, ML-Found はバッチごとの値をサンプル数で重み付けして平均するので, エポック全体の RMSE 以下になる. README の `step` の説明に, 平均してよい指標とそうでない指標の注意があると良い (`3aca743` の時点. その後 ML-Found の PR #1 で, README の `step` の説明に, 重み付き平均してよい指標とエポック全体から求める指標の注意が加わった)
-
-### 最新の ML-Found での再実行 (2026-11-13)
-
-上の結果は ML-Found `3aca743` で得たもの. 2026-11-13 に, 全ての実験をその後の ML-Found (`24f18c2`) で流し直し, 学習時間は `e2df46e` でも測り直した. 実験 1 と 2 の `history.csv` は一致した. 実験 3 と 4 は同じエラーで, 今は出力先を作る前に止まる.
-
-- 学習時間: 実験 1 は 6.32 秒 (`e2df46e`), 実験 2 は 6.98 秒 (`24f18c2`)
+- ReduceLROnPlateau の `mode` や `interval` の食い違いは `start_experiment` の始め, 出力先を作る前に確かめられるので, 01 の「default に無い項目」のエラーと同じく出力先は作られない
+- `step` で RMSE を返すと, ML-Found はバッチごとの値をサンプル数で重み付けして平均するので, エポック全体の RMSE 以下になる. ML-Found の README の `step` の説明に, 重み付き平均してよい指標とエポック全体から求める指標の注意がある

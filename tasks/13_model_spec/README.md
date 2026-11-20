@@ -104,16 +104,16 @@ CPU で, 1 と 2 はそれぞれ 5 秒ほど (Python の起動と読み込みを
 
 ## 結果のメモ
 
-ML-Found `c1fde7e`, ML-ModelControl `5cfabe4`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した.
+ルートの README の「導入」で固定した版と PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 
-| 実験 | 定義 | パラメータ数 | 学習したエポック | ベストのエポック | 検証用データの正解率 (ベスト) | 作り直したモデルとの差 | 書き出したコードとの差 | 所要時間 (`run.json` の `duration_sec`) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `cnn.yaml` | 7,370 | 16 (Early Stopping) | 11 | 0.9722 | 0 | 0 | 2.8 秒 |
-| 2 | `cnn_wide.yaml` | 23,946 | 14 (Early Stopping) | 9 | 0.9778 | 0 | 0 | 3.4 秒 |
-| 3 | `broken.yaml` | - | - | - | - | - | - | - |
-| 4 | `broken_shape.yaml` | - | - | - | - | - | - | - |
-| quick | `cnn.yaml` | 7,370 | 2 | 2 | 0.8861 | 0 | 0 | 0.7 秒 |
+| 実験 | 定義 | パラメータ数 | 学習したエポック | ベストのエポック | 検証用データの正解率 (ベスト) | 作り直したモデルとの差 | 書き出したコードとの差 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `cnn.yaml` | 7,370 | 16 (Early Stopping) | 11 | 0.9722 | 0 | 0 |
+| 2 | `cnn_wide.yaml` | 23,946 | 14 (Early Stopping) | 9 | 0.9778 | 0 | 0 |
+| 3 | `broken.yaml` | - | - | - | - | - | - |
+| 4 | `broken_shape.yaml` | - | - | - | - | - | - |
+| quick | `cnn.yaml` | 7,370 | 2 | 2 | 0.8861 | 0 | 0 |
 
 - 1 と 2 の実験の出力先には, ML-Found のファイルに加えて, 写した `model_spec.yaml` と書き出した `model_export.py` が残る. 2 の `diff.yaml` には `model.spec` (`models/cnn.yaml` から `models/cnn_wide.yaml`) が残る
-- 3 と 4 は出力先を作らずに終わった (`outputs/digits_spec/` の下は 1, 2, quick の 3 つだけ). 4 の理由の文は, 入ってきた値の形と直し方を添えた ML-ModelControl の形の推定の誤り
+- 3 と 4 は出力先を作らずに終わる (`outputs/digits_spec/` の下に増えるのは 1, 2, quick の 3 つだけ). 4 の理由の文は, 入ってきた値の形と直し方を添えた ML-ModelControl の形の推定の誤り
 - 定義を実験の出力先に写すのは学習のスクリプトの仕事で, ML-Found は定義を知らない. そのため ML-Dashboard の「この設定でもう一度起動」は, 起動した時点の `models/` の定義から組み立てる (前の実験の後に `models/cnn.yaml` を書き換えていれば, 違うモデルで学習する). 前の実験と同じモデルにしたい場合は, その実験の `model_spec.yaml` を `models/` に写してから起動する. 定義の置き場とプロジェクトの結び方は, 全体の方針 (ルートの VISION.md) で保留中の項目

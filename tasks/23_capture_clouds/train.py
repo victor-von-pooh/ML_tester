@@ -11,10 +11,11 @@ from ml_eda import ItemSplit, capture_shift, load_items, normalize_capture
 from ml_eda.items import read_capture  # 1 つの撮影を配列で読む (公開外)
 from ml_eda.media import read_cloud  # 1 つの点群を読む (公開外)
 from ml_found import (
-    Experiment, Trainer, describe_origin, load_project_config, save_evaluation,
-    save_sample, start_experiment, task_from_dataset, write_task
+    Experiment, Trainer, describe_origin, load_project_config, load_samples,
+    original_coordinates, save_evaluation, save_sample, start_experiment,
+    task_from_dataset, write_task
 )
-from make_data import NEW_DIR
+from make_data import DATA_DIR, NEW_DIR
 from model import CloudPredictor
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
@@ -326,12 +327,13 @@ def cloud_convention(row: Any) -> dict:
     Returns
     ----------
     convention: dict
-        units (m), shift (元の座標 = 値 × scale + shift となる量. ML-EDA の
-        shift の符号を反転した値), scale (1.0. 平行移動だけ)
+        units (m), shift (ML-EDA の shift のまま. ML-Found の見本の
+        shift も同じ向き), scale (1.0. 平行移動だけ)
     """
-    # ML-Found の決まり (元の座標 = 値 × scale + shift) に合わせて符号を反転
+    # ML-EDA と ML-Found の shift は同じ向き (正規化した座標 = 元の座標 +
+    # shift) なので, 符号を変えずに写す
     shift = [
-        -float(row[column]) for column in ("shift_x", "shift_y", "shift_z")
+        float(row[column]) for column in ("shift_x", "shift_y", "shift_z")
     ]
     convention = {"units": "m", "shift": shift, "scale": 1.0}
 
@@ -382,6 +384,27 @@ def save_cloud_samples(
                 caption=f"{label} (書き出しの正規化した座標)",
                 convention=convention
             )
+
+    # 正解の見本を値の決まりで元の座標に戻し, 元の点群と重なるかの確認
+    for item in load_samples(experiment.run_dir):
+        if not item["name"].endswith("_truth"):
+            continue
+        name = item["name"][len("test_"):-len("_truth")]
+        points = read_cloud(experiment.run_dir / "samples" / item["file"])
+        original = read_cloud(DATA_DIR / "clouds" / f"{name}.ply")
+        restored = original_coordinates(
+            points["points"], item["convention"]
+        )
+        # 書き出しは点の順を保つので, 同じ番号の点どうしのずれの最大
+        distance = float(
+            np.abs(restored - np.asarray(original["points"])).max()
+        )
+        text = (
+            f"正解の見本 {name} を元の座標に戻した点群と元の点群の"
+            f"点ごとのずれの最大: {distance:.2e} m"
+        )
+        experiment.logger.info(text)
+        print(text)
 
 
 def predict_new(

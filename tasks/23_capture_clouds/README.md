@@ -12,7 +12,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 
 **測っているもの**: 指標は正解の出どころとの一致. ここでは出どころが `synthetic` (形の式から置いた面の上の点) なので, 本当の形との一致になる. 実際の撮影で, 正解が今ある処理 (別の復元の道具など) の出力 (`process`) なら, 測れるのはその処理との一致で, モデルはその処理を超えられない. 学習のスクリプトは出どころを ML-Found の `task.yaml` (`task_from_dataset` で `dataset.yaml` から埋める) と `train.log` に残す.
 
-学習の後に, テスト用の Chamfer 距離と F 値の表を, 入力の点そのものを比べる相手 (`baseline: input_points`) にして `evaluations/test_chamfer.json` (`save_evaluation`) に, テスト用の最初の 2 件の予測と正解の点群を `samples/test_<id>_pred/` と `samples/test_<id>_truth/` の `epoch_<ベストのエポック>.ply` (`save_sample`) に, 元の座標に戻す値の決まり (`convention`) を添えて書く. 守る指標 (`guard`) の表は書かない (問題の設定で守る指標を決めていない課題なので).
+学習の後に, テスト用の Chamfer 距離と F 値の表を, 入力の点そのものを比べる相手 (`baseline: input_points`) にして `evaluations/test_chamfer.json` (`save_evaluation`) に, テスト用の最初の 2 件の予測と正解の点群を `samples/test_<id>_pred/` と `samples/test_<id>_truth/` の `epoch_<ベストのエポック>.ply` (`save_sample`) に, 元の座標に戻す値の決まり (`convention`. ML-EDA の `shift` を符号を変えずに写す) を添えて書く. 書いた正解の見本を `load_samples` と `original_coordinates` で元の座標に戻し, 元の点群と重なることを確かめる. 守る指標 (`guard`) の表は書かない (問題の設定で守る指標を決めていない課題なので).
 
 ## ディレクトリ構成
 
@@ -40,7 +40,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 | 分割 | 1 件ごとに無作為に, 学習用 24, 検証用 8, テスト用 8 (`split: {method: random, valid: 0.2, test: 0.2, seed: 0}`) |
 | 新しい撮影 | 違う乱数の箱 1 つ (`new_001`). 書き出しには入れない |
 
-用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる. ML-Found は submodule のものを使う (`trainer.valid_every_n_epochs` と, `task.yaml`, 評価, 値の決まり (`convention`) 付きの見本を書く関数が要る).
+用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる. ML-Found は submodule のものを使う (`trainer.valid_every_n_epochs` と, `task.yaml`, 評価, 値の決まり (`convention`) 付きの見本を書く関数, 見本の一覧の版 2 (`shift` が ML-EDA と同じ向き) と `original_coordinates` が要る).
 
 ### 深度から点に戻す
 
@@ -67,13 +67,15 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 - [x] 新しい撮影に `normalize_capture` で同じ正規化をかけられ, その `shift` は `capture_shift` と一致する. 予測から `shift` を引くと元の座標で元の点群と比べられる
 - [x] `task_from_dataset` で `dataset.yaml` (版 2) から受け持ち, 正解の種類と出どころを埋め, 出力の形 (`shape`), 意味, 作り方 (`scratch`) を足して `write_task` で `task.yaml` に書ける
 - [x] テスト用の表を比べる相手つきで `save_evaluation` で, 予測と正解の点群を `save_sample` (`kind="point_cloud"`. PLY. 元の座標に戻す `convention` 付き) で実験のディレクトリに書ける
+- [x] 見本の `convention` に ML-EDA の `shift` (正規化した座標 = 元の座標 + shift) を符号を変えずに写せ, `load_samples` の値の決まりを `original_coordinates` に渡すと, 正解の見本が元の点群の座標に戻る
 
 ## 期待する結果
 
 - 2 で `版: 2, 受け持ち: predict, 正解の種類: point_cloud`, 正解の出どころ `{'type': 'synthetic', 'name': 'ml_eda.synthetic.write_shape_captures', ...}`, 分割 `{'train': {'items': 24}, 'valid': {'items': 8}, 'test': {'items': 8}}`, 注意なし. 正解の点群の中心は原点から数 mm
 - 3 で端末に出る「検証したエポック」が 3 の倍数 (と最後のエポック) だけになる. quick では `[3, 4]`. `train.log` には出さないので, 後から見る場合は `history.csv` の `valid/chamfer` の空でない行を見る
 - 3 でテスト用の Chamfer 距離が `train.log` に残る. 深度から戻した点をそのまま答えにした場合 (入力の点) も並べて記録する
-- 実験のディレクトリに `task.yaml`, `evaluations/test_chamfer.json`, `samples/index.json` と 4 つの点群 (`samples/test_<id>_pred/epoch_<ベストのエポック>.ply` と `_truth`) ができる
+- 実験のディレクトリに `task.yaml`, `evaluations/test_chamfer.json`, `samples/index.json` (`format_version: 2`) と 4 つの点群 (`samples/test_<id>_pred/epoch_<ベストのエポック>.ply` と `_truth`) ができる
+- 3 で「正解の見本 <id> を元の座標に戻した点群と元の点群の点ごとのずれの最大」が 2 件とも 1e-6 m 未満 (PLY に書いた桁の分だけずれる)
 
 ## 実行方法
 
@@ -119,4 +121,4 @@ PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 - `trainer.valid_every_n_epochs` は ML-Found の docs/DESIGN.md の説明どおりに動いた. `on_epoch_end` を継承して `phase == "valid"` のときだけ Chamfer 距離を求めると, 検証しないエポックでは呼ばれないので, 重い評価の書き方が素直だった (`phase` が `train` のときは空の辞書を返す)
 - 正解の出どころ (`target.origin`) は `task.yaml` に残る. `task_from_dataset` が `target.origin` (type, name, settings), `role: predict`, `target.kind: point_cloud`, `dataset` (`path: outputs/dataset`, `name: capture_clouds`, `format_version: 2`) を埋め, 学習のスクリプトは `output`, `what`, `method` を足すだけで済んだ
 - `evaluations/test_chamfer.json` は `epoch: 81`, `baseline: input_points` で, `answer` の列 (`model` と `input_points`) の 2 行と, 比べる相手との差の列 (`chamfer_diff`, `fscore_1cm_diff`. モデルの行で 0.01575 m と -0.4252). ML-Found の `docs/FORMAT.md` は `baseline` を「差の列を持つ場合」とし, 列の中身はプロジェクトが決めるので, 比べる相手の行と差の列の両方を書いた
-- 点群の見本は書き出しの正規化した座標 (メートル) のまま書き, `convention` に `units: m`, `shift`, `scale: 1.0` を添えた. ML-Found の決まりは「元の座標 = 値 × scale + shift」で, ML-EDA の `shift` (正規化した座標 = 元の座標 + shift) と符号が逆なので, 分割の表の `shift_x`, `shift_y`, `shift_z` の符号を反転して書いた. 正解の見本に `shift` を足すと, 元の点群の座標に戻ることを確かめた. 2 つの道具で同じ `shift` という名前が逆の向きを指すので, 写し間違えやすい
+- 点群の見本は書き出しの正規化した座標 (メートル) のまま書き, `convention` に `units: m`, `shift`, `scale: 1.0` を添えた. ML-Found の見本の `shift` は ML-EDA の `shift` と同じ向き (正規化した座標 = 元の座標 + shift) なので, 分割の表の `shift_x`, `shift_y`, `shift_z` をそのまま写せる. 元の座標に戻すのは `original_coordinates` (値 × scale - shift) に任せられ, 符号を自分で考えなくてよい. 正解の見本を戻した点群と元の点群の点ごとのずれの最大は 2 件とも 6e-8 m ほど (PLY に書いた桁の分)

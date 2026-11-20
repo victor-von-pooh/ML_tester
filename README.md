@@ -17,7 +17,7 @@ pip install -e "./ML-Found[examples,rl]"    # scikit-learn と, 24 で使う Gym
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18, 21 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@ebc045e"   # 14 から 23 で使う (all に部分語の tokenizers も入る. 22 と 23 は書き出しの版 2 で ebc045e から)
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@ebc045e"   # 14 から 23 で使う (all に部分語の tokenizers も入る. 22 と 23 は書き出しの版 2 を使う)
 pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@1ec6970"   # 17 から 21 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
 pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@6d7d6da"   # 21 で使う (依存の pandas と PyYAML は上で入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う

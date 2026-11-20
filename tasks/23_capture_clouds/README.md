@@ -12,7 +12,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 
 **測っているもの**: 指標は正解の出どころとの一致. ここでは出どころが `synthetic` (形の式から置いた面の上の点) なので, 本当の形との一致になる. 実際の撮影で, 正解が今ある処理 (別の復元の道具など) の出力 (`process`) なら, 測れるのはその処理との一致で, モデルはその処理を超えられない. 学習のスクリプトは出どころを ML-Found の `task.yaml` (`task_from_dataset` で `dataset.yaml` から埋める) と `train.log` に残す.
 
-学習の後に, テスト用の Chamfer 距離と F 値の表を, 入力の点そのものを比べる相手 (`baseline: input_points`) にして `evaluations/test_chamfer.json` (`save_evaluation`) に, テスト用の最初の 2 件の予測と正解の点群を `samples/test_<id>_pred/` と `samples/test_<id>_truth/` の `epoch_<ベストのエポック>.ply` (`save_sample`) に書く. 守る指標 (`guard`) の表は書かない (問題の設定で守る指標を決めていない課題なので).
+学習の後に, テスト用の Chamfer 距離と F 値の表を, 入力の点そのものを比べる相手 (`baseline: input_points`) にして `evaluations/test_chamfer.json` (`save_evaluation`) に, テスト用の最初の 2 件の予測と正解の点群を `samples/test_<id>_pred/` と `samples/test_<id>_truth/` の `epoch_<ベストのエポック>.ply` (`save_sample`) に, 元の座標に戻す値の決まり (`convention`) を添えて書く. 守る指標 (`guard`) の表は書かない (問題の設定で守る指標を決めていない課題なので).
 
 ## ディレクトリ構成
 
@@ -40,7 +40,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 | 分割 | 1 件ごとに無作為に, 学習用 24, 検証用 8, テスト用 8 (`split: {method: random, valid: 0.2, test: 0.2, seed: 0}`) |
 | 新しい撮影 | 違う乱数の箱 1 つ (`new_001`). 書き出しには入れない |
 
-用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる (版 2 は `ebc045e` から). ML-Found は submodule のものを使う (`trainer.valid_every_n_epochs` と, `task.yaml`, 評価, 値の決まり (`convention`) 付きの見本を書く関数が要る).
+用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる. ML-Found は submodule のものを使う (`trainer.valid_every_n_epochs` と, `task.yaml`, 評価, 値の決まり (`convention`) 付きの見本を書く関数が要る).
 
 ### 深度から点に戻す
 

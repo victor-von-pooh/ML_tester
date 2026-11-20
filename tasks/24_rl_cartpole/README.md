@@ -6,16 +6,16 @@
 
 1. **学習**: `RolloutLoader` (環境とのやり取りをバッチにする loader), `EvaluationLoader` (別の種の評価のエピソード), `ReinforceStep` (REINFORCE) を今までの `Trainer` に渡して学習する. 監視する指標は評価のエピソードの報酬の和の平均 `valid/reward` で, `mode: max`
 2. **守りと一緒に書き出す**: `make_guards` で守り (選んでよい行動 `allowed_actions`, 止める条件として台車の位置と棒の角度の範囲, 外れたときの動き `fallback`) を作り, `export_policy` で実験のディレクトリの `policy/` に書き出す
-3. **読み直して守り付きで動かす**: `load_policy` で新しいモデルに読み直し, 1 歩ごとに `act` が返す行動と守りの結果 (`status`. `ok`, `clipped`, `fallback`, `stop`, `handover`) でシミュレータのエピソードを動かし, 結果の数を数える. `stop` と `handover` は行動を返さないので, そこでエピソードを終える
+3. **読み直して守り付きで動かす**: `load_policy` で新しいモデルに読み直し, ML-Found の `evaluate_policy` でシミュレータのエピソードを動かす. 1 歩ごとに `act` が返す行動と守りの結果 (`status`. `ok`, `clipped`, `fallback`, `stop`, `handover`) を数え, `stop` と `handover` は行動を返さないので, そこでエピソードを終える
 4. **守りの練習**: 止める条件を狭めた別の一式 (`drills/narrow_stop/` と `drills/narrow_fallback/`) も書き出して同じく動かし, 守りが働くこと (止まる, 決めた行動で続ける) を数で確かめる. 練習の一式は使うためのものではない
-5. **守る指標の表**: 守りごとの結果の数を `save_evaluation(..., guard=True)` で `evaluations/guarded_episodes.json` に書く
+5. **守る指標の表**: `evaluate_policy` のエピソードごとの行に守りの名前を足し, `save_evaluation(..., guard=True)` で `evaluations/guarded_episodes.json` に書く
 6. **守りのテスト**: 範囲の外の観測で止まること (`status: stop`, 行動なし) を `test_guards.py` で確かめる. このリポジトリは学習を pytest で判定しないが, 守りは安全の約束なので, 学習しないで済むこの確かめだけは CI で動かす
 
 **道具の外にあるもの**: 書き出した方策は, 観測から行動と守りの結果を返すだけで, 環境や機械には触れない. **実機 (ハードウェア) での実行は道具の外**で, ML-Found も推論の段階も実機を動かさない. **方策を使ってよいか (配備) と守りの範囲 (止める条件の値, 外れたときの動き) は人が決めて承認する**. ここで config に書いた範囲は確かめのための例で, 承認を経た値ではない (相談 7 の原則の当てはめ).
 
 ## 追加の依存 (Gymnasium)
 
-強化学習には ML-Found の追加の依存 `rl` (Gymnasium) が要る. ルートの README の「導入」で `pip install -e "./ML-Found[examples,rl]"` と入れる. 入っていないまま `train.py` を動かすと, `require("rl")` が出力先を作る前に止まり, 次の入れ方を示す (ML-Found `888b8b8` での表示).
+強化学習には ML-Found の追加の依存 `rl` (Gymnasium) が要る. ルートの README の「導入」で `pip install -e "./ML-Found[examples,rl]"` と入れる. config の一番上に `requires: [rl]` を書いているので, 入っていないまま `train.py` を動かすと, `start_experiment` が出力先を作る前に `MissingRequirementError` で止まり, 学習のスクリプトが次の入れ方を示して終わる.
 
 ```
 機能 rl に要るものが入っていません: gymnasium
@@ -29,7 +29,7 @@
 ```
 24_rl_cartpole/
 ├── configs/
-│   ├── default/train.yaml          # 基準の config (monitor: valid/reward, mode: max, 守りと練習の範囲)
+│   ├── default/train.yaml          # 基準の config (requires: [rl], monitor: valid/reward, mode: max, 守りと練習の範囲)
 │   └── experiment/
 │       ├── train.yaml              # 普段使う差分 (空)
 │       └── examples/
@@ -65,10 +65,10 @@
 - [x] `RolloutLoader`, `EvaluationLoader`, `ReinforceStep` を `Trainer` に渡して学習でき, `trainer.monitor: valid/reward`, `mode: max` でベストモデルを選ぶ
 - [x] `make_guards` で選んでよい行動, 観測の範囲, 外れたときの動きを持つ守りを作り, `export_policy` で `policy/` (`policy.json` と `policy.pt`) に書き出せる
 - [x] `load_policy` で新しいモデルに読み直し, `act` で守りを当てた行動と `status` を得られる
-- [x] 守り付きの評価で, 結果の数 (ok, clipped, fallback, stop, handover) と止めたエピソードの数を数え, 守る指標の表 (`guard: true`) に書ける
+- [x] `evaluate_policy` で守り付きのエピソードを動かし, エピソードごとの結果の数 (ok, clipped, fallback, stop, handover) と終えた理由 (`end`) を守る指標の表 (`guard: true`) に書ける
 - [x] 範囲の外の観測 (位置 2.5, -2.01, 角度 0.19, -0.5, nan) で `status: stop` と行動なし, 範囲の中で `ok` (`test_guards.py`)
-- [x] Gymnasium が無いと, 学習の前に `require("rl")` が入れ方を示して止まる (`test_guards.py` で Gymnasium を隠して確かめる)
-- [x] `task.yaml` を書ける (受け持ちは `effect`. 出力の形と正解の種類は決まった値が無く null. 下の気付いたこと)
+- [x] Gymnasium が無いと, config の `requires: [rl]` により出力先を作る前に入れ方を示して止まる (`test_guards.py` で Gymnasium を隠して確かめる)
+- [x] `task.yaml` を書ける (受け持ちは `effect`, 出力の形は `action`, 正解の種類は `reward`, 正解の出どころは `environment`)
 
 ## 実行方法
 
@@ -91,34 +91,32 @@ CPU で, 1 は 10 秒ほど, 2 は 3 秒ほど, 3 は 1 秒ほど (Python の起
 
 ## 結果のメモ
 
-ML-Found `888b8b8`, Gymnasium 1.4.0, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した (2026-11-20).
+Gymnasium 1.4.0, PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 
 | 実験 | 学習したエポック | ベストのエポック | 検証の報酬の和 (ベスト) |
 | --- | --- | --- | --- |
-| 1 (`train.yaml`) | 20 | 6 | 500.0 |
+| 1 (`train.yaml`) | 20 | 20 | 500.0 |
 | 2 (quick) | 3 | 3 | 63.6 |
 
-守り付きの評価 (10 エピソード). 歩数は環境を進めた数, 判断は `act` を呼んだ数 (止めた判断を含む. ok から handover の和). 結果の数は判断ごと.
+守り付きの評価 (10 エピソード). 歩数は環境を進めた数の合計. 結果の数は `act` を呼んだ判断ごと (止めた判断を含む).
 
-| 実験 | 一式 | 報酬の和の平均 | 歩数 | 判断 | 止めたエピソード | ok | fallback | stop | clipped, handover |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `policy` | 500.0 | 5000 | 5000 | 0 | 5000 | 0 | 0 | 0 |
-| 1 | `narrow_stop` | 257.0 | 2570 | 2578 | 8 | 2570 | 0 | 8 | 0 |
-| 1 | `narrow_fallback` | 268.6 | 2686 | 2686 | 0 | 2603 | 83 | 0 | 0 |
-| 2 | `policy` | 70.1 | 701 | 711 | 10 | 701 | 0 | 10 | 0 |
-| 2 | `narrow_stop` | 24.8 | 248 | 258 | 10 | 248 | 0 | 10 | 0 |
-| 2 | `narrow_fallback` | 32.9 | 329 | 329 | 0 | 249 | 80 | 0 | 0 |
+| 実験 | 一式 | 報酬の和の平均 | 歩数 | 止めたエピソード | ok | fallback | stop | clipped, handover |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `policy` | 500.0 | 5000 | 0 | 5000 | 0 | 0 | 0 |
+| 1 | `narrow_stop` | 312.2 | 3122 | 6 | 3122 | 0 | 6 | 0 |
+| 1 | `narrow_fallback` | 335.6 | 3356 | 0 | 3290 | 66 | 0 | 0 |
+| 2 | `policy` | 70.1 | 701 | 10 | 701 | 0 | 10 | 0 |
+| 2 | `narrow_stop` | 24.8 | 248 | 10 | 248 | 0 | 10 | 0 |
+| 2 | `narrow_fallback` | 32.9 | 329 | 0 | 249 | 80 | 0 | 0 |
 
-- 検証の報酬の和は, エポック 6 で 500 に届いた後, 7 から 12 は 258.5 から 484.5 の間に下がり, 13 以降はまた 500 前後になった. ベストはエポック 6 のまま (同じ 500 は改善とみなさない). エポック 6 の方策でも守り付きの評価の 10 エピソードは全て 500 歩を立て続けた
-- 本番の候補の守り (位置 2.0, 角度 0.18) は, 学習した方策では 1 度も働かず, 学習の足りない方策 (2) では 10 エピソード全てを止める条件で止めた. 環境が終わる範囲 (0.2094) より内側に置いたので, 環境が終わる前に止まる
-- 練習の `narrow_stop` では 10 エピソードのうち 8 で止め, `narrow_fallback` では止めずに 83 歩で決めた行動 0 にした. 位置が 0.3 を超えて決めた行動 0 (左) を続けると棒が右に倒れ, 10 エピソードのうち 8 で角度が 0.2094 を超えて環境が終わった (残り 2 は 500 歩. 書き出した一式を読み直して同じ種で動かし直して確かめた). 外れたときの動きを `action` にするのは, その行動が安全と分かっている場合だけ (人が決める)
-- `test_guards.py` の 8 つのテストが通った (0.7 秒)
+- 検証の報酬の和は, エポック 6 で 500 に届いた後に下がり, 13 以降はまた 500 前後になる. 報酬が 500 で並ぶエポック (6, 13, 14, 15, 19, 20) から, `trainer.monitor_tiebreak: train/reward` で学習のエピソードの報酬が最も大きいエポック 20 (497.55) をベストに選ぶ. 検証の `valid/entropy` (方策のエントロピー) も記録され, 報酬が 500 で並んでも動く
+- 本番の候補の守り (位置 2.0, 角度 0.18) は, 学習した方策では 1 度も働かず, 学習の足りない方策 (2) では 10 エピソード全てを止める条件で止める. 環境が終わる範囲 (0.2094) より内側に置いたので, 環境が終わる前に止まる
+- 練習の `narrow_stop` では 10 エピソードのうち 6 で止め, `narrow_fallback` では止めずに 66 歩で決めた行動 0 にする. 位置が 0.3 を超えて決めた行動 0 (左) を続けると棒が倒れ, 10 エピソードのうち 6 で環境が終わる (`evaluations/guarded_episodes.json` の `end` が `terminated`. 残り 4 は 500 歩の `truncated`). 外れたときの動きを `action` にするのは, その行動が安全と分かっている場合だけ (人が決める)
+- `evaluations/guarded_episodes.json` は 1 行が 1 つの守りの 1 エピソード (`name`, `guards` と `evaluate_policy` の列 `episode`, `seed`, `reward`, `length`, `end`, 守りの結果ごとの数) の 30 行
+- `test_guards.py` の 8 つのテストが通る (1 秒ほど)
 
 ### 気付いたこと (ML-Found)
 
-- **守り付きの評価の loader が無い**: `EvaluationLoader` は学習中のモデルで最もスコアの高い行動を選び, 守りを当てない. 書き出した一式を守り付きで動かし, `status` を数え, `stop` と `handover` でエピソードを終える処理 (`run_guarded`) は学習のスクリプトで書いた. 一式と環境を渡すと結果の数を返す関数 (`evaluate_policy(policy, env, episodes, seed)` など) があると, 推論の段階 (ML-Inference) と画面でも同じ数え方になる
-- **方策の `task.yaml`**: 受け持ち (`role`) は, 相談 1 で方策は 2.1 の扱い (効果を見積もると動かすは 1 つ) なので `effect` にした. 出力の形 (`output`) には行動の選択肢が無いので null. 正解の種類 (`target.kind`) は自由な文字だが, 方策で書く値が決まっていないので null. 正解の出どころには環境の報酬に当たる種類が無いので `unknown` と名前 (`CartPole-v1 の報酬 (シミュレータ)`) にした. `describe_origin` は「分からない」の文を返す
-- **`MissingRequirementError` が `ml_found` の直下に無い**: README は `require("rl")` が `MissingRequirementError` で止まると書くが, `from ml_found import MissingRequirementError` はできず, `ml_found.utils` から読み込んだ (`ImportError` で受けてもよい)
-- **`policy.json` の `model_class` が `model.PolicyNet`**: スクリプトの隣の `model.py` から読み込んだので, モジュールの名前は `model` になる. 読む側が組み立て方を探す手がかりとしては弱いので, `metadata` に隠れ層の次元数などを書いた
+- **`policy.json` の `model_class` が `model.PolicyNet`**: スクリプトの隣の `model.py` から読み込んだので, モジュールの名前は `model` になる. 読む側が組み立て方を探す手がかりとしては弱いので, ML-Found の例と同じく `metadata` の `model` にクラスと引数 (`class`, `args`) を書いた
 - `save_evaluation` の `split` は文字なら何でもよいので `simulator` とした. 環境で評価した表の分割の名前の決まりは無い
-- 報酬が上限 (500) で頭打ちになるので, 最初に 500 に届いたエポックがベストになり, その後の同じ 500 は改善とみなさない. ML-Found の `trainer.monitor_tiebreak` で同じ値のときに比べる指標を選べるが, この課題の `valid/loss` と `valid/length` は `valid/reward` と同じ動きなので比べる役に立たず, 別の指標 (`train/reward` など) が要る. 長く安定した方策を選びたい場合は, 評価のエピソードを増やすのもよい
+- `config` の `requires` を確かめるのは `start_experiment` なので, その前の `load_project_config` はコマンドの引数を読む. pytest から `main()` を呼ぶと pytest の引数を読んで止まるので, `test_guards.py` は `sys.argv` をスクリプトだけにして呼ぶ

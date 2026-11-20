@@ -313,9 +313,34 @@ def evaluate_test(
     return rows
 
 
+def cloud_convention(row: Any) -> dict:
+    """
+    1 件の正規化の平行移動から, 点群の見本の値の決まりを作る関数
+
+    Parameters
+    ----------
+    row: Any
+        分割の表の 1 行 (shift_x, shift_y, shift_z. 正規化した座標 =
+        元の座標 + shift)
+
+    Returns
+    ----------
+    convention: dict
+        units (m), shift (元の座標 = 値 × scale + shift となる量. ML-EDA の
+        shift の符号を反転した値), scale (1.0. 平行移動だけ)
+    """
+    # ML-Found の決まり (元の座標 = 値 × scale + shift) に合わせて符号を反転
+    shift = [
+        -float(row[column]) for column in ("shift_x", "shift_y", "shift_z")
+    ]
+    convention = {"units": "m", "shift": shift, "scale": 1.0}
+
+    return convention
+
+
 def save_cloud_samples(
     model: nn.Module, tensors: tuple[torch.Tensor, torch.Tensor],
-    ids: list[str], experiment: Experiment, epoch: int
+    rows: Any, experiment: Experiment, epoch: int
 ) -> None:
     """
     テスト用の最初の数件の予測と正解の点群を見本に書く関数
@@ -326,8 +351,9 @@ def save_cloud_samples(
         学習した後のモデル (ベストモデルの重み)
     tensors: tuple[torch.Tensor, torch.Tensor]
         テスト用の入力と正解
-    ids: list[str]
-        テスト用の件の id (tensors と同じ順)
+    rows: Any
+        テスト用の分割の表 (id と正規化の平行移動 shift_x, shift_y,
+        shift_z の列. tensors と同じ順)
     experiment: Experiment
         実験 (samples/ に書く)
     epoch: int
@@ -343,15 +369,18 @@ def save_cloud_samples(
     with torch.no_grad():
         predicted = model(x[:SAMPLE_COUNT])
     for index in range(len(predicted)):
+        row = rows.iloc[index]
+        convention = cloud_convention(row)
         pairs = (
             ("pred", predicted[index], "予測した点群"),
             ("truth", y[index], "正解の点群"),
         )
         for suffix, points, label in pairs:
             save_sample(
-                experiment, f"test_{ids[index]}_{suffix}", points,
+                experiment, f"test_{row['id']}_{suffix}", points,
                 epoch=epoch, kind="point_cloud", split="test",
-                caption=f"{label} (書き出しの正規化した座標. メートル)"
+                caption=f"{label} (書き出しの正規化した座標)",
+                convention=convention
             )
 
 
@@ -493,8 +522,8 @@ def main() -> None:
     rows = evaluate_test(trainer.model, tensors["test"], experiment)
 
     # テスト用の評価の表 (入力の点との比べ) と見本を実験のディレクトリに
-    # id は分割の表から (件の中身を読み直さない)
-    ids = [str(value) for value in dataset.split("test").rows["id"]]
+    # id と正規化の平行移動は分割の表から (件の中身を読み直さない)
+    test_rows = dataset.split("test").rows
     save_evaluation(
         experiment, "test_chamfer", rows, "test",
         description="テスト用の分割の Chamfer 距離 (メートル) と 1 cm の "
@@ -503,7 +532,7 @@ def main() -> None:
         baseline="input_points", epoch=best_epoch
     )
     save_cloud_samples(
-        trainer.model, tensors["test"], ids, experiment, best_epoch
+        trainer.model, tensors["test"], test_rows, experiment, best_epoch
     )
     print(f"評価と見本: {experiment.run_dir}/evaluations, samples")
     predict_new(trainer.model, cfg, experiment)

@@ -1,21 +1,22 @@
-from collections import Counter
 import json
 from pathlib import Path
 import sys
 from typing import Any
 
 from ml_found import (
-    Experiment, Trainer, load_project_config, require, save_evaluation,
-    start_experiment, write_task
+    Experiment, MissingRequirementError, Trainer, load_project_config,
+    save_evaluation, start_experiment, write_task
 )
-from ml_found.utils import MissingRequirementError  # ml_found の直下に無い
 from model import PolicyNet
 
 # このタスクのディレクトリ (ML-Found のプロジェクトのディレクトリ)
 TASK_DIR = Path(__file__).resolve().parent
 
-# 守りの結果の種類 (ML-Found の apply_guards の status)
+# 守りの結果の種類 (ML-Found の evaluate_policy の列)
 STATUSES = ("ok", "clipped", "fallback", "stop", "handover")
+
+# 行動を返さずにエピソードを終える守りの結果
+STOP_STATUSES = ("stop", "handover")
 
 
 def build_guards(env: Any, setting: Any) -> dict:
@@ -54,64 +55,6 @@ def build_guards(env: Any, setting: Any) -> dict:
     return guards
 
 
-def run_guarded(policy: Any, env: Any, episodes: int, seed: int) -> dict:
-    """
-    守りを当てた方策でエピソードを動かし, 守りの結果を数える関数
-
-    stop と handover では行動を返さないので, そこでエピソードを終える
-    (元の制御や人に戻した扱い). fallback は決めた行動で続ける
-
-    Parameters
-    ----------
-    policy: Any
-        load_policy の方策 (act で行動と status を返す)
-    env: Any
-        評価に使う環境 (シミュレータ)
-    episodes: int
-        エピソード数. 乱数の種は seed, seed + 1, ...
-    seed: int
-        最初のエピソードの乱数の種
-
-    Returns
-    ----------
-    summary: dict
-        episodes, reward (報酬の和の平均), steps (環境を進めた歩数の
-        合計), decisions (act を呼んだ数. 止めた判断を含む), stopped
-        (stop か handover で終えたエピソード数), status ごとの数
-    """
-    # 1 歩ごとに守りを当てた行動を決め, 返った status を数える
-    counts = Counter()
-    rewards = []
-    stopped = 0
-    steps = 0
-    for index in range(episodes):
-        observation, _ = env.reset(seed=seed + index)
-        total = 0.0
-        done = False
-        while not done:
-            result = policy.act(observation)
-            counts[result["status"]] += 1
-            if result["action"] is None:
-                stopped += 1
-                break
-            observation, reward, terminated, truncated, _ = env.step(
-                result["action"]
-            )
-            total += float(reward)
-            steps += 1
-            done = terminated or truncated
-        rewards.append(total)
-    summary = {
-        "episodes": episodes, "reward": sum(rewards) / len(rewards),
-        "steps": steps, "decisions": sum(counts.values()),
-        "stopped": stopped
-    }
-    for status in STATUSES:
-        summary[status] = counts[status]
-
-    return summary
-
-
 def describe_guards(guards: dict) -> str:
     """
     守りを 1 行の文にする関数 (評価の表と train.log のため)
@@ -139,8 +82,35 @@ def describe_guards(guards: dict) -> str:
     return text
 
 
+def summarize(rows: list[dict]) -> dict:
+    """
+    evaluate_policy のエピソードごとの行を, 1 つの守りの要約にする関数
+
+    Parameters
+    ----------
+    rows: list[dict]
+        evaluate_policy の行 (reward, length, end, 守りの結果ごとの数)
+
+    Returns
+    ----------
+    summary: dict
+        reward (報酬の和の平均), steps (歩数の合計), stopped (stop か
+        handover で終えたエピソード数), 守りの結果ごとの数の合計
+    """
+    summary = {
+        "reward": sum(row["reward"] for row in rows) / len(rows),
+        "steps": sum(row["length"] for row in rows),
+        "stopped": sum(row["end"] in STOP_STATUSES for row in rows)
+    }
+    for status in STATUSES:
+        summary[status] = sum(row[status] for row in rows)
+
+    return summary
+
+
 def evaluate_guards(
-    model: Any, env: Any, cfg: Any, experiment: Experiment, best_epoch: int
+    model: Any, env: Any, cfg: Any, experiment: Experiment,
+    model_args: dict, best_epoch: int
 ) -> list[dict]:
     """
     方策を守りと一緒に書き出し, 読み直して守り付きのエピソードを動かす
@@ -153,27 +123,27 @@ def evaluate_guards(
     env: Any
         評価に使う環境 (観測と行動の空間もここから)
     cfg: Any
-        config (guards, drills, env, model, evaluation)
+        config (guards, drills, env, evaluation)
     experiment: Experiment
         実験 (policy/ と drills/ に書き出し, train.log に記録)
+    model_args: dict
+        PolicyNet の引数 (metadata に残し, 読み直しにも使う)
     best_epoch: int
         書き出す重みのエポック (metadata に残す)
 
     Returns
     ----------
     rows: list[dict]
-        守りごとの結果の行 (name, guards と run_guarded の値)
+        守りとエピソードごとの行 (name, guards と evaluate_policy の値)
     """
     # 追加の依存 rl が要る関数なので, 確認の後に関数の中で読み込み
-    from ml_found.rl import export_policy, load_policy
+    from ml_found.rl import evaluate_policy, export_policy, load_policy
 
     # 本番の候補 (policy/) と, 止める条件を狭めた練習 (drills/<名前>/)
     sets = [("policy", cfg.guards, Path(experiment.run_dir) / "policy")]
     for drill in cfg.drills:
         place = Path(experiment.run_dir) / "drills" / drill.name
         sets.append((drill.name, drill, place))
-    obs_dim = env.observation_space.shape[0]
-    n_actions = int(env.action_space.n)
     rows = []
     for name, setting, place in sets:
         guards = build_guards(env, setting)
@@ -182,26 +152,31 @@ def evaluate_guards(
             metadata={
                 "env_id": cfg.env.id, "algorithm": "REINFORCE",
                 "best_epoch": best_epoch,
-                "model": {"hidden_dim": cfg.model.hidden_dim},
+                "model": {
+                    "class": f"{PolicyNet.__module__}.PolicyNet",
+                    "args": model_args
+                },
                 "drill": name != "policy"
             }
         )
 
-        # 書き出した一式を新しいモデルに読み直して動かす (重みは一式から)
-        policy = load_policy(
-            place, PolicyNet(obs_dim, cfg.model.hidden_dim, n_actions)
+        # 書き出した一式を新しいモデルに読み直し (重みは一式から),
+        # ML-Found の evaluate_policy で守り付きのエピソードを動かす
+        policy = load_policy(place, PolicyNet(**model_args))
+        episodes = evaluate_policy(
+            policy, env, episodes=cfg.evaluation.guarded_episodes,
+            seed=cfg.evaluation.guarded_seed
         )
-        summary = run_guarded(
-            policy, env, cfg.evaluation.guarded_episodes,
-            cfg.evaluation.guarded_seed
+        text_guards = describe_guards(guards)
+        rows.extend(
+            {"name": name, "guards": text_guards, **row} for row in episodes
         )
-        row = {"name": name, "guards": describe_guards(guards), **summary}
-        rows.append(row)
+        summary = summarize(episodes)
         text = (
-            f"守り付きの評価 {name}: 報酬の和の平均 {row['reward']:.1f}, "
-            f"歩数 {row['steps']}, 判断 {row['decisions']}, "
-            f"止めたエピソード {row['stopped']}, "
-            + ", ".join(f"{status} {row[status]}" for status in STATUSES)
+            f"守り付きの評価 {name}: 報酬の和の平均 {summary['reward']:.1f}, "
+            f"歩数 {summary['steps']}, "
+            f"止めたエピソード {summary['stopped']}, "
+            + ", ".join(f"{status} {summary[status]}" for status in STATUSES)
         )
         experiment.logger.info(text)
         print(text)
@@ -222,10 +197,11 @@ def main() -> None:
     ----------
     None
     """
-    # 追加の依存 rl (Gymnasium) が無ければ入れ方を示して終了.
-    # 出力先を作る前の確認
+    # config と実験. config の requires: [rl] により, Gymnasium が無ければ
+    # start_experiment が出力先を作る前に止まるので, 入れ方を示して終了
+    cfg, diff = load_project_config(str(TASK_DIR))
     try:
-        require("rl")
+        experiment = start_experiment(cfg, diff, str(TASK_DIR))
     except MissingRequirementError as error:
         print(error)
         sys.exit(1)
@@ -234,19 +210,16 @@ def main() -> None:
         make_env
     )
 
-    # config と実験. 方策は受け持ちでは効果を見積もる (effect) の扱い.
-    # 出力の形 (output) と正解の種類 (target.kind) は決まった値が無く null
-    cfg, diff = load_project_config(str(TASK_DIR))
-    experiment = start_experiment(cfg, diff, str(TASK_DIR))
+    # 何の実験か. 方策は受け持ちでは効果を見積もる (effect), 出力の形は
+    # 行動 (action), 正解の出どころは環境の報酬 (environment)
     write_task(experiment, {
         "role": "effect",
+        "output": "action",
         "what": "CartPole の観測 (台車の位置と速さ, 棒の角度と角速度) から"
         "押す向きを選ぶ方策",
         "target": {
-            "origin": {
-                "type": "unknown",
-                "name": f"{cfg.env.id} の報酬 (シミュレータ)"
-            }
+            "kind": "reward",
+            "origin": {"type": "environment", "name": cfg.env.id}
         },
         "method": "scratch"
     })
@@ -257,7 +230,11 @@ def main() -> None:
     guard_env = make_env(cfg.env.id)
     obs_dim = train_env.observation_space.shape[0]
     n_actions = int(train_env.action_space.n)
-    model = PolicyNet(obs_dim, cfg.model.hidden_dim, n_actions)
+    model_args = {
+        "obs_dim": obs_dim, "hidden_dim": cfg.model.hidden_dim,
+        "n_actions": n_actions
+    }
+    model = PolicyNet(**model_args)
 
     # 1 エポックは rollout.episodes のエピソード, 検証は別の種の
     # エピソードを最もスコアの高い行動で
@@ -289,13 +266,14 @@ def main() -> None:
     # 守りと一緒に書き出し, 読み直して守り付きで動かした結果を守る指標の
     # 表に
     rows = evaluate_guards(
-        trainer.model, guard_env, cfg, experiment, best_epoch
+        trainer.model, guard_env, cfg, experiment, model_args, best_epoch
     )
     save_evaluation(
         experiment, "guarded_episodes", rows, "simulator",
         description="書き出した方策を読み直し, 守りを当てて動かした "
-        "エピソード (シミュレータ). 歩ごとの守りの結果の数. policy が "
-        "本番の候補, 他は止める条件を狭めた練習",
+        "エピソード (シミュレータ). 1 行が 1 つの守りの 1 エピソードで, "
+        "歩ごとの守りの結果の数. policy が本番の候補, 他は止める条件を"
+        "狭めた練習",
         guard=True, epoch=best_epoch
     )
     print(f"方策の一式: {experiment.run_dir}/policy")

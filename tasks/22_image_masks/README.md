@@ -11,7 +11,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 
 **測っているもの**: 指標は正解の出どころとの一致. ここでは出どころが `synthetic` (作った正確な正解) なので, 正解そのものとの一致になる. 出どころが `process` (今ある処理の出力) なら, 測れるのはその処理との一致で, モデルはその処理を超えられない. 学習のスクリプトは出どころを ML-Found の `task.yaml` (`task_from_dataset` で `dataset.yaml` から埋める) と `train.log` に残す.
 
-学習の後に, テスト用の IoU の表を `evaluations/test_iou.json` (`save_evaluation`) に, テスト用の最初の 3 件の入力, 正解, 予測を並べた画像を `samples/test_<id>/epoch_<ベストのエポック>.png` (`save_sample`) に書く. 守る指標 (`guard`) の表は書かない (問題の設定で守る指標を決めていない課題なので).
+学習の後に, テスト用の IoU の表を `evaluations/test_iou.json` (`save_evaluation`) に, テスト用の最初の 3 件の入力の画像と, 正解と予測の領域 (`kind="mask"`. クラスの名前を `classes` に) を `samples/test_<id>_input/`, `samples/test_<id>_truth/`, `samples/test_<id>_pred/` の `epoch_<ベストのエポック>.png` (`save_sample`) に書く. 守る指標 (`guard`) の表は書かない (問題の設定で守る指標を決めていない課題なので).
 
 ## ディレクトリ構成
 
@@ -68,11 +68,11 @@ CPU で, 1 と 2 は 1 秒ほど, 3 は 5 秒ほど (Python の起動を含む).
 
 - 2 で `版: 2, 受け持ち: predict, 正解の種類: mask`, 正解の出どころ `{'type': 'synthetic', 'name': 'ml_eda.synthetic.write_image_masks', ...}`, 分割 `{'train': {'items': 36}, 'valid': {'items': 12}, 'test': {'items': 12}}`, 注意なし
 - 3 で検証用の mIoU が 1 に近くなる. テスト用の IoU と正解の出どころは `train.log` にも残る
-- 実験のディレクトリに `task.yaml`, `evaluations/test_iou.json`, `samples/index.json` と `samples/test_<id>/epoch_<ベストのエポック>.png` (3 件) ができる
+- 実験のディレクトリに `task.yaml`, `evaluations/test_iou.json`, `samples/index.json` と, 3 件の入力, 正解, 予測の 9 つの見本 (`samples/test_<id>_input/epoch_<ベストのエポック>.png` と `_truth`, `_pred`) ができる
 
 ## 結果のメモ
 
-ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac) で実行した (2026-11-19). ML-Found `888b8b8` (`task.yaml`, 評価, 見本を書くように変えた後) で 3 を再実行し, 下の表の値と完全に同じだった (2026-11-20).
+PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 
 | 実験 | 学習したエポック | ベストのエポック | 検証用の mIoU (ベスト) | テスト用の IoU (円 / 四角 / 背景) | テスト用の mIoU |
 | --- | --- | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac
 - 別のディレクトリから実行しても `history.csv` が完全に一致した
 - 版 2 の書き出しから学習まで, 学習のスクリプトに組の探し方, クラスの数, チャンネル数を書かずにつながった
 - `task.yaml` には `role: predict`, `target.kind: mask`, `target.origin` (type, name, settings), `dataset` (`path: outputs/dataset`, `name: image_masks`, `format_version: 2`) が埋まり, 足した `output: region`, `what`, `method: scratch` と一緒に書かれた. `describe_origin` は「正解は作った正確な値 (ml_eda.synthetic.write_image_masks). 実際のデータでの性能は別に確かめる」を返した
-- `evaluations/test_iou.json` は `epoch: 29`, `guard: false` で, クラスごとの行と `miou` の行を持つ. 見本は `samples/test_sample_005/epoch_0029.png` など 3 つ (左から入力, 正解, 予測. 96x32)
+- `evaluations/test_iou.json` は `epoch: 29`, `guard: false` で, クラスごとの行と `miou` の行を持つ. 見本は `samples/test_sample_005_input/epoch_0029.png` など 9 つ (32x32). 正解と予測は `kind: mask` で, 決まった色の表で色分けした PNG と, 一覧の `classes` に番号, 名前, 色 (`background` が黒, `circle` が `#800000`, `square` が `#008000`) が残る
 
 ### 気付いたこと (ML-EDA)
 
@@ -93,5 +93,5 @@ ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac
 ### 気付いたこと (ML-Found)
 
 - `output`, `what`, `method` は `dataset.yaml` に無いので, 学習のスクリプトが書く. `output` の値 (ここでは `region`) は ML-Quest の出力の形から選ぶが, 学習の側からは問題の設定の受け渡しを読む決まった口が無く, 手で写した
-- 見本の画像は, 領域 (クラスの番号) をそのまま渡すと 0 から 2 の暗い画像になるので, 番号を濃淡に広げ, 入力と並べる処理を書いた (`mask_picture`). 領域の見本 (番号と色の表) を受け取る `kind` があると, ML-Dashboard で色分けして出せる
+- 領域の見本は `save_sample(..., kind="mask", classes=names)` にクラスの番号の配列を渡すだけで, 色分けと番号の表は ML-Found が作る. 入力と並べた 1 枚の画像にはならないので, 入力は別の見本 (`kind="image"`) にした
 - 評価の表の 1 行目からクラスごとの行で, 平均 (`miou`) も同じ列の行として足した. 表の中の「まとめの行」を区別する決まりは無い

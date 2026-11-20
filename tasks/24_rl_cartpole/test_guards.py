@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 from typing import Callable
 
 import numpy as np
@@ -9,10 +10,11 @@ from ml_found.utils import requirements
 from model import PolicyNet
 import train
 
-# このタスクの基準の config
+# このタスクの基準の config と, 実験の出力先
 DEFAULT_CONFIG = (
     Path(__file__).resolve().parent / "configs" / "default" / "train.yaml"
 )
+OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 
 
 class HiddenModules:
@@ -172,14 +174,21 @@ def test_missing_gymnasium_shows_install(
     ----------
     None
     """
-    # Gymnasium だけを隠し, 学習の前の確認で終了すること
+    # Gymnasium だけを隠し, 学習の前の確認 (config の requires) で終了
+    # すること. 引数は pytest のものを渡さず, スクリプトだけの起動の扱い
     monkeypatch.setattr(
         requirements, "module_found",
         HiddenModules(requirements.module_found, {"gymnasium"})
     )
+    monkeypatch.setattr(sys, "argv", ["train.py"])
+    before = set(OUTPUT_DIR.rglob("*")) if OUTPUT_DIR.is_dir() else set()
     with pytest.raises(SystemExit) as stopped:
         train.main()
     text = capsys.readouterr().out
     assert stopped.value.code == 1
     assert "gymnasium" in text
     assert 'pip install -e "./ML-Found[rl]"' in text
+
+    # 出力先を作る前に止まること
+    after = set(OUTPUT_DIR.rglob("*")) if OUTPUT_DIR.is_dir() else set()
+    assert after == before

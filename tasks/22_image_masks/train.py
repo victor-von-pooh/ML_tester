@@ -337,36 +337,12 @@ def iou_table(metrics: dict, names: list[str]) -> list[dict]:
     return rows
 
 
-def mask_picture(mask: np.ndarray, count: int) -> np.ndarray:
-    """
-    クラスの番号の領域を, 見て分かる濃淡の画像にする関数
-
-    Parameters
-    ----------
-    mask: np.ndarray
-        (高さ, 幅) のクラスの番号
-    count: int
-        クラス数
-
-    Returns
-    ----------
-    picture: np.ndarray
-        (高さ, 幅, 3) の uint8 (背景が黒, 番号が大きいほど明るい灰色)
-    """
-    # 番号を 0 から 255 に広げて 3 チャンネルに
-    scale = 255 // max(count - 1, 1)
-    gray = (np.clip(mask, 0, count - 1) * scale).astype(np.uint8)
-    picture = np.repeat(gray[:, :, None], 3, axis=2)
-
-    return picture
-
-
 def save_mask_samples(
     trainer: SegmentationTrainer, dataset: MaskDataset,
     experiment: Experiment, epoch: int
 ) -> None:
     """
-    テスト用の最初の数件の入力, 正解, 予測を並べた画像を見本に書く関数
+    テスト用の最初の数件の入力, 正解の領域, 予測した領域を見本に書く関数
 
     Parameters
     ----------
@@ -383,25 +359,29 @@ def save_mask_samples(
     ----------
     None
     """
-    # 1 件ずつ予測し, 左から入力, 正解, 予測を横に並べた 1 枚の画像
+    # 1 件ずつ予測し, 入力は画像, 正解と予測はクラスの番号の領域の見本
+    # (色分けと番号の表は ML-Found)
     model = trainer.model.cpu().eval()
-    count = len(trainer.names)
     for index in range(min(SAMPLE_COUNT, len(dataset))):
         image, mask = dataset[index]
         with torch.no_grad():
             predicted = model(image[None])[0].argmax(dim=0).numpy()
         source = (image.permute(1, 2, 0).numpy() * 255).round()
-        if source.shape[2] == 1:
-            source = np.repeat(source, 3, axis=2)
-        picture = np.concatenate([
-            source.astype(np.uint8), mask_picture(mask.numpy(), count),
-            mask_picture(predicted, count)
-        ], axis=1)
+        stem = f"test_{dataset.items[index]['id']}"
         save_sample(
-            experiment, f"test_{dataset.items[index]['id']}", picture,
-            epoch=epoch, kind="image", split="test",
-            caption="左から入力, 正解の領域, 予測した領域 (黒が背景)"
+            experiment, f"{stem}_input", source.astype(np.uint8),
+            epoch=epoch, kind="image", split="test", caption="入力"
         )
+        pairs = (
+            ("truth", mask.numpy(), "正解の領域"),
+            ("pred", predicted, "予測した領域"),
+        )
+        for suffix, value, label in pairs:
+            save_sample(
+                experiment, f"{stem}_{suffix}", value, epoch=epoch,
+                kind="mask", split="test", caption=label,
+                classes=trainer.names
+            )
 
 
 def main() -> None:

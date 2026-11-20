@@ -256,6 +256,33 @@ class Apps:
             f"({self.work / 'logs' / (name + '.log')} を見る)"
         )
 
+    def stop_jobs(self) -> None:
+        """
+        ML-Dashboard の動いている学習のジョブを止める関数
+
+        学習は ML-Dashboard とは別のプロセスのまとまりで動くので, アプリを
+        止めても残る. 止まった通しが学習を残さないように, 先に止める
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        ----------
+        None
+        """
+        # 起動していないか応答しない場合は何もしない
+        dash = self.clients.get("dashboard")
+        if dash is None:
+            return
+        try:
+            code, jobs = dash.call("GET", "/api/jobs")
+            for job_id in running_ids(jobs) if code == 200 else []:
+                dash.call("POST", f"/api/jobs/{job_id}/stop",
+                          {"force": True})
+        except OSError as error:
+            print(f"学習のジョブを止められませんでした: {error}", flush=True)
+
     def stop(self) -> None:
         """
         全てのアプリを止める関数
@@ -268,8 +295,10 @@ class Apps:
         ----------
         None
         """
-        # uv run の子のサーバー (と, その子の学習) も止まるように, プロセス
-        # のまとまりごとの終わらせと待ち. 待っても残れば強制の終わり
+        # ML-Dashboard の学習は別のプロセスのまとまりで動くので, 先に API
+        # で止める. その後 uv run の子のサーバーも止まるように, プロセスの
+        # まとまりごとの終わらせと待ち. 待っても残れば強制の終わり
+        self.stop_jobs()
         for process in self.processes:
             signal_group(process, signal.SIGTERM)
         for process in self.processes:
@@ -280,6 +309,30 @@ class Apps:
                 process.wait()
         for log in self.logs:
             log.close()
+
+
+def running_ids(jobs: Any) -> list[str]:
+    """
+    ジョブの一覧から, 動いているジョブの ID を取り出す関数
+
+    Parameters
+    ----------
+    jobs: Any
+        ML-Dashboard の GET /api/jobs の応答
+
+    Returns
+    ----------
+    ids: list[str]
+        動いているジョブの ID
+    """
+    # 一覧でない応答は無し
+    ids = []
+    if isinstance(jobs, list):
+        for job in jobs:
+            if isinstance(job, dict) and job.get("status") == "running":
+                ids.append(str(job.get("id")))
+
+    return ids
 
 
 def signal_group(process: subprocess.Popen, number: int) -> None:
@@ -394,7 +447,11 @@ def wait_status(
     while state.get("status") in running:
         if time.time() > deadline:
             if stop:
-                client.call("POST", stop)
+                # 本文が要る (StopRequest). 止められなくても時間切れは出す
+                code, _ = client.call("POST", stop, {"force": True})
+                if code != 200:
+                    print(f"止める依頼が {code} で失敗しました: {stop}",
+                          flush=True)
             raise JourneyTimeout(
                 f"{path} が {JOB_TIMEOUT} 秒で終わりません"
             )

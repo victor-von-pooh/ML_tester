@@ -21,7 +21,7 @@ pip install -e "./ML-Found[examples,rl]"    # scikit-learn と, 24 で使う Gym
 pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@88730ae"   # 13, 17, 18, 21 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@ebc045e"   # 14 から 23 で使う (all に部分語の tokenizers も入る. 22 と 23 は書き出しの版 2 を使う)
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@ebc045e"   # 14 から 23 と, 27, 28 の合成のデータで使う (all に部分語の tokenizers も入る. 22 と 23 は書き出しの版 2 を使う)
 pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@1ec6970"   # 17 から 21 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
 pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@6d7d6da"   # 21 で使う (依存の pandas と PyYAML は上で入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
@@ -34,7 +34,7 @@ pip install pytest                        # 24 の守りのテスト (tasks/24_r
 
 1. 上の「導入」で `.venv` を作っておく. 学習に使う Python は, 登録したときにタスクのディレクトリから上に向かって仮想環境を探して決まるので, 先に作ると `.venv` が自動で選ばれる
 2. ML-Dashboard を ML_tester とは別のディレクトリに clone し, その README の「導入と起動」の手順で起動して, 表示されたトークン付きの URL を開く
-3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 22 のプロジェクト (01 から 18 と, 21 の `project/`, 22 から 24. 19, 20, 25, 26 は学習のスクリプトを持たないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外). そのまま「22 件を追加」で登録する
+3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 22 のプロジェクト (01 から 18 と, 21 の `project/`, 22 から 24. 19, 20, 25 から 28 は学習のスクリプトを持たないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外). そのまま「22 件を追加」で登録する
 
 clone した直後は実験が無いので, 各タスクの README の手順で学習するか, 画面から起動すると一覧に出る.
 
@@ -75,6 +75,8 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 24 | `tasks/24_rl_cartpole` | CartPole の方策の強化学習と守り | Gymnasium の CartPole (シミュレータ) | `ml_found.rl` の `RolloutLoader` と `ReinforceStep` で学習 (`valid/reward`, max), 守り (選んでよい行動, 止める条件, 外れたときの動き) と一緒に書き出し, 読み直して守り付きで動かし結果の数を守る指標の表に. 実機での実行は道具の外で, 配備と守りの範囲は人が承認する |
 | 25 | `tasks/25_m1_churn` | 表の分類を画面の API だけで通す | 合成した会員の表 (今のやり方で連絡したかの列) | 5 つの画面のアプリを作業用の置き場で起動し, 問題の設定から推論までを画面と同じ API で通して, 段階ごとに画面だけでできたか (OK), 手で写すか打つか (手), 誤りかを表にする (節目「表の予測を画面だけで通す」の確かめ). 今のやり方は列 |
 | 26 | `tasks/26_m1_sozai` | 時系列の予測を画面の API だけで通す | 合成した 2 店 × 3 品の売れた数 | 25 と同じ通しを時系列の予測で. 今のやり方は k 期前 (前の週の同じ曜日) の決まりで, 骨組みの評価と推論のたどり直しが同じ決まりから作る |
+| 27 | `tasks/27_m2_image_masks` | 画像と領域を画面の API だけで通す | 合成した大きさの混ざる画像と領域 | 25 と同じ通しを画像の領域で (節目「点群と領域を画面で通す」の確かめ). ファイルの組の書き出しで大きさをそろえる中身の手順, U-Net の同梱の例, 推論の領域の値 |
+| 28 | `tasks/28_m2_capture_clouds` | 多視点の撮影から点群を画面の API だけで通す | 合成した形の多視点の撮影と正確な点群 | 27 と同じ通しを撮影と点群で. 点群の同梱の例, 推論の点群が元の座標に戻るか |
 
 各タスクのディレクトリは次の構成にする.
 

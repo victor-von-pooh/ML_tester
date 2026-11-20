@@ -1,7 +1,7 @@
 """
 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture,
 ML-Dashboard, ML-Provide) を作業用の置き場で起動し, 画面と同じ API で
-問題の設定から推論までを通す部品 (25 と 26 で使う)
+問題の設定から推論までを通す部品 (25 から 28 で使う)
 """
 import argparse
 import http.client
@@ -857,7 +857,9 @@ def check_cost_update(
 
 
 def main_with(
-    build: Callable[[Path], dict[str, Any]], title: str, argv: list[str]
+    build: Callable[[Path], dict[str, Any]], title: str, argv: list[str],
+    runner: Optional[Callable[[Apps, Journey, dict[str, Any]], None]] = None,
+    prefix: str = "m1_"
 ) -> int:
     """
     引数を読み, アプリを起動して通しを行い, 止める関数
@@ -870,6 +872,10 @@ def main_with(
         通しの名前
     argv: list[str]
         コマンドの引数
+    runner: Optional[Callable[[Apps, Journey, dict[str, Any]], None]]
+        通しの関数 (省略で表の通しの run_journey)
+    prefix: str
+        既定の作業用の場所 (一時ディレクトリ) の名前の頭
 
     Returns
     ----------
@@ -888,7 +894,7 @@ def main_with(
         help="置き場, プロジェクト, ログを置くディレクトリ (既定は一時)"
     )
     args = parser.parse_args(argv)
-    work = (args.work or Path(tempfile.mkdtemp(prefix="m1_"))).resolve()
+    work = (args.work or Path(tempfile.mkdtemp(prefix=prefix))).resolve()
     work.mkdir(parents=True, exist_ok=True)
     print(f"作業用の場所: {work}", flush=True)
     setup = {**build(work), "project": work / "project"}
@@ -896,7 +902,7 @@ def main_with(
     journey = Journey(title)
     try:
         apps.start()
-        run_journey(apps, journey, setup)
+        (runner or run_journey)(apps, journey, setup)
     except Exception as error:
         # 途中で止まっても, それまでの段階と止まった理由を表に残す
         journey.add("止まった段階", "誤り", f"{type(error).__name__}: {error}")
@@ -908,4 +914,4 @@ def main_with(
 
 
 if __name__ == "__main__":
-    sys.exit("25 と 26 の journey.py から使う")
+    sys.exit("25 から 28 の journey.py から使う")

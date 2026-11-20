@@ -169,7 +169,7 @@ python evaluate.py outputs/fashion_mnist/2026-11-08/17-38-22
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - データの量で決まる Scheduler の引数 (`OneCycleLR` の `steps_per_epoch` や `total_steps`) を config から渡す仕組みが無い (Scheduler を自分で作って `Trainer` に渡すことはできるが, その場合は `config.yaml` に残らない). `load_config` と `start_experiment` の間で `cfg` を書き換えれば動き, `config.yaml` にも残るが, この順番は利用者が知っている必要がある. `start_experiment` の後に書き換えると `config.yaml` と実際の設定がずれる. また `diff.yaml` は `load_config` の時点で決まるので, 書き込んだ値は差分に出ない (`3aca743` の時点. その後 ML-Found の PR #9 で `OneCycleLR` の総ステップ数を学習用データから補うようになり, PR #29 で `CosineAnnealingLR` の `T_max` などに `auto` と書くと学習全体のステップ数で補うようになった (PR #31 で, 書けない引数の `auto` はエラーになった). 補った値は `config.yaml` と `train.log` に残る)
 - `lr` はエポックの開始時点の値だけが `history.csv` と `lr_curve.png` に記録されるので, `interval: step` の場合はエポックの中の変化が見えず, 最後のステップの後の学習率も残らない (`3aca743` の時点. その後 ML-Found の PR #8 で, `interval: step` の場合は更新ごとの学習率が `lr_steps.csv` と `lr_steps.png` に残るようになった)

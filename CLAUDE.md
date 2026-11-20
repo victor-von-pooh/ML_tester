@@ -16,12 +16,13 @@ ML_tester で作業するときの方針をまとめる.
 - `tasks/XX_name/`: 1 タスク 1 ディレクトリ. ML-Found のプロジェクトのディレクトリとして扱う
     - `configs/default/train.yaml`, `configs/experiment/train.yaml`: ML-Found の 2 段の config
     - `configs/experiment/examples/`: README の実験で使う差分. `--experiment` で切り替える
-    - `model.py`: モデルのクラス (13 は代わりに `models/` の ML-ModelControl のモデルの定義)
+    - `model.py`: モデルのクラス (13, 17, 18 は代わりに `models/` の ML-ModelControl のモデルの定義)
     - `train.py`: データ, step, 学習の実行
     - `README.md`: 目的, データ, モデル, 確かめる機能, 期待する結果, 予想される問題, 実行方法, 結果のメモ
     - `outputs/`: ML-Found が作る (git の管理外)
+    - 19 と 20 は学習しない (推論と意思決定のスクリプトだけ). 21 は `project/` が ML-Found のプロジェクト
 - `data/`: 外部から取得したデータ (git の管理外). ユーザーに用意してもらうデータは各タスクの README に条件を書く
-- `FEEDBACK.md`: ML-Found への FB を「タスク, 症状, 回避策, 提案」の表で集約
+- `FEEDBACK.md`: ML-Found への FB のうち残っているものを「タスク, 症状, 回避策, 提案」の表で集約. ML-Found で解消したものは消す
 
 ## 環境
 

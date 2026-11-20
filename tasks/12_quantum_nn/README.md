@@ -173,7 +173,7 @@ python tasks/12_quantum_nn/train.py --experiment configs/experiment/examples/no_
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - 外部ライブラリの乱数 (qiskit の `algorithm_globals`, Estimator と Sampler の `seed`) は `fix_seed` と再開時の乱数の保存の対象外で, 利用者が自分で固定する必要がある (`3aca743` の時点. PR #24 で解消, 下の「外部ライブラリの乱数の登録」を参照). 固定しないと同じ config でも結果がずれる. 外部の乱数を登録して一緒に固定, 保存できる仕組みがあると良い
 - `experiment.device: auto` は, 計算の中身が cpu で行われるモデルでも mps を選ぶ. 今回は `TorchConnector` が移動を受け持ったので動いたが, 転送のぶん遅くなった. 01 と同じく, 小さなモデルや cpu で計算するモデルでは `cpu` を明示する方が良い

@@ -2,7 +2,7 @@
 
 ## 目的
 
-ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者の 1 つ (相談 16 の「単純な形から作った多視点の撮影と正確な点群」). 撮影 (画像, 姿勢, 深度のまとまり) と正解の点群の組を版 2 で書き出し, `load_items` で読んで ML-Found で学習するまでの道具のつながりを確かめる. あわせて, 重い評価 (Chamfer 距離) を数エポックおきにだけ行う ML-Found の `trainer.valid_every_n_epochs` を使い, 検証したエポックだけでベストモデルを選ぶことを確かめる (相談 6). モデルの良し悪しは目的ではないので, データは小さく (40 件, 1 件 8 枚の 24x32), 学習は数秒で終える.
+ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者の 1 つ (ルートの TASK_TYPES.md の相談 16 の「単純な形から作った多視点の撮影と正確な点群」). 撮影 (画像, 姿勢, 深度のまとまり) と正解の点群の組を版 2 で書き出し, `load_items` で読んで ML-Found で学習するまでの道具のつながりを確かめる. あわせて, 重い評価 (Chamfer 距離) を数エポックおきにだけ行う ML-Found の `trainer.valid_every_n_epochs` を使い, 検証したエポックだけでベストモデルを選ぶことを確かめる (相談 6). モデルの良し悪しは目的ではないので, データは小さく (40 件, 1 件 8 枚の 24x32), 学習は数秒で終える.
 
 - 元のデータは `ml_eda.synthetic.write_shape_captures` で作る. 球と箱の面の上の正確な点群 (2000 点) と, 物の周りの決まった姿勢から光線を当てて求めた画像, 深度, 信頼度の撮影. 位置, 大きさ, 色を変えた 40 個の形を渡す (既定の形は 4 つなので)
 - `export_capture_clouds` で版 2 に書き出す. 1 件ごとに, 姿勢だけから求めた物の中心を原点にする平行移動を, 撮影の姿勢と正解の点群の両方にかける (回転と拡大縮小はかけず, 実寸のメートルを残す). 正解の出どころ (`target.origin`) は `synthetic`
@@ -40,7 +40,7 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 | 分割 | 1 件ごとに無作為に, 学習用 24, 検証用 8, テスト用 8 (`split: {method: random, valid: 0.2, test: 0.2, seed: 0}`) |
 | 新しい撮影 | 違う乱数の箱 1 つ (`new_001`). 書き出しには入れない |
 
-用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる (版 2 は `ebc045e` から). ML-Found は submodule の `db71917` 以降 (`trainer.valid_every_n_epochs` を使う).
+用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる (版 2 は `ebc045e` から). ML-Found は submodule の `888b8b8` を使う (`trainer.valid_every_n_epochs` と, `task.yaml`, 評価, 見本を書く関数が要る).
 
 ### 深度から点に戻す
 
@@ -91,7 +91,7 @@ ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac
 | (参考) 入力の点そのもの | - | - | - | - | 0.01191 m | 0.5220 |
 
 - 測っているのは, 正解の出どころ `synthetic` (`ml_eda.synthetic.write_shape_captures`, 40 個, 8 枚, 24x32, 2000 点, seed 0) との一致. 合成の正確な点群なので, 距離は本当の形からの距離
-- **検証の間隔**: 3 では, 96 エポックのうち `valid/chamfer` があるのは 32 エポックだけで, 残りの 64 エポックは `None`. ベストのエポック 81 の後, 84, 87, 90, 93, 96 の 5 回の検証で改善せず (`patience: 5`), エポック 96 で止まった (15 エポック). quick では予定の最後のエポック 4 (3 で割り切れない) も検証した. どちらも README の「検証の間隔」の説明どおり
+- **検証の間隔**: 3 では, 96 エポックのうち `valid/chamfer` があるのは 32 エポックだけで, 残りの 64 エポックは `None`. ベストのエポック 81 の後, 84, 87, 90, 93, 96 の 5 回の検証で改善せず (`patience: 5`), エポック 96 で止まった (15 エポック). quick では予定の最後のエポック 4 (3 で割り切れない) も検証した. どちらも ML-Found の README の「検証の間隔」の説明どおり
 - **モデルは入力の点そのものより悪い**: 入力 (深度から戻した 512 点) は見えている面の上の点なので, それだけで Chamfer 距離が約 1.2 cm になる. モデルは点群全体を 1 つの特徴にまとめてから 256 点を出すので, 24 件の学習では細部を戻せず 2.8 cm にとどまった. ここで確かめたいのは道具のつながりで, モデルの良し悪しではない. 本気で点群を作るなら, 入力の点を足し込む形 (残差) や点の数を増やす
 - **新しい撮影**: `new_001` (箱) の `shift` は `[-1.3108, -0.1228, -0.1984]` で, `normalize_capture` の値と `capture_shift` の値が一致した. 予測から `shift` を引いた点群と元の点群の Chamfer 距離は 0.02275 m (F 値 0.0951). 正規化した座標で学習したモデルを, 元の座標の撮影に使えることを確かめた
 - 別のディレクトリから実行しても `history.csv` が完全に一致した. `data/` と `outputs/` はどこから実行してもリポジトリの中に作られ, `--experiment` の相対パスはタスクのディレクトリから辿る
@@ -106,7 +106,7 @@ ML-Found `db71917`, ML-EDA `ebc045e`, PyTorch 2.15.0, CPU (Apple Silicon の Mac
 
 ### 気付いたこと (ML-Found)
 
-- `trainer.valid_every_n_epochs` は README の説明どおりに動いた. `on_epoch_end` を継承して `phase == "valid"` のときだけ Chamfer 距離を求めると, 検証しないエポックでは呼ばれないので, 重い評価の書き方が素直だった (`phase` が `train` のときは空の辞書を返す)
+- `trainer.valid_every_n_epochs` は ML-Found の README の説明どおりに動いた. `on_epoch_end` を継承して `phase == "valid"` のときだけ Chamfer 距離を求めると, 検証しないエポックでは呼ばれないので, 重い評価の書き方が素直だった (`phase` が `train` のときは空の辞書を返す)
 - (ML-Found `db71917` で) 正解の出どころ (`target.origin`) を実験に残す決まった場所が無いので, 学習のスクリプトが `train.log` に書いた. ML-Found `888b8b8` の `task.yaml` で解消した. `task_from_dataset` が `target.origin` (type, name, settings), `role: predict`, `target.kind: point_cloud`, `dataset` (`path: outputs/dataset`, `name: capture_clouds`, `format_version: 2`) を埋め, 学習のスクリプトは `output`, `what`, `method` を足すだけで済んだ
-- `evaluations/test_chamfer.json` は `epoch: 81`, `baseline: input_points` で, `answer` の列 (`model` と `input_points`) の 2 行と, 比べる相手との差の列 (`chamfer_diff`, `fscore_1cm_diff`. モデルの行で 0.01575 m と -0.4252). FORMAT.md は `baseline` を「差の列を持つ場合」とし, 列の中身はプロジェクトが決めるので, 比べる相手の行と差の列の両方を書いた
+- `evaluations/test_chamfer.json` は `epoch: 81`, `baseline: input_points` で, `answer` の列 (`model` と `input_points`) の 2 行と, 比べる相手との差の列 (`chamfer_diff`, `fscore_1cm_diff`. モデルの行で 0.01575 m と -0.4252). ML-Found の `docs/FORMAT.md` は `baseline` を「差の列を持つ場合」とし, 列の中身はプロジェクトが決めるので, 比べる相手の行と差の列の両方を書いた
 - 点群の見本は書き出しの正規化した座標 (メートル) のまま書いた. `save_sample` に座標の決まり (正規化の `shift` など) を添える欄は無く, `caption` に文で書いた. 元の座標で見たい場合に戻す手がかりが見本の一覧に残らない

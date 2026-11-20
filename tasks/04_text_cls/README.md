@@ -17,7 +17,8 @@
 │       ├── train.yaml              # 段階 1 の普段使う差分 (空)
 │       ├── hf.yaml                 # 段階 2 の普段使う差分 (空)
 │       └── examples/
-│           └── hf_smoke.yaml       # 段階 2 の動作確認用 (件数を絞って 1 エポック)
+│           ├── hf_smoke.yaml       # 段階 2 の動作確認用 (件数を絞って 1 エポック)
+│           └── hf_config_warmup.yaml   # 段階 2 の Scheduler を ML-Found の config の warmup で作る
 ├── data.py                         # CSV の読み込み, ラベルの分解, 単語の分割と語彙, パディング
 ├── model.py                        # FastTextClassifier
 ├── train.py                        # 段階 1: MultiLabelTrainer (Trainer を継承), 学習の実行
@@ -132,7 +133,7 @@ model:
 ## 予想される問題
 
 - `last.pt` にベストモデルの重みと Optimizer の状態が入るので, 事前学習済みモデルではファイルが大きく (DistilBERT で 1 GB 近く), 毎エポックの保存に時間がかかる → 容量はその通りだった (1.07 GB). 時間は測っていない
-- warmup の総ステップ数は 02 の `OneCycleLR` と同じく, config だけでは決めにくい → その通りだった
+- warmup の総ステップ数は 02 の `OneCycleLR` と同じく, config だけでは決めにくい → その通りだった (その後 ML-Found の PR #29 の `auto` と PR #35 の `warmup_ratio` で, config だけで書けるようになった. 下の「config の warmup」を参照)
 - Hugging Face のモデルは `labels` を渡すと自分で損失を計算するので, ML-Found の `step` と役割が重なる → その通りで, モデルが計算した損失をそのまま使った
 
 ## 実行方法
@@ -180,7 +181,7 @@ python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - Hugging Face のトークナイザの出力 (`BatchEncoding`) は `dict` の子クラスではないので, ML-Found の `get_batch_size` がサンプル数を見つけられず 1 として扱う. `step` で返す指標 (`loss`, `exact`) がバッチ数の平均になり, 小さなバッチがサンプル数の割に重く効く (段階 2 の検証用では 8 件のバッチが 32 件のバッチと同じ重み). `on_epoch_end` で求める F1 には影響しない. `move_to_device` は `BatchEncoding` が `.to` を持つので正しく動く (`3aca743` の時点. その後 ML-Found の PR #1 で `dict` 以外の Mapping のバッチもサンプル数を推定するようになり, PR #21 で推定できずに 1 とした場合は `train.log` に警告が 1 回出るようになった)
 - warmup 付きの Scheduler の総ステップ数がバッチ数で決まるので, Scheduler を自分で作って `Trainer` に渡した. この場合 `config.yaml` の `scheduler` は `name: null` のままで, ML-Found が残す記録は `train.log` の `Scheduler: LambdaLR` だけになる. このタスクでは `warmup_ratio` を自分の config の項目にしたので, 引数は `config.yaml` に残った (`3aca743` の時点. その後 ML-Found の PR #35 で warmup を config に書けるようになった. 下の「config の warmup」を参照)

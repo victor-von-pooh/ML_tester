@@ -136,7 +136,7 @@ visualize:
 
 ## 予想される問題
 
-- Optimizer, Scheduler, チェックポイントがすべて 1 つの Optimizer を前提にしている → その通りだった
+- Optimizer, Scheduler, チェックポイントがすべて 1 つの Optimizer を前提にしている → その通りだった (その後 ML-Found の PR #41 の `optimizers` で, 名前付きで複数の Optimizer を書けるようになった. 書き方 D を参照)
 - `check_outputs` が `loss` を必須にし, 学習時はその `loss` で必ず `backward` するので, C の書き方では勾配の流れない損失を返す工夫が要る → `check_outputs` は `loss` がテンソルであることしか確かめないので通るが, 元の `update_parameters` の `backward` で失敗する. 勾配の流れない損失を返すか, `update_parameters` を上書きする必要があった
 - ベストモデルへの巻き戻しを止める設定が無い (`monitor` を指定しないと `train/loss` で判定され, 最後の重みにならない) → その通りで, 最も困った点だった
 
@@ -174,9 +174,9 @@ python tasks/10_gan/train_named.py                                              
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
-- Optimizer, Scheduler, チェックポイントがすべて 1 つの Optimizer を前提にしているので, 2 つ目の Optimizer は config, 作成, 更新, 保存, 再開の全てを利用者が書く必要があった
+- Optimizer, Scheduler, チェックポイントがすべて 1 つの Optimizer を前提にしているので, 2 つ目の Optimizer は config, 作成, 更新, 保存, 再開の全てを利用者が書く必要があった (`3aca743` の時点. その後 ML-Found の PR #41 の `optimizers` で, これらを書かずに済むようになった. 書き方 D を参照)
 - `update_parameters` は損失を 1 つしか受け取らないので, 2 つの損失を交互に更新するには `step` から `self` を経由して渡す必要があり, 計算グラフの都合で更新の順も制約された
 - C のように更新を全て自分で行う場合も, 元の `update_parameters` が `loss` で必ず `backward` するので, `detach().requires_grad_(True)` を返すか `update_parameters` を上書きする必要がある. 自動の更新を止める設定 (Lightning の `automatic_optimization = False` に当たるもの) があると良い
 - 勾配クリッピングは `model.parameters()` 全体に掛かるので, Optimizer を分けた場合は Optimizer ごとのパラメータでクリップできない (`3aca743` の時点. その後 ML-Found の PR #1 で, `Trainer` の Optimizer が更新するパラメータだけに掛けるようになった)

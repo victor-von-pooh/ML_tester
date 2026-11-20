@@ -2,7 +2,7 @@
 
 ## 目的
 
-相談 8 (続けて行動を選ぶ方策) の答え「自律して行動する方策を作り, 確かめ, 守りと一緒に書き出すところまで」を, ML-Found の `ml_found.rl` で通す最初の利用者. Gymnasium の CartPole (台車を左右に押して棒を立て続ける) で, 次の流れを確かめる. モデルの良し悪しは目的ではないので, 学習は 10 秒ほどで終える.
+ルートの TASK_TYPES.md の相談 8 (続けて行動を選ぶ方策) の答え「自律して行動する方策を作り, 確かめ, 守りと一緒に書き出すところまで」を, ML-Found の `ml_found.rl` で通す最初の利用者. Gymnasium の CartPole (台車を左右に押して棒を立て続ける) で, 次の流れを確かめる. モデルの良し悪しは目的ではないので, 学習は 10 秒ほどで終える.
 
 1. **学習**: `RolloutLoader` (環境とのやり取りをバッチにする loader), `EvaluationLoader` (別の種の評価のエピソード), `ReinforceStep` (REINFORCE) を今までの `Trainer` に渡して学習する. 監視する指標は評価のエピソードの報酬の和の平均 `valid/reward` で, `mode: max`
 2. **守りと一緒に書き出す**: `make_guards` で守り (選んでよい行動 `allowed_actions`, 止める条件として台車の位置と棒の角度の範囲, 外れたときの動き `fallback`) を作り, `export_policy` で実験のディレクトリの `policy/` に書き出す
@@ -80,7 +80,7 @@ python tasks/24_rl_cartpole/train.py --experiment configs/experiment/examples/qu
 python -m pytest tasks/24_rl_cartpole                                                         # 3. 守りのテスト
 ```
 
-CPU で, 1 は 10 秒ほど, 2 は 3 秒ほど, 3 は 1 秒ほど (Python の起動を含む).
+CPU で, 1 は 10 秒ほど, 2 は 3 秒ほど, 3 は 1 秒ほど (Python の起動を含む). 3 には pytest が要る (ルートの README の「導入」で入れる).
 
 ## 期待する結果
 

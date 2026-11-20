@@ -147,7 +147,7 @@ python tasks/05_tabular_reg/train.py --experiment configs/experiment/examples/pl
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - ReduceLROnPlateau の `mode` や `interval` の食い違いは, `Trainer` を作るとき (`start_experiment` の後) に確かめられるので, エラーで止まっても `config.yaml`, `diff.yaml`, `train.log` (と `git_diff.patch`) だけを含む出力先が残る. 01 の「default に無い項目」のエラーは `load_config` で起きるので出力先が作られなかったのと対照的 (`3aca743` の時点. その後 ML-Found の PR #1 で, これらの食い違いは出力先を作る前にエラーになった)
 - エラーで止まった場合, `train.log` にはエラーの内容が書かれず, 最後の行は途中の記録 (このタスクでは「目的変数の標準偏差」) のままになる. 後から出力先を見ても, 失敗した実験だと分かりにくい (`3aca743` の時点. その後 ML-Found の PR #1 で学習の途中のエラーは `train.log` にも書かれるようになり, PR #2 で失敗した実験は `run.json` の状態が `failed` になった. PR #16 で `Trainer` の作成で起きたエラーも両方に残る. このタスクのエラーは, 今は出力先を作る前に止まる)

@@ -15,6 +15,7 @@
 │       ├── train.yaml              # 普段使う差分 (空)
 │       └── examples/
 │           ├── no_ema.yaml         # 実験 2: EMA なし
+│           ├── ema_eval.yaml       # 実験 3: EMA の重みで検証し, ベストモデルを選ぶ
 │           └── smoke.yaml          # 動作確認用 (2 エポック, 時刻 50)
 ├── data.py                         # MNIST の分割, 32×32 への余白, DataLoader
 ├── model.py                        # TimeEmbedding, ResBlock, UNet, Diffusion
@@ -174,7 +175,7 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - 再開すると Scheduler の状態が引数 (`T_max` など) ごとチェックポイントから戻るので, config で引数を変えても効かず, `config.yaml` の記録と実際の設定が食い違う (上の「学習の再開」) (`3aca743` の時点. ML-Found の PR #26 の `trainer.resume_scheduler: config` で解消, 下の「Scheduler を config の引数で作り直す再開」を参照)
 - 損失に乱数を含む学習では, 検証用の損失がエポックごとに乱数で揺れ, ベストモデルの判定と Early Stopping が乱数に左右される. 検証の乱数を固定する仕組みが無いので, 専用の乱数生成器を自分で用意して `on_epoch_start` で戻した (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.valid_seed` が加わった)

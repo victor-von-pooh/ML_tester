@@ -19,6 +19,9 @@ STORES = ["s1", "s2"]
 ITEMS = ["karaage", "salad", "korokke"]
 DAYS = 365
 
+# 学習の後に ML-Pathfinder で直す損得 (1 個足りない損)
+COST_UPDATE = {"under_cost": 300}
+
 
 def make_sozai(path: Path, seed: int = 0) -> None:
     """
@@ -112,6 +115,7 @@ def build(work: Path) -> dict:
         # 今のやり方: 前の週の同じ曜日と同じ数 (7 期前)
         "answers": {"action.current": {"type": "lag", "periods": 7}},
         "recipe_update": add_lags,
+        "cost_update": COST_UPDATE,
         "recipe_steps": [
             {"op": "drop_missing"},
             {"op": "datetime_parts", "columns": ["date"],

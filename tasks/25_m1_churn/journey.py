@@ -11,12 +11,18 @@ import pandas as pd
 
 from apps import main_with
 
-# 会員の数と, 今のやり方で連絡した人数
+# 学習の会員の数と, 推論とたどり直しの会員の数
 MEMBERS = 3000
-CONTACTED = 600
+PAST_MEMBERS = 800
+
+# 今のやり方で連絡する割合 (学習の 3,000 人なら 600 人)
+CONTACT_RATE = 0.2
+
+# 学習の後に ML-Pathfinder で直す損得 (連絡 1 件の費用)
+COST_UPDATE = {"cost": 3000}
 
 
-def make_churn(path: Path, seed: int = 0) -> None:
+def make_churn(path: Path, seed: int = 0, members: int = MEMBERS) -> None:
     """
     合成した会員の表 (今のやり方で連絡したかの列 contacted を持つ) を
     書く関数
@@ -27,6 +33,8 @@ def make_churn(path: Path, seed: int = 0) -> None:
         書く CSV
     seed: int
         乱数の種
+    members: int
+        会員の数
 
     Returns
     ----------
@@ -35,22 +43,22 @@ def make_churn(path: Path, seed: int = 0) -> None:
     # 問い合わせが多く, 入って間もなく, 安い料金の会員ほど高い解約の確率
     rng = np.random.default_rng(seed)
     plan = rng.choice(
-        ["basic", "standard", "premium"], MEMBERS, p=[0.5, 0.3, 0.2]
+        ["basic", "standard", "premium"], members, p=[0.5, 0.3, 0.2]
     )
-    months = rng.integers(1, 60, MEMBERS)
-    inquiries = rng.poisson(1.5, MEMBERS)
+    months = rng.integers(1, 60, members)
+    inquiries = rng.poisson(1.5, members)
     fee = np.select([plan == "basic", plan == "standard"], [1500, 2500],
                     4000)
     logit = -2.0 + 0.6 * inquiries - 0.04 * months + (plan == "basic") * 0.8
     churned = np.where(
-        rng.random(MEMBERS) < 1 / (1 + np.exp(-logit)), "yes", "no"
+        rng.random(members) < 1 / (1 + np.exp(-logit)), "yes", "no"
     )
     # 今のやり方: 問い合わせの多い順に連絡
-    order = np.argsort(-inquiries + rng.random(MEMBERS) * 0.1)
-    contacted = np.full(MEMBERS, "no", dtype=object)
-    contacted[order[:CONTACTED]] = "yes"
+    order = np.argsort(-inquiries + rng.random(members) * 0.1)
+    contacted = np.full(members, "no", dtype=object)
+    contacted[order[:round(members * CONTACT_RATE)]] = "yes"
     pd.DataFrame({
-        "member_id": [f"M{i:05d}" for i in range(MEMBERS)], "plan": plan,
+        "member_id": [f"M{i:05d}" for i in range(members)], "plan": plan,
         "months": months, "inquiries": inquiries, "monthly_fee": fee,
         "contacted": contacted, "churned": churned
     }).to_csv(path, index=False)
@@ -70,12 +78,13 @@ def build(work: Path) -> dict:
     setup: dict
         apps.run_journey に渡す設定
     """
-    # 元のデータと, 推論とたどり直しに使う最後の 800 人
+    # 元のデータと, 推論とたどり直しに使う別の乱数の種の 800 人 (学習に
+    # 使った行で測らないため)
     (work / "data").mkdir(exist_ok=True)
     data = work / "data" / "churn.csv"
     make_churn(data)
     past = work / "data" / "churn_past.csv"
-    pd.read_csv(data).tail(800).to_csv(past, index=False)
+    make_churn(past, seed=1, members=PAST_MEMBERS)
     setup = {
         "example": "解約の引き止め",
         "data": data,
@@ -86,6 +95,7 @@ def build(work: Path) -> dict:
             "action.current": {"type": "column", "column": "contacted"}
         },
         "recipe_update": None,
+        "cost_update": COST_UPDATE,
         "recipe_steps": [
             {"op": "one_hot", "columns": ["plan"]},
             {"op": "standardize",

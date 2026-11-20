@@ -58,18 +58,9 @@ def free_port() -> int:
     return port
 
 
+# 起動ごとのトークンを Cookie とヘッダーで渡す API の客 (base はアプリの URL)
 class Client:
     def __init__(self, base: str, token: str):
-        """
-        起動ごとのトークンを Cookie とヘッダーで渡す API の客
-
-        Parameters
-        ----------
-        base: str
-            アプリの URL (http://127.0.0.1:<ポート>)
-        token: str
-            起動ごとのトークン
-        """
         # URL, トークン, Cookie を持つ opener
         self.base = base
         self.token = token
@@ -90,7 +81,7 @@ class Client:
         ----------
         None
         """
-        # /api/auth は画面に移る. 画面が無くても Cookie は残る
+        # /api/auth は画面に移る応答. 画面が無くても Cookie は保存
         try:
             self.opener.open(f"{self.base}/api/auth?token={self.token}")
         except urllib.error.HTTPError:
@@ -116,7 +107,7 @@ class Client:
         result: tuple[int, Any]
             状態の番号と, 読んだ JSON (読めなければ文字)
         """
-        # ML-Pathfinder はヘッダーのトークンも受け付ける
+        # ML-Pathfinder にはヘッダーのトークンも
         data = None if body is None else json.dumps(body).encode()
         request = urllib.request.Request(
             self.base + path, data=data, method=method
@@ -163,18 +154,9 @@ class Client:
         return value
 
 
+# 5 つのアプリを作業用の置き場で起動し, 止める仕組み (apps_dir は clone の親)
 class Apps:
     def __init__(self, apps_dir: Path, work: Path):
-        """
-        5 つのアプリを作業用の置き場で起動し, 止める
-
-        Parameters
-        ----------
-        apps_dir: Path
-            5 つのアプリを clone して make setup したディレクトリの親
-        work: Path
-            置き場とログを置くディレクトリ
-        """
         # 起動したプロセスと客
         self.apps_dir = apps_dir
         self.work = work
@@ -247,7 +229,7 @@ class Apps:
         ----------
         None
         """
-        # 起動の途中は接続を断られるので, 答えるまで繰り返す
+        # 起動の途中は接続を断られるので, 答えるまでの繰り返し
         deadline = time.time() + START_TIMEOUT
         while time.time() < deadline:
             try:
@@ -274,7 +256,7 @@ class Apps:
         ----------
         None
         """
-        # uv run の子のサーバーも止まるように, 終わらせてから待つ
+        # uv run の子のサーバーも止まるように, 終わらせてからの待ち
         for process in self.processes:
             process.terminate()
         for process in self.processes:
@@ -286,16 +268,9 @@ class Apps:
             log.close()
 
 
+# 段階ごとの結果 (OK, 手, 誤り) の記録
 class Journey:
     def __init__(self, title: str):
-        """
-        段階ごとの結果 (OK, 手, 誤り) の記録
-
-        Parameters
-        ----------
-        title: str
-            通しの名前
-        """
         # 段階, 判定, 説明の並び
         self.title = title
         self.steps: list[dict[str, str]] = []
@@ -369,7 +344,7 @@ def wait_status(
     state: dict[str, Any]
         終わったときの状態
     """
-    # 画面と同じく, 状態を数秒ごとに読む
+    # 画面と同じく, 数秒ごとの状態の読み直し
     deadline = time.time() + JOB_TIMEOUT
     state = client.ok("GET", path)
     while state.get("status") in running:
@@ -476,7 +451,9 @@ def run_journey(
 
     # 3. ML-Fathom: 一覧から問題の設定を開き, 前処理してプロジェクトへ
     listed = fathom.ok("GET", "/api/problems")["problems"]
-    entry = next(p for p in listed if p["name"] == problem["name"])
+    entry = next((p for p in listed if p["name"] == problem["name"]), None)
+    if entry is None:
+        raise RuntimeError("ML-Fathom の一覧に問題の設定がありません")
     started = fathom.ok("POST", "/api/problems/start", {"path": entry["path"]})
     sid = started["source"]["id"]
     recipe = fathom.ok("GET", f"/api/sources/{sid}/recipe")
@@ -559,12 +536,13 @@ def run_journey(
         {"script": "train.py", "config_path": "configs/experiment/train.yaml"}
     )
     job = wait_status(
-        dash, f"/api/jobs/{launched['id']}", ("running", "queued")
+        dash, f"/api/jobs/{launched['id']}", ("running",)
     )
     run = job.get("run") or {}
     if job.get("return_code") != 0 or not run:
         tail = dash.ok("GET", f"/api/jobs/{launched['id']}/output")["text"]
-        journey.add("学習", "誤り", tail.strip().splitlines()[-1])
+        lines = tail.strip().splitlines() or [str(job.get("status"))]
+        journey.add("学習", "誤り", lines[-1])
         return
     journey.add(
         "学習", "OK",
@@ -573,7 +551,7 @@ def run_journey(
     run_path = f"/api/projects/{did}/runs/{run['id']}"
     results = dash.ok("GET", f"{run_path}/results")
     rows = {e["name"]: e["rows"][0] for e in results["evaluations"]
-            if e["name"].startswith("baseline_")}
+            if e["name"].startswith("baseline_") and e["rows"]}
     journey.add(
         "比べる相手の評価 (ML-Dashboard の結果)",
         "OK" if "baseline_test" in rows else "誤り",
@@ -595,10 +573,11 @@ def run_journey(
     linked = provide.ok(
         "PUT", f"/api/bundles/{bid}/problem", {"path": hint}
     )["linked"]
+    if not linked:
+        raise RuntimeError("一式に問題の設定をつなげません")
     journey.add(
         "問題の設定をつなぐ (候補から)",
-        "OK" if linked and not linked["issues"] else "誤り",
-        linked["text"] if linked else ""
+        "OK" if not linked["issues"] else "誤り", linked["text"]
     )
     result = provide.ok(
         "POST", f"/api/bundles/{bid}/predict",
@@ -659,6 +638,9 @@ def main_with(
     try:
         apps.start()
         run_journey(apps, journey, setup)
+    except (RuntimeError, LookupError, TypeError, ValueError) as error:
+        # 途中で止まっても, それまでの段階と止まった理由を表に残す
+        journey.add("止まった段階", "誤り", f"{type(error).__name__}: {error}")
     finally:
         apps.stop()
     failed = journey.report(work / "journey.json")

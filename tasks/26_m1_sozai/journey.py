@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# 部品は 25 のディレクトリに置く
+# 部品は 25 のディレクトリの apps.py
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "25_m1_churn"))
 from apps import main_with
 
@@ -63,8 +63,9 @@ def make_sozai(path: Path, seed: int = 0) -> None:
 
 def add_lags(recipe: dict) -> None:
     """
-    ML-Fathom の雛形の過去の値の手順に, 7 日前と 7 日の移動平均を足す
-    関数 (決める時点で分かるのは 2 日前までなので, 移動平均は 2 つ前から)
+    ML-Fathom の雛形の過去の値の手順に, 7 日前と 7 日の移動平均を足す関数
+
+    決める時点で分かるのは 2 日前までなので, 移動平均は 2 つ前から始める
 
     Parameters
     ----------
@@ -75,9 +76,12 @@ def add_lags(recipe: dict) -> None:
     ----------
     None
     """
-    for step in recipe["steps"]:
-        if step["op"] == "lag":
-            step.update(lags=[2, 7], windows=[7], gap=2)
+    # 雛形に過去の値の手順が無ければ, 問題の設定の誤りとして停止
+    lags = [step for step in recipe["steps"] if step["op"] == "lag"]
+    if not lags:
+        raise RuntimeError("ML-Fathom の雛形に過去の値の手順がありません")
+    for step in lags:
+        step.update(lags=[2, 7], windows=[7], gap=2)
 
 
 def build(work: Path) -> dict:

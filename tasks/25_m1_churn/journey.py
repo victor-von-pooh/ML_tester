@@ -32,7 +32,7 @@ def make_churn(path: Path, seed: int = 0) -> None:
     ----------
     None
     """
-    # 問い合わせが多く, 入って間もなく, 安い料金の会員ほど解約しやすい
+    # 問い合わせが多く, 入って間もなく, 安い料金の会員ほど高い解約の確率
     rng = np.random.default_rng(seed)
     plan = rng.choice(
         ["basic", "standard", "premium"], MEMBERS, p=[0.5, 0.3, 0.2]
@@ -80,7 +80,7 @@ def build(work: Path) -> dict:
         "example": "解約の引き止め",
         "data": data,
         "past": past,
-        # 連絡したかの列は予測に使わず, 今のやり方として書く
+        # 連絡したかの列は予測に使わず, 今のやり方の列
         "answers": {
             "information.forbidden": ["member_id", "contacted"],
             "action.current": {"type": "column", "column": "contacted"}

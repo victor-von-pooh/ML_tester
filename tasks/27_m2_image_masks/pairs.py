@@ -359,7 +359,11 @@ def build_model(
     code, info = ca.call("POST", "/api/dataset/inputs", {"path": dataset})
     spec, changes = setup["adapt"](spec, Path(record["dataset"]))
     if code == 200:
-        status, note = "OK", f"データセットから入力と出力: {info}"
+        # 作れても, 例を手で直した所があれば手 (隠れた手を数えないため)
+        status = "手" if changes else "OK"
+        note = (f"データセットから入力と出力: {info}"
+                + (f". 例の定義を手で直す: {'; '.join(changes)}"
+                   if changes else ""))
     else:
         status = "手" if changes else "OK"
         note = (f"データセットから作れない ({code}: {short(info)}). "
@@ -581,14 +585,13 @@ def provide(
     )
     bid = str(bundle["id"])
     detail = client.ok("GET", f"/api/bundles/{bid}")
-    matches = isinstance(bundle_check(detail), dict) and bundle_check(
-        detail
-    ).get("matches")
+    checked = bundle_check(detail)
+    matches = isinstance(checked, dict) and checked.get("matches")
     journey.add(
         "ML-Provide で実験の一式を一覧から登録 (一式の確かめ)",
         "OK" if matches else "誤り",
         f"問題の設定「{row['problem']}」の実験 {row['experiment']}. "
-        f"一式の確かめ: {short(bundle_check(detail), 200)}"
+        f"一式の確かめ: {short(checked, 200)}"
     )
     state = client.ok("GET", f"/api/bundles/{bid}/problem")
     journey.add(
@@ -625,9 +628,6 @@ def bundle_check(detail: dict[str, Any]) -> Any:
     check = ({key: found.get(key) for key in
               ("split", "metric", "value", "recorded", "matches")}
              if isinstance(found, dict) else "無し")
-
-    return check
-    check = f"(鍵 {sorted(detail)})"
 
     return check
 

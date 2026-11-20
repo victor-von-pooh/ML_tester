@@ -70,10 +70,10 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - つながり: ML-Inference の「確率の補正」, ML-Inference の「文の出力を文字に戻す」, ML-Provide の「結果どうしの比べ」
 
 ### 画面は自分の組のライブラリの公開の口だけを使う
-- 何を: ML-Provide の見本づくり (`samples.py`) が ML-EDA と ML-ModelControl を直接使うのを, ML-Inference の側へ移す. ML-Dashboard が ML-Found の内部のモジュール (`ml_found.training.optim`, `ml_found.training.registry`, `ml_found.config.loader`, `ml_found.experiment.setup` など) を使うのを, ML-Found の公開の関数へ移す
-- なぜ: VISION.md の方針の柱 2 (画面は自分の組のライブラリだけを使う) と食い違い, ライブラリの中のモジュールを変えると画面が壊れうるため. どのリポジトリの TODO.md にもまだ項目が無い
-- 終わりの条件: ML-Inference と ML-Found に公開の口があり, ML-Provide と ML-Dashboard がそれだけを使う. VISION.md の「段階の間の関係」の 8 を消す
-- つながり: 持ち主は ML-Provide と ML-Inference (見本づくり), ML-Dashboard と ML-Found (内部のモジュール). 4 つの TODO.md に項目を足すまではここで持つ
+- 何を: 次の順に進める. 1. ML-Inference の「見本の一式を作る公開の関数」 2. ML-Provide の「見本づくりで ML-EDA と ML-ModelControl を直接使わない」 3. ML-Found の「画面が使う確かめの関数を公開する」 4. ML-Dashboard の「ML-Found の内部のモジュールを使わない」. 1 と 2, 3 と 4 はそれぞれ組で, 2 つの組は別々に進められる
+- なぜ: VISION.md の方針の柱 2 (画面は自分の組のライブラリだけを使う) と食い違い, ライブラリの中のモジュールを変えると画面が壊れうるため
+- 終わりの条件: 4 つの項目が持ち主の TODO.md から消え, VISION.md の「段階の間の関係」の 8 を消す
+- つながり: ML-Inference の「見本の一式を作る公開の関数」, ML-Provide の「見本づくりで ML-EDA と ML-ModelControl を直接使わない」, ML-Found の「画面が使う確かめの関数を公開する」, ML-Dashboard の「ML-Found の内部のモジュールを使わない」
 
 ### 導入の版を上げて流し直す
 - 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある
@@ -104,8 +104,8 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - 待っているもの: 利用者の判断 (定義の置き場とプロジェクトの結び方)
 
 ### 目的の値の標準化の置き場
-- 何を: 目的の値の標準化を, 今のように学習のスクリプトと推論の一式の `target_scale` に分けたままにするか, ML-EDA のレシピの中に寄せるかを決める (ML_tester の 18 と 21 の骨組みが今の形)
-- 待っているもの: 利用者の判断. 持ち主は ML-EDA (レシピ) と ML-Inference (`target_scale`). どちらの TODO.md にもまだ項目が無い
+- 何を: ML-EDA の「目的の値の標準化をレシピに入れるか」と ML-Inference の「目的の値の標準化の置き場」を合わせて決める. 今の形は ML_tester の 18 と 21 の骨組み (学習のスクリプトで標準化し, 一式の `target_scale` に書く). レシピに寄せると決めたら, 18 と 21 をその形に書き直す
+- 待っているもの: 利用者の判断
 
 ### 実例での見直し
 - 何を: 次の順に進める. 1. ML-Quest の「実際の課題に近い例での見直し」 2. ML-Pathfinder の「実例での見直し」 3. ML-EDA の「領域の名前の他の対応」

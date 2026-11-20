@@ -8,6 +8,7 @@ import http.cookiejar
 import json
 import os
 import secrets
+import signal
 import socket
 import subprocess
 import sys
@@ -36,6 +37,14 @@ APPS = {
 # 起動を待つ秒数と, 環境づくりと学習を待つ秒数の上限
 START_TIMEOUT = 120
 JOB_TIMEOUT = 1800
+
+# 止めるときに, プロセスのまとまりが終わるのを待つ秒数
+STOP_TIMEOUT = 20
+
+
+# 起動か待ちが時間の上限を超えたときの例外 (表に誤りとして残す)
+class JourneyTimeout(RuntimeError):
+    pass
 
 
 def free_port() -> int:
@@ -191,7 +200,7 @@ class Apps:
         for name, (repo, command, _, _) in APPS.items():
             backend = self.apps_dir / repo / "backend"
             if not backend.is_dir():
-                raise SystemExit(
+                raise RuntimeError(
                     f"{backend} がありません. 5 つのアプリを clone して "
                     "make setup したディレクトリを --apps で渡してください"
                 )
@@ -203,9 +212,12 @@ class Apps:
             )
             log = (self.work / "logs" / f"{name}.log").open("w")
             self.logs.append(log)
+            # 止めるときに uv run の子のサーバーまで届くように, 別の
+            # プロセスのまとまりで起動
             process = subprocess.Popen(
                 ["uv", "run", *extra, command, "--port", str(port)],
-                cwd=backend, env=env, stdout=log, stderr=subprocess.STDOUT
+                cwd=backend, env=env, stdout=log, stderr=subprocess.STDOUT,
+                start_new_session=True
             )
             self.processes.append(process)
             self.clients[name] = Client(f"http://127.0.0.1:{port}",
@@ -239,7 +251,7 @@ class Apps:
                 return
             except OSError:
                 time.sleep(1)
-        raise SystemExit(
+        raise JourneyTimeout(
             f"{name} が {START_TIMEOUT} 秒で起動しません "
             f"({self.work / 'logs' / (name + '.log')} を見る)"
         )
@@ -256,16 +268,40 @@ class Apps:
         ----------
         None
         """
-        # uv run の子のサーバーも止まるように, 終わらせてからの待ち
+        # uv run の子のサーバー (と, その子の学習) も止まるように, プロセス
+        # のまとまりごとの終わらせと待ち. 待っても残れば強制の終わり
         for process in self.processes:
-            process.terminate()
+            signal_group(process, signal.SIGTERM)
         for process in self.processes:
             try:
-                process.wait(timeout=20)
+                process.wait(timeout=STOP_TIMEOUT)
             except subprocess.TimeoutExpired:
-                process.kill()
+                signal_group(process, signal.SIGKILL)
+                process.wait()
         for log in self.logs:
             log.close()
+
+
+def signal_group(process: subprocess.Popen, number: int) -> None:
+    """
+    起動したプロセスのまとまりの全てにシグナルを送る関数
+
+    Parameters
+    ----------
+    process: subprocess.Popen
+        start_new_session で起動したプロセス
+    number: int
+        送るシグナル
+
+    Returns
+    ----------
+    None
+    """
+    # 既に終わったまとまりは飛ばす
+    try:
+        os.killpg(process.pid, number)
+    except ProcessLookupError:
+        pass
 
 
 # 段階ごとの結果 (OK, 手, 誤り) の記録
@@ -325,7 +361,8 @@ class Journey:
 
 
 def wait_status(
-    client: Client, path: str, running: tuple[str, ...]
+    client: Client, path: str, running: tuple[str, ...],
+    stop: Optional[str] = None
 ) -> dict[str, Any]:
     """
     ジョブが終わるまで待つ関数
@@ -338,18 +375,29 @@ def wait_status(
         ジョブの状態の API
     running: tuple[str, ...]
         まだ終わっていない状態
+    stop: Optional[str]
+        時間の上限を超えたときに呼ぶ, ジョブを止める API (無ければ None)
 
     Returns
     ----------
     state: dict[str, Any]
         終わったときの状態
+
+    Raises
+    ----------
+    JourneyTimeout
+        時間の上限を超えた場合 (止める API を先に呼ぶ)
     """
     # 画面と同じく, 数秒ごとの状態の読み直し
     deadline = time.time() + JOB_TIMEOUT
     state = client.ok("GET", path)
     while state.get("status") in running:
         if time.time() > deadline:
-            raise SystemExit(f"{path} が {JOB_TIMEOUT} 秒で終わりません")
+            if stop:
+                client.call("POST", stop)
+            raise JourneyTimeout(
+                f"{path} が {JOB_TIMEOUT} 秒で終わりません"
+            )
         time.sleep(3)
         state = client.ok("GET", path)
 
@@ -409,8 +457,8 @@ def run_journey(
         example (ML-Pathfinder の見本の名前), data (元のデータ), answers
         (足す答えの辞書), recipe_steps (ML-Fathom で足す手順),
         recipe_update (ML-Fathom の雛形の手順を直す関数. 無ければ None),
-        past (推論とたどり直しのデータ. 目的の列を持つ), project
-        (書き出し先)
+        past (推論とたどり直しのデータ. 目的の列を持つ), cost_update
+        (学習の後に ML-Pathfinder で直す損得の値), project (書き出し先)
 
     Returns
     ----------
@@ -478,16 +526,26 @@ def run_journey(
         f"{exported['hints']['outputs']}"
     )
 
-    # 4. ML-CreateArchitecture: 保存先を確かめ, データセットから入出力
+    # 4. ML-CreateArchitecture: 問題の設定を一覧から選び, データセットから
+    # 入力と出力を作ってプロジェクトに保存
+    original = Path(entry["path"]).resolve()
+    listed = ca.ok("GET", "/api/problems")["problems"]
+    chosen = next(
+        (p for p in listed if Path(p["path"]).resolve() == original), None
+    )
+    if chosen is None or not chosen["usable"]:
+        reason = chosen["reason"] if chosen else "一覧にありません"
+        raise RuntimeError(f"ML-CreateArchitecture の問題の設定: {reason}")
+    project_dir = Path(setup["project"]).resolve()
     journey.add(
-        "ML-CreateArchitecture でプロジェクトを選ぶ", "手",
-        "ML-Pathfinder が記録したプロジェクトの場所を打つ"
+        "ML-CreateArchitecture で問題の設定を一覧から選ぶ",
+        "OK" if Path(chosen["project"]).resolve() == project_dir
+        else "誤り",
+        "一覧の問題の設定が, 記録したプロジェクトとデータセットを持つ"
     )
-    target = ca.ok(
-        "POST", "/api/project/target", {"path": str(setup["project"])}
-    )
+    target = ca.ok("POST", "/api/project/target", {"path": chosen["path"]})
     dataset = target.get("dataset")
-    status, note = "OK", "保存先の確かめでデータセットの欄が入る"
+    status, note = "OK", "選んだ問題の設定でデータセットの欄が入る"
     if not dataset:
         status, note = "手", "データセットの場所を手で打つ"
         dataset = record["dataset"]
@@ -495,7 +553,7 @@ def run_journey(
     spec = model_from_inputs(info)
     ca.ok(
         "PUT", "/api/project/model",
-        {"path": str(setup["project"]), "spec": spec,
+        {"path": chosen["path"], "spec": spec,
          "overwrite": target["exists"]}
     )
     journey.add(
@@ -504,12 +562,21 @@ def run_journey(
         f"{info['outputs']}"
     )
 
-    # 5. ML-Dashboard: 登録, 学習の準備, 環境づくり, 学習
-    project = dash.ok("POST", "/api/projects", {"path": str(setup["project"])})
+    # 5. ML-Dashboard: 一覧から登録, 学習の準備, 環境づくり, 学習
+    recorded = dash.ok("GET", "/api/problems/projects")["projects"]
+    found = next(
+        (p for p in recorded
+         if Path(p["problem_path"]).resolve() == original), None
+    )
+    if found is None:
+        raise RuntimeError("ML-Dashboard の一覧に書き出したプロジェクトが"
+                           "ありません")
+    project = dash.ok("POST", "/api/projects", {"path": found["path"]})
     did = project["id"]
     journey.add(
-        "ML-Dashboard にプロジェクトを登録", "手",
-        "ML-Pathfinder が記録したプロジェクトの場所を打つ"
+        "ML-Dashboard で書き出したプロジェクトを一覧から登録",
+        "OK" if Path(found["path"]).resolve() == project_dir else "誤り",
+        f"問題の設定「{found['problem']}」が記録したプロジェクト"
     )
     ready = dash.ok("GET", f"/api/projects/{did}/readiness")
     journey.add(
@@ -536,7 +603,8 @@ def run_journey(
         {"script": "train.py", "config_path": "configs/experiment/train.yaml"}
     )
     job = wait_status(
-        dash, f"/api/jobs/{launched['id']}", ("running",)
+        dash, f"/api/jobs/{launched['id']}", ("running",),
+        stop=f"/api/jobs/{launched['id']}/stop"
     )
     run = job.get("run") or {}
     if job.get("return_code") != 0 or not run:
@@ -558,26 +626,98 @@ def run_journey(
         json.dumps(rows.get("baseline_test"), ensure_ascii=False)
     )
 
-    # 6. ML-Provide: 実験の一式, 問題の設定, 推論, 意思決定, たどり直し
+    # 6. ML-Provide と, ML-Pathfinder で損得を直した後の推論の既定
+    bid = provide_journey(provide, journey, setup, original, run["id"])
+    check_cost_update(pf, provide, journey, setup, pid, bid)
+
+
+def problem_file(path: str) -> Path:
+    """
+    問題の設定の場所 (problem.yaml かそのディレクトリ) をファイルにする
+    関数
+
+    Parameters
+    ----------
+    path: str
+        problem.yaml かそのディレクトリ
+
+    Returns
+    ----------
+    file: Path
+        problem.yaml の場所 (リンクをたどった形)
+    """
+    # ディレクトリなら中の problem.yaml
+    file = Path(path).resolve()
+    if file.is_dir():
+        file = file / "problem.yaml"
+
+    return file
+
+
+def provide_journey(
+    provide: Client, journey: Journey, setup: dict[str, Any],
+    original: Path, run_id: str
+) -> str:
+    """
+    ML-Provide で, 実験を一覧から登録し, 問題の設定をつなぎ, 推論と意思
+    決定とたどり直しをする関数
+
+    Parameters
+    ----------
+    provide: Client
+        ML-Provide の客
+    journey: Journey
+        結果の記録
+    setup: dict[str, Any]
+        run_journey に渡した設定
+    original: Path
+        ML-Pathfinder の置き場の元の問題の設定 (problem.yaml)
+    run_id: str
+        ML-Dashboard の実験の id (出力先からの実験の場所)
+
+    Returns
+    ----------
+    bid: str
+        登録した一式の id
+    """
+    # 実験の一覧から, 学習した実験の行を選んで登録 (名前は画面と同じ)
+    project_dir = Path(setup["project"]).resolve()
+    listing = provide.ok("GET", "/api/experiments")
+    row = next(
+        (r for r in listing["experiments"]
+         if Path(r["project"]).resolve() == project_dir
+         and r["experiment"] == run_id), None
+    )
+    if row is None:
+        raise RuntimeError("ML-Provide の実験の一覧に学習した実験が"
+                           "ありません")
     bundle = provide.ok(
         "POST", "/api/bundles",
-        {"path": str(Path(setup["project"]) / "outputs" / run["id"]
-                     / "inference")}
+        {"path": row["path"],
+         "name": f"{row['problem']} ({row['experiment']})"}
     )
-    bid = bundle["id"]
+    bid = str(bundle["id"])
     journey.add(
-        "ML-Provide に実験の一式を登録", "手",
-        "実験のディレクトリの中の inference を場所で選ぶ"
+        "ML-Provide で実験を一覧から登録", "OK",
+        f"問題の設定「{row['problem']}」の実験 {row['experiment']}"
     )
-    hint = provide.ok("GET", f"/api/bundles/{bid}/problem")["hint"]
+
+    # 候補の問題の設定は, 学習の時点の写しでなく元のもの
+    state = provide.ok("GET", f"/api/bundles/{bid}/problem")
+    hint = state["hint"]
+    if not hint:
+        raise RuntimeError("一式に問題の設定の候補がありません")
     linked = provide.ok(
         "PUT", f"/api/bundles/{bid}/problem", {"path": hint}
     )["linked"]
     if not linked:
         raise RuntimeError("一式に問題の設定をつなげません")
+    is_original = problem_file(hint) == original
     journey.add(
         "問題の設定をつなぐ (候補から)",
-        "OK" if not linked["issues"] else "誤り", linked["text"]
+        "OK" if is_original and not linked["issues"] else "誤り",
+        ("元の問題の設定. " if is_original
+         else f"写し ({state.get('hint_note')}). ") + linked["text"]
     )
     result = provide.ok(
         "POST", f"/api/bundles/{bid}/predict",
@@ -594,6 +734,64 @@ def run_journey(
         "今のやり方とのたどり直し (問題の設定から作る)",
         "OK" if "今のやり方" in policies else "誤り",
         json.dumps(policies, ensure_ascii=False)
+    )
+
+    return bid
+
+
+def check_cost_update(
+    pf: Client, provide: Client, journey: Journey, setup: dict[str, Any],
+    pid: str, bid: str
+) -> None:
+    """
+    学習の後に ML-Pathfinder で元の問題の設定の損得を直し, ML-Provide の
+    次の推論の既定に入るかを確かめる関数
+
+    Parameters
+    ----------
+    pf: Client
+        ML-Pathfinder の客
+    provide: Client
+        ML-Provide の客
+    journey: Journey
+        結果の記録
+    setup: dict[str, Any]
+        run_journey に渡した設定 (cost_update は直す損得の値)
+    pid: str
+        ML-Pathfinder の問題の設定の id
+    bid: str
+        ML-Provide の一式の id
+
+    Returns
+    ----------
+    None
+    """
+    # 今の損得の答えに直す値を重ね, 画面の答えと同じ API で保存
+    view = pf.ok("GET", f"/api/problems/{pid}")
+    current = next(
+        q["value"] for q in view["questions"] if q["id"] == "action.decision"
+    )
+    changed = {**current, **setup["cost_update"]}
+    pf.ok("PUT", f"/api/problems/{pid}/answers",
+          {"id": "action.decision", "value": changed})
+
+    # 一式の画面を開き直したときの既定と, その既定での推論
+    linked = provide.ok("GET", f"/api/bundles/{bid}/problem")["linked"]
+    decision = (linked or {}).get("decision") or {}
+    got = {key: decision.get(key) for key in setup["cost_update"]}
+    result = provide.ok(
+        "POST", f"/api/bundles/{bid}/predict",
+        {"source": str(setup["past"]), "decision": decision,
+         "rules": linked["conclusion"] if linked else None}
+    )
+    # 結果の decision の中の decision が, 推論で使った意思決定の値
+    used = (result.get("decision") or {}).get("decision") or {}
+    applied = {key: used.get(key) for key in setup["cost_update"]}
+    journey.add(
+        "ML-Pathfinder で損得を直すと次の推論の既定に入る",
+        "OK" if got == setup["cost_update"] and applied == got else "誤り",
+        f"直した値 {setup['cost_update']}, 推論の既定 {got}, 推論で使った "
+        f"値 {applied}"
     )
 
 
@@ -638,7 +836,7 @@ def main_with(
     try:
         apps.start()
         run_journey(apps, journey, setup)
-    except (RuntimeError, LookupError, TypeError, ValueError) as error:
+    except Exception as error:
         # 途中で止まっても, それまでの段階と止まった理由を表に残す
         journey.add("止まった段階", "誤り", f"{type(error).__name__}: {error}")
     finally:

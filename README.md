@@ -21,6 +21,7 @@ pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@ebc
 pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@1ec6970"   # 17 から 21 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
 pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@6d7d6da"   # 21 で使う (依存の pandas と PyYAML は上で入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
+pip install pytest                        # 24 の守りのテスト (tasks/24_rl_cartpole/test_guards.py) で使う
 ```
 
 ## ML-Dashboard で見る
@@ -89,7 +90,7 @@ tasks/XX_name/
 
 ## モデルの書き方
 
-モデルは各タスクの `model.py` に自前のクラスとして書く (13 は ML-ModelControl のモデルの定義から組み立てるので `model.py` を持たない). 書き方の要点.
+モデルは各タスクの `model.py` に自前のクラスとして書く (13, 17, 18 は ML-ModelControl のモデルの定義から組み立てるので `model.py` を持たない). 書き方の要点.
 
 - 部品ごとにクラスを分け, 全体のクラスで組み合わせる (例: `Encoder`, `Decoder` と, それらを持つ `VAE`)
 - `__init__` では `super(クラス名, self).__init__()` を呼び, 引数を `self` に保存してから層と活性化関数を属性として定義する (`self.fc1 = nn.Linear(...)`, `self.relu = nn.ReLU()`)

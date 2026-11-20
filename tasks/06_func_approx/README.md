@@ -174,10 +174,10 @@ python tasks/06_func_approx/train_pinn.py --experiment configs/experiment/exampl
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - closure を渡す更新手順に対応していないので, LBFGS は最初の更新で `TypeError` になる (TODO の項目 2 の通り). エラーは torch のものがそのまま出るので, ML-Found が対応していないことは利用者には分からない (`3aca743` の時点. その後 ML-Found の PR #1 で LBFGS を自動で見分けて closure を渡すようになり, 実験 2 は `Trainer` のままで学習できる. PR #33 で, closure が必要かを登録簿の仕様とクラスの属性 `requires_closure` で決めるようになった)
-- `Trainer` を継承して回避できたが, `update_parameters` は損失しか受け取らないので, closure で損失を計算し直すためにバッチを `step` で `self` に保存する必要があった. また元の `update_parameters` の勾配クリッピングと Scheduler の処理を自分で写す必要がある (このタスクでは省いた)
+- `Trainer` を継承して回避できたが, `update_parameters` は損失しか受け取らないので, closure で損失を計算し直すためにバッチを `step` で `self` に保存する必要があった. また元の `update_parameters` の勾配クリッピングと Scheduler の処理を自分で写す必要がある (このタスクの `ClosureTrainer` では両方を写した)
 - 記録される `train/loss` は, `update_parameters` の前に `step` で計算した損失, つまり前のエポックの更新の後のパラメータでの損失. これはどの Optimizer でも同じだが, LBFGS は 1 回の `step` の中でパラメータが大きく動くので, 記録と現在のパラメータの差が大きい
 - チェックポイントは, `last.pt` を毎エポック, `best.pt` (中身は同じ) を改善したエポックごとに保存する (実験 1 では 5000 エポック中 2351 回改善). どちらにもモデルと Optimizer の状態, `history` の全ての記録, 乱数の状態, ベストモデルの重みが入る. そのため 1 エポックが短いフルバッチ学習では保存が学習時間の大部分を占め (5000 エポックで 44.9 秒が保存をやめると 6.1 秒), 記録が増えるほど 1 回の保存も重くなる (`last.pt` は 2000 エポックで 459 KB, 5000 エポックで 906 KB). 保存の間隔を設定できると良い (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられるようになり, PR #10 で `best_weights_only: true` で `best.pt` を重みだけにできるようになった. `best.pt` は今も改善のたびに保存する)
 

@@ -133,7 +133,7 @@ python train.py --experiment configs/experiment/examples/latent2.yaml
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - 正解ラベルを使わない教師なし学習でも, `step` で再構成の損失を返すだけで問題なく書けた
 - `on_epoch_end` は勾配の計算を止める範囲 (`torch.set_grad_enabled(train)`) の外で呼ばれるので, 検証の後でも勾配の計算が有効になっている. 中で推論すると, `torch.no_grad()` を書かない限り計算グラフが作られる. README にこのことが書かれていない (`3aca743` の時点. その後 ML-Found の PR #1 で, README の「継承して細かく変える」に `torch.no_grad()` を書く注意が加わった)

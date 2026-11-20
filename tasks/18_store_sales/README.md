@@ -34,7 +34,7 @@
 ├── recipe_calendar.yaml            # ML-Fathom で日付でずらすことを選んだレシピ (比べる用)
 ├── prepare.py                      # 分析して気付きを表示し, レシピで書き出す
 ├── train.py                        # 学習とテスト用の期間の評価
-└── outputs/                        # dataset/, dataset_naive/ と実験 (git の管理外)
+└── outputs/                        # dataset/, dataset_naive/, dataset_calendar/ と実験 (git の管理外)
 ```
 
 ## データ

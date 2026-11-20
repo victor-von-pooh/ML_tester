@@ -151,7 +151,7 @@ python tasks/03_imbalanced_cls/train.py --experiment configs/experiment/examples
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - `Trainer` を継承する書き方は README の説明通りで, `step`, `on_epoch_start`, `on_epoch_end` の上書きと `self.epoch` の参照に問題は無かった
 - ML-Found の README には継承したクラスの `__init__` の例が無い. 親クラスの引数の順は `(model, experiment, step_fn, optimizer, scheduler)` なので, `step_fn` を使わない場合は `None` を位置で渡すか, `optimizer=optimizer` のようにキーワードで渡す. このタスクでは `None` を位置で渡した (`3aca743` の時点. その後 ML-Found の PR #1 で, README に `__init__` を上書きする例が加わった)

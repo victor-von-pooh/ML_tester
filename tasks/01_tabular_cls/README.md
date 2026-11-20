@@ -153,7 +153,7 @@ model.load_state_dict(torch.load("outputs/iris/<日付>/<時刻>/final_model.pt"
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - 指標が最良値と同じ値になっても改善とみなされない (`training/callbacks.py` の `is_improved` が `>` と `<` で比べる). そのため, 検証用データが少なく正解率のように同じ値を取りやすい指標を `monitor` にすると, ベストモデルは最初にその値に達したエポックのままになり, Early Stopping も最良値に並んだだけのエポックを「改善なし」と数えて止まる. 実験 1 と 2 は, `valid/loss` が下がり続けている途中で止まった (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.monitor_tiebreak` が加わり, 同じ値の場合に別の指標 (例: `valid/loss`) で比べられるようになった)
 - Early Stopping で止まると, 進捗バーの最後の表示が 1 エポック少ない (エポック 39 で止まったのに `38/200`). `for epoch in pbar` の tqdm は次の要素を取り出すときに数えるので, `break` した最後のエポックが数えられない (`3aca743` の時点. その後 ML-Found の PR #1 で直った. 下の「最新の ML-Found での再実行」を参照)

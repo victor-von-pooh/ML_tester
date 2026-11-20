@@ -174,7 +174,7 @@ python tasks/09_vae/train.py --experiment configs/experiment/examples/beta4.yaml
 
 ### ML-Found について気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した.
+[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
 
 - `step_fn(model, batch, phase)` には引数としてエポックが渡らないので, KL annealing のようにエポックに依存する損失は, `Trainer` を継承して `self.epoch` を使うか, closure の中から `trainer.epoch` を参照する必要がある
 - 学習の途中で損失の定義が変わる場合 (annealing, β のスケジュール), `monitor` の指標を何にするかで選ばれるベストモデルが大きく変わり, 最後にその重みに戻される. 実験 5 では学習の途中のモデルが残った. ベストモデルに戻さない設定 (最後の重みを残す) があると良い (`3aca743` の時点. その後 ML-Found の PR #1 で `trainer.restore_best: false` (ベストモデルは記録するが最後の重みを残す) が, PR #22 で `trainer.select_best: false` (ベストモデルを選ばない) が加わった)

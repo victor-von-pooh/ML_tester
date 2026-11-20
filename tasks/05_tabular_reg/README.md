@@ -43,7 +43,7 @@ RMSE のように, バッチの平均をとると値が変わってしまう指�
 - `HousingRegressor`: `Linear → ReLU` を 2 回と出力層の 3 層の MLP (隠れ層 128), 出力は 1 次元
 - 自作の Optimizer として, Lion (勾配の移動平均の符号だけで更新する Optimizer) を `custom_optim.py` に `optim.Optimizer` の子クラスで実装し, config で `optimizer.name: custom_optim.Lion` と指定する
 
-## step と Trainer の設計
+## 学習の設計
 
 `Trainer` を継承した `RegressionTrainer` で, 次のメソッドを上書きする.
 
@@ -54,7 +54,7 @@ RMSE のように, バッチの平均をとると値が変わってしまう指�
 MAE はバッチの平均の重み付き平均がエポック全体の平均と一致するので `step` で返してよい.
 RMSE はバッチごとの RMSE の平均がエポック全体の RMSE と一致しないので, `on_epoch_end` で求めた `rmse` と, `step` で返した `rmse_batch` を両方記録して比べる.
 
-## config
+### config
 
 ```yaml
 # default
@@ -91,7 +91,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 3. `scheduler.params.mode: max`. `trainer.mode: min` と食い違うのでエラーになることの確認 (`plateau_max.yaml`)
 4. `scheduler.interval: step`. ReduceLROnPlateau ではエラーになることの確認 (`plateau_step.yaml`)
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] ReduceLROnPlateau が `valid/loss` を見て学習率を下げ, `lr_curve.png` に階段状に出る
 - [x] ReduceLROnPlateau の `mode` を省略すると `trainer.mode` に合わせられる (`training/optim.py` の `build_scheduler` で確認. 実験 1 は `trainer.mode` も torch の既定値も `min` なので, 実験では区別できない)
@@ -104,7 +104,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 - 検証用データの RMSE が 0.55 (5.5 万ドル) 以下
 - Lion でも Adam と同程度まで下がる
 
-## 予想される問題
+### 予想される問題
 
 - 指標の平均の扱い (RMSE, R² など) は利用者が気付きにくいので, ドキュメントでの注意か, 合計と件数を返す仕組みがあると良さそう → 差は小さいが, バッチの RMSE の平均は全てのエポックで全体の RMSE 以下になる
 - `train.py` を別のディレクトリから実行すると, `custom_optim` が import の探索先に無くて読み込めない可能性がある → 問題ない. Python はスクリプトのディレクトリを探索先の先頭に入れるため
@@ -145,9 +145,9 @@ PyTorch 2.15.0, scikit-learn 1.9.1, macOS (Apple Silicon), Python 3.13, cpu で�
 - 実験 3 は `ValueError: ReduceLROnPlateau の mode (max) が trainer.mode (min) と違います`, 実験 4 は `ValueError: ReduceLROnPlateau は scheduler.interval を epoch にしてください` で止まる
 - 実験 1 と 2 の全てのエポックで, `rmse_batch` (バッチごとの RMSE のサンプル数での重み付き平均) は `rmse` (エポック全体の RMSE) 以下になる. 平方根は上に凸なので, バッチごとに平方根をとってから平均すると全体の RMSE 以下になる (全てのバッチの二乗誤差の平均が等しい場合だけ一致). 検証用データでの差はベストのエポックで約 0.003, 最大で 0.005
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - ReduceLROnPlateau の `mode` や `interval` の食い違いは `start_experiment` の始め, 出力先を作る前に確かめられるので, 01 の「default に無い項目」のエラーと同じく出力先は作られない
-- `step` で RMSE を返すと, ML-Found はバッチごとの値をサンプル数で重み付けして平均するので, エポック全体の RMSE 以下になる. ML-Found の README の `step` の説明に, 重み付き平均してよい指標とエポック全体から求める指標の注意がある
+- `step` で RMSE を返すと, ML-Found はバッチごとの値をサンプル数で重み付けして平均するので, エポック全体の RMSE 以下になる. ML-Found の docs/DESIGN.md の「学習スクリプトと step の決まり」に, 重み付き平均してよい指標とエポック全体から求める指標の注意がある

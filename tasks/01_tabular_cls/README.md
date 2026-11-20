@@ -2,7 +2,7 @@
 
 ## 目的
 
-最も単純なタスクで, ML-Found の基本の流れが README の通りに動くことを確かめる.
+最も単純なタスクで, ML-Found の基本の流れが README と docs/DESIGN.md の通りに動くことを確かめる.
 以降のタスクの基準になるので, ML-Found の既定値をなるべくそのまま使う.
 
 ## ディレクトリ構成
@@ -42,12 +42,12 @@
 - `nn.Linear(4, 16) → nn.ReLU() → nn.Linear(16, 3)` の 2 層の MLP
 - 隠れ層の次元数は config の `model.hidden_dim` で変えられるようにする
 
-## step の設計
+## 学習の設計
 
 - `batch` は `(x, y)` のタプル (`TensorDataset` + `DataLoader`)
 - `nn.CrossEntropyLoss()` で損失を求め, `{"loss": loss, "acc": acc}` を返す
 
-## config
+### config
 
 ```yaml
 # default
@@ -81,7 +81,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 4. default に無い項目 `model.dropout` を書いてエラーになることの確認 (`invalid_key.yaml`)
 5. `experiment.device: cpu` で mps との速度と結果を比べる (`cpu.yaml`)
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] `load_config` と `start_experiment` で `outputs/iris/<日付>/<時刻>/` が作られる
 - [x] `config.yaml`, `diff.yaml`, `train.log`, `history.csv`, 学習曲線 (`acc_curve.png`, `loss_curve.png`, `lr_curve.png`), `best.pt`, `last.pt`, `final_model.pt` がそろう
@@ -97,7 +97,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 - 検証用データの正解率が 0.93 以上
 - 数秒で学習が終わる
 
-## 予想される問題
+### 予想される問題
 
 特に無い. ML-Found の `examples/minibatch` (wine) とほぼ同じ形のため.
 
@@ -151,9 +151,9 @@ PyTorch 2.15.0, macOS (Apple Silicon), Python 3.13 での値.
 - 実験 2 は学習率が小さく学習が遅いため, 正解率が 0.9 のまま 20 エポック続いて止まる. その間も `valid/loss` は 0.253 から 0.184 まで単調に下がり続けており, まだ学習の途中である
 - 学習時間は `train.log` の最後の「学習時間」に出る. このタスクでは mps より cpu の方が速い
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - 指標が最良値と同じ値になっても改善とみなされない (`training/callbacks.py` の `is_improved` が `>` と `<` で比べる). そのため, 検証用データが少なく正解率のように同じ値を取りやすい指標を `monitor` にすると, ベストモデルは最初にその値に達したエポックのままになり, Early Stopping も最良値に並んだだけのエポックを「改善なし」と数えて止まる. 実験 1 と 2 は, `valid/loss` が下がり続けている途中で止まる. `trainer.monitor_tiebreak` を書くと, 同じ値の場合に別の指標 (例: `valid/loss`) で比べられる (このタスクの config では使っていない)
 - `device: auto` では mps が選ばれるが, このタスクでは cpu の方が速い

@@ -46,6 +46,14 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 
 `load_items` の撮影は, `intrinsics` (`fl_x`, `fl_y`, `cx`, `cy`), `poses` (カメラから世界への 4x4. 無い姿勢は NaN), `depth` ((枚数, 高さ, 幅) のメートル, 欠けは 0) を返す. 画素 (行 r, 列 c) の深度 d を, カメラの座標 ((c + 0.5 - cx) / fl_x * d, -(r + 0.5 - cy) / fl_y * d, -d) にし, 姿勢で世界に戻す. カメラの軸は OpenGL (+X 右, +Y 上, -Z 前) で, 深度はカメラの前の向き (-Z) の距離とした (合成の見本の作り方に合わせた. 下の「気付いたこと」).
 
+## モデル
+
+`model.py` の `CloudPredictor`. 点ごとの 1x1 の畳み込み 3 段 (チャンネル 32, 64, 128) の後に最大値でまとめる特徴 (`PointEncoder`. 点の並びに依らない) から, 全結合 3 層 (隠れ層 256) で 256 点の座標を出す (`PointDecoder`).
+
+## 学習の設計
+
+損失は 2 乗の距離の Chamfer. 距離の Chamfer と 1 cm 以内の F 値は `on_epoch_end` の検証のときだけ求める. Adam (学習率 0.001), `trainer.valid_every_n_epochs: 3`, `valid/chamfer` を監視して Early Stopping (待つ回数 5. 検証の回数で数える). 学習の後に `task.yaml`, テスト用の表 (`evaluations/`), 予測と正解の点群の見本 (`samples/`) を書く (上の「目的」).
+
 ## 確かめること
 
 - [x] `export_capture_clouds` が撮影と点群を名前で組にし, 版 2 の `dataset.yaml` (受け持ち, 正解の種類, 正解の出どころ, 正規化, 項目の座標の決まり) を書く
@@ -60,6 +68,13 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 - [x] `task_from_dataset` で `dataset.yaml` (版 2) から受け持ち, 正解の種類と出どころを埋め, 出力の形 (`shape`), 意味, 作り方 (`scratch`) を足して `write_task` で `task.yaml` に書ける
 - [x] テスト用の表を比べる相手つきで `save_evaluation` で, 予測と正解の点群を `save_sample` (`kind="point_cloud"`. PLY. 元の座標に戻す `convention` 付き) で実験のディレクトリに書ける
 
+## 期待する結果
+
+- 2 で `版: 2, 受け持ち: predict, 正解の種類: point_cloud`, 正解の出どころ `{'type': 'synthetic', 'name': 'ml_eda.synthetic.write_shape_captures', ...}`, 分割 `{'train': {'items': 24}, 'valid': {'items': 8}, 'test': {'items': 8}}`, 注意なし. 正解の点群の中心は原点から数 mm
+- 3 で端末に出る「検証したエポック」が 3 の倍数 (と最後のエポック) だけになる. quick では `[3, 4]`. `train.log` には出さないので, 後から見る場合は `history.csv` の `valid/chamfer` の空でない行を見る
+- 3 でテスト用の Chamfer 距離が `train.log` に残る. 深度から戻した点をそのまま答えにした場合 (入力の点) も並べて記録する
+- 実験のディレクトリに `task.yaml`, `evaluations/test_chamfer.json`, `samples/index.json` と 4 つの点群 (`samples/test_<id>_pred/epoch_<ベストのエポック>.ply` と `_truth`) ができる
+
 ## 実行方法
 
 ルートのディレクトリで, `.venv` を有効にして実行する.
@@ -73,13 +88,6 @@ python tasks/23_capture_clouds/train.py --experiment configs/experiment/examples
 
 CPU で, 1 と 2 は 1 秒ほど, 3 は 6 秒ほど (Python の起動を含む).
 
-## 期待する結果
-
-- 2 で `版: 2, 受け持ち: predict, 正解の種類: point_cloud`, 正解の出どころ `{'type': 'synthetic', 'name': 'ml_eda.synthetic.write_shape_captures', ...}`, 分割 `{'train': {'items': 24}, 'valid': {'items': 8}, 'test': {'items': 8}}`, 注意なし. 正解の点群の中心は原点から数 mm
-- 3 で端末に出る「検証したエポック」が 3 の倍数 (と最後のエポック) だけになる. quick では `[3, 4]`. `train.log` には出さないので, 後から見る場合は `history.csv` の `valid/chamfer` の空でない行を見る
-- 3 でテスト用の Chamfer 距離が `train.log` に残る. 深度から戻した点をそのまま答えにした場合 (入力の点) も並べて記録する
-- 実験のディレクトリに `task.yaml`, `evaluations/test_chamfer.json`, `samples/index.json` と 4 つの点群 (`samples/test_<id>_pred/epoch_<ベストのエポック>.ply` と `_truth`) ができる
-
 ## 結果のメモ
 
 PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
@@ -91,22 +99,24 @@ PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 | (参考) 入力の点そのもの | - | - | - | - | 0.01191 m | 0.5220 |
 
 - 測っているのは, 正解の出どころ `synthetic` (`ml_eda.synthetic.write_shape_captures`, 40 個, 8 枚, 24x32, 2000 点, seed 0) との一致. 合成の正確な点群なので, 距離は本当の形からの距離
-- **検証の間隔**: 3 では, 96 エポックのうち `valid/chamfer` があるのは 32 エポックだけで, 残りの 64 エポックは `None`. ベストのエポック 81 の後, 84, 87, 90, 93, 96 の 5 回の検証で改善せず (`patience: 5`), エポック 96 で止まった (15 エポック). quick では予定の最後のエポック 4 (3 で割り切れない) も検証した. どちらも ML-Found の README の「検証の間隔」の説明どおり
+- **検証の間隔**: 3 では, 96 エポックのうち `valid/chamfer` があるのは 32 エポックだけで, 残りの 64 エポックは `None`. ベストのエポック 81 の後, 84, 87, 90, 93, 96 の 5 回の検証で改善せず (`patience: 5`), エポック 96 で止まった (15 エポック). quick では予定の最後のエポック 4 (3 で割り切れない) も検証した. どちらも ML-Found の docs/DESIGN.md の「検証の間隔」の説明どおり
 - **モデルは入力の点そのものより悪い**: 入力 (深度から戻した 512 点) は見えている面の上の点なので, それだけで Chamfer 距離が約 1.2 cm になる. モデルは点群全体を 1 つの特徴にまとめてから 256 点を出すので, 24 件の学習では細部を戻せず 2.8 cm にとどまった. ここで確かめたいのは道具のつながりで, モデルの良し悪しではない. 本気で点群を作るなら, 入力の点を足し込む形 (残差) や点の数を増やす
 - **新しい撮影**: `new_001` (箱) の `shift` は `[-1.3108, -0.1228, -0.1984]` で, `normalize_capture` の値と `capture_shift` の値が一致した. 予測から `shift` を引いた点群と元の点群の Chamfer 距離は 0.02275 m (F 値 0.0951). 正規化した座標で学習したモデルを, 元の座標の撮影に使えることを確かめた
 - 別のディレクトリから実行しても `history.csv` が完全に一致した. `data/` と `outputs/` はどこから実行してもリポジトリの中に作られ, `--experiment` の相対パスはタスクのディレクトリから辿る
 - **F 値 (1 cm) の読み方**: 正解の 2000 点の間隔は 4 から 8 mm ほどで, 予測は 256 点しかないので, 面を正しく当てても 1 cm 以内に予測のある正解の点の割合 (再現率) に上限がある (入力の 512 点そのものでも 0.52). F 値はモデルどうしの比べに使い, 値の大きさそのものは読まない. quick の新しい撮影は Chamfer 距離 0.02611 m, F 値 0.0876
 
-### 気付いたこと (ML-EDA)
+## 気付いたこと
+
+### ML-EDA
 
 - **深度の決まりが説明に無い**: 版 2 の `capture` の `convention` には姿勢 (カメラから世界), カメラの軸, 世界の上の向きがあるが, 深度がカメラの前の向きの距離 (z) か光線に沿った距離か, 画素の位置を画素の中心 (+0.5) で数えるかは書かれていない. ここでは合成の見本の作り方 (`synthetic.render_view`) を読んで決めた. 深度から点に戻すのは撮影の学習でまず行う処理なので, `convention` に `depth: z` と画素の中心を足すと, 読む側が読み違えない
 - **1 つの撮影を読む公開の関数が無い**: 推論のときは `normalize_capture` で新しい撮影を写すが, 写した撮影を `load_items` と同じ形の配列で読む関数 (`ml_eda.items.read_capture`) と, 点群を読む関数 (`ml_eda.media.read_cloud`) は `ml_eda` の公開の名前に無い. ここでは中のモジュールから読んだ. `normalize_capture` と組で使う `read_capture` を公開すると, 推論の段階 (ML-Inference) も同じ読み方を使える
 - **説明の `source` に手元のパスが残る**: `dataset.yaml` の `source.captures` と `source.clouds` は, 渡したディレクトリの文字をそのまま書く (ここでは `prepare.py` が絶対パスを渡したので絶対パス). 版 1 の `source.path` は常に絶対パスにして書く. データセットを人に渡すと手元のディレクトリの構成が伝わる (書き出したものはここでは git の管理外). 渡すときに外せる設定か, データセットからの相対の場所で書く設定があるとよい
 - **合成の見本の数**: `write_shape_captures` の既定の形は 4 つなので, 分割して学習するには形の並びを自分で作る必要があった (`make_data.py` の `make_shapes`). 数と乱数の種から形をばらつかせる引数があると, 道具の確かめが短く書ける
 
-### 気付いたこと (ML-Found)
+### ML-Found
 
-- `trainer.valid_every_n_epochs` は ML-Found の README の説明どおりに動いた. `on_epoch_end` を継承して `phase == "valid"` のときだけ Chamfer 距離を求めると, 検証しないエポックでは呼ばれないので, 重い評価の書き方が素直だった (`phase` が `train` のときは空の辞書を返す)
+- `trainer.valid_every_n_epochs` は ML-Found の docs/DESIGN.md の説明どおりに動いた. `on_epoch_end` を継承して `phase == "valid"` のときだけ Chamfer 距離を求めると, 検証しないエポックでは呼ばれないので, 重い評価の書き方が素直だった (`phase` が `train` のときは空の辞書を返す)
 - 正解の出どころ (`target.origin`) は `task.yaml` に残る. `task_from_dataset` が `target.origin` (type, name, settings), `role: predict`, `target.kind: point_cloud`, `dataset` (`path: outputs/dataset`, `name: capture_clouds`, `format_version: 2`) を埋め, 学習のスクリプトは `output`, `what`, `method` を足すだけで済んだ
 - `evaluations/test_chamfer.json` は `epoch: 81`, `baseline: input_points` で, `answer` の列 (`model` と `input_points`) の 2 行と, 比べる相手との差の列 (`chamfer_diff`, `fscore_1cm_diff`. モデルの行で 0.01575 m と -0.4252). ML-Found の `docs/FORMAT.md` は `baseline` を「差の列を持つ場合」とし, 列の中身はプロジェクトが決めるので, 比べる相手の行と差の列の両方を書いた
 - 点群の見本は書き出しの正規化した座標 (メートル) のまま書き, `convention` に `units: m`, `shift`, `scale: 1.0` を添えた. ML-Found の決まりは「元の座標 = 値 × scale + shift」で, ML-EDA の `shift` (正規化した座標 = 元の座標 + shift) と符号が逆なので, 分割の表の `shift_x`, `shift_y`, `shift_z` の符号を反転して書いた. 正解の見本に `shift` を足すと, 元の点群の座標に戻ることを確かめた. 2 つの道具で同じ `shift` という名前が逆の向きを指すので, 写し間違えやすい

@@ -44,7 +44,7 @@
     - 縮小は stride 2 の畳み込み, 拡大は転置畳み込み. 同じ解像度の特徴をつないで戻す
 - `Diffusion`: 線形の β (1e-4 から 0.02), `T = 1000`. 時刻 `t` までのノイズを一度に加える `add_noise` と, 1,000 ステップの祖先サンプリングの `sample` を持つ
 
-## step と Trainer の設計
+## 学習の設計
 
 `Trainer` を継承した `DiffusionTrainer` で, 次のメソッドを上書きする.
 
@@ -57,7 +57,7 @@
 - `on_epoch_end`: 検証の後, 10 エポックごとと最後のエポックに, EMA の重み (EMA を使わない場合は学習中の重み) で 64 枚を生成して `samples/epoch_XXX.png` に保存する
 - 学習後に, ML-Found が戻したベストモデルの重みで生成して `best_model.png` に, EMA を使う場合は最後の EMA の重みを `ema_model.pt` に保存し, それで生成して `ema_model.png` に保存する. EMA が一度も更新されていない場合 (学習が終わった状態から再開した場合など) は保存しない
 
-## config
+### config
 
 ```yaml
 # default
@@ -103,7 +103,7 @@ experiment で次の差分を試す.
 2. `ema.use: false` (`no_ema.yaml`)
 3. `ema.eval: true` (`ema_eval.yaml`, EMA の重みで検証し, ベストモデルを選ぶ)
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] 検証用の損失が `t` と `eps` の乱数によってばらつき, ベストモデルの判定が不安定にならないか. 検証時だけ乱数を固定する方法があるか → 毎回違う乱数で求めた `loss_random` はエポックごとに乱数で揺れるので, それで判定するとベストモデルが乱数に左右される. このタスクは専用の乱数生成器を `on_epoch_start` で `experiment.seed` に戻し, 毎エポック同じ乱数で求めた `loss` で判定する. ML-Found の `trainer.valid_seed` でも検証の乱数を固定できる (このタスクは使っていない)
 - [x] `update_parameters` を上書きして EMA を更新できる
@@ -117,7 +117,7 @@ experiment で次の差分を試す.
 - 50 エポックで, 生成画像の大半が数字と分かる (このタスクでは 30 エポックにした)
 - EMA ありの方が生成画像がきれいになる
 
-## 予想される問題
+### 予想される問題
 
 - EMA の重み, 生成用の状態など, モデル以外に保存したい状態をチェックポイントに加える仕組みが要る → ML-Found の `extra_state_dict` と `load_extra_state_dict` で加えられる
 - 検証用の損失が乱数に依存するので, そのままでは `valid/loss` でのベストモデルの判定や Early Stopping の信頼性が低い → その通り (上のチェックボックスを参照)
@@ -171,9 +171,9 @@ python tasks/11_diffusion/train.py --experiment configs/experiment/examples/smok
 - 既定 (`trainer.resume_scheduler: checkpoint`) で再開すると, Scheduler の状態が引数ごと再開元から戻るので `T_max = 1` のまま動き, 「再開元の Scheduler の引数が config と違うので, 再開元の値を使います」の警告が出て, エポック 2 の学習率が 0 になる. 通しの学習とは一致しない
 - 09 で見つけたとおり, `num_workers > 0` (`persistent_workers=True`) では再開した学習は通しの学習と一致しないので, ここでは 0 にした
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - 再開すると, 既定では Scheduler の状態が引数 (`T_max` など) ごとチェックポイントから戻るので, config で引数を変えても効かない (警告は出る). `${trainer.epochs}` のように引数がエポック数に従う config で, エポック数を延ばして再開する場合は `trainer.resume_scheduler: config` にする
 - 損失に乱数を含む学習では, 検証用の損失がエポックごとに乱数で揺れ, ベストモデルの判定と Early Stopping が乱数に左右される. `trainer.valid_seed` で検証の乱数を固定できる

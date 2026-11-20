@@ -357,6 +357,9 @@ def build_model(
     spec = spec.get("spec", spec)
     dataset = target.get("dataset") or record["dataset"]
     code, info = ca.call("POST", "/api/dataset/inputs", {"path": dataset})
+    # 作れたら, 画面と同じく返った値を例に当ててから, 残る手直しを数える
+    if code == 200 and isinstance(info, dict) and setup.get("apply_info"):
+        spec = setup["apply_info"](spec, info)
     spec, changes = setup["adapt"](spec, Path(record["dataset"]))
     if code == 200:
         # 作れても, 例を手で直した所があれば手 (隠れた手を数えないため)

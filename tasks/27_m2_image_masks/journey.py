@@ -107,6 +107,38 @@ def adapt_unet(spec: dict, dataset: Path) -> tuple[dict, list[str]]:
     return result
 
 
+def apply_unet_info(spec: dict, info: dict) -> dict:
+    """
+    ML-CreateArchitecture の「データセットから入力と出力を作る」と同じく,
+    返った入力のチャンネル数と出す値の数を U-Net の例に当てはめる関数
+
+    Parameters
+    ----------
+    spec: dict
+        例の定義
+    info: dict
+        POST /api/dataset/inputs の応答 (ML-EDA の model_inputs)
+
+    Returns
+    ----------
+    spec: dict
+        当てはめた定義 (同じ辞書)
+    """
+    # 入力の 2 番目の次元 (チャンネル) と出す値の数 (クラスの数)
+    inputs = info.get("inputs") or []
+    shape = inputs[0].get("shape") if inputs else None
+    if isinstance(shape, list) and len(shape) >= 2 and shape[1]:
+        name = next(iter(spec["inputs"]))
+        first = next(n for n in spec["nodes"].values()
+                     if n.get("inputs") == name)
+        first["params"]["in_channels"] = shape[1]
+    if isinstance(info.get("outputs"), int):
+        head = spec["nodes"][next(iter(spec["outputs"].values()))]
+        head["params"]["out_channels"] = info["outputs"]
+
+    return spec
+
+
 def check_samples(
     dash: Client, run_path: str, results: dict[str, Any]
 ) -> tuple[str, str]:
@@ -240,6 +272,7 @@ def build(work: Path) -> dict:
         "item_steps": {"image": [RESIZE]},
         "example": "unet_segmentation",
         "adapt": adapt_unet,
+        "apply_info": apply_unet_info,
         "epochs": EPOCHS,
         "check_samples": check_samples,
         "new": new / "images",

@@ -45,17 +45,19 @@ GAN の損失は画像の良し悪しを表さないので, `trainer.select_best
 - `Discriminator`: `Conv2d` を 2 回 (28 → 14 → 7, `LeakyReLU(0.2)`, 2 回目に `BatchNorm2d`) → `Linear` で 1 つのロジット
 - `GAN`: 2 つを `model.generator` と `model.discriminator` として持ち, `forward` はノイズから画像を生成する. 2 つ合わせてパラメータ数は 92 万
 
-## 試す書き方
+## 学習の設計
+
+### 試す書き方
 
 A から C は config の `train.variant` で切り替え, D は別のスクリプト `train_named.py` で動かす. 損失は `nn.BCEWithLogitsLoss()` で, 識別器は本物を 1, 生成画像を 0 と判定させ, 生成器は生成画像を 1 と判定させる.
 
-### A. 損失を 1 つにまとめる (ML-Found の仕組みのまま)
+#### A. 損失を 1 つにまとめる (ML-Found の仕組みのまま)
 
 - `step` で `d_loss + g_loss` を返し, ML-Found が config から作る 1 つの Optimizer で両方のパラメータを更新する
 - 生成器と識別器が同じ損失の和を最小化してしまい, 敵対的にならないので **正しく学習できないはず**. それを確かめる
 - 生成画像についての 2 つの項 (0 と判定させる項と 1 と判定させる項) の和は, 識別器が生成画像を 0.5 と判定したときに最小になる. 識別器は自分だけでその状態にできるので, 生成器が何を生成しても勾配がほぼ 0 になる見込み
 
-### B. `Trainer` を継承して `update_parameters` を書き換える (既定)
+#### B. `Trainer` を継承して `update_parameters` を書き換える (既定)
 
 - 生成器の Optimizer は config の `optimizer` から作って `Trainer` に渡し, 識別器の Optimizer は config の `discriminator_optimizer` から `build_optimizer` で作る
 - `step` は生成器の損失を `loss` として返し, 識別器の損失は `self.d_loss` に保存する
@@ -63,13 +65,13 @@ A から C は config の `train.variant` で切り替え, D は別のスクリ�
 - 2 つ目の Optimizer の状態はチェックポイントに入らないので, `state_dict` と `resume` を上書きして加える. ML-Found の `resume` は読み込んだ状態を外に出さないので, 同じ規則でパスを解決してもう一度読み込む (ML-Found の `extra_state_dict` と `load_extra_state_dict` を使えば読み込み直さずに済むが, このタスクは上書きのまま)
 - `trainer.grad_clip_norm` は使わない. ML-Found は `Trainer` の Optimizer (生成器) が更新するパラメータだけをクリップするので, 識別器の更新はクリップされない. config の Scheduler も生成器の Optimizer にしか付かない
 
-### C. `step` の中で手動で更新する
+#### C. `step` の中で手動で更新する
 
 - `step` の中で識別器と生成器の Optimizer を自分で `zero_grad`, `backward`, `step` する (識別器 → 生成器の一般的な順)
 - ML-Found には `g_loss.detach().requires_grad_(True)` (勾配がパラメータに流れない損失) を返す. ML-Found の `update_parameters` はこれで逆伝播して `optimizer.step()` を呼ぶが, その前の `zero_grad` で勾配が `None` になるので何も更新しない. `update_parameters` を上書きして逆伝播と更新を飛ばす書き方でもよい
 - PyTorch Lightning の `automatic_optimization = False` に当たる書き方. ML-Found の `trainer.manual_optimization: true` にすれば, 勾配の流れない損失を返す工夫なしに同じことができる (このタスクの C は使っていない)
 
-### D. config の `optimizers` に名前付きで書く (`train_named.py`)
+#### D. config の `optimizers` に名前付きで書く (`train_named.py`)
 
 - `configs/default/named.yaml` の `optimizers` に, 識別器 (`modules: [discriminator]`) と生成器 (`modules: [generator]`) の Optimizer を名前付きで書く. ML-Found が 2 つを作り, 更新, 保存, 再開する
 - `step` は `{"loss": {"discriminator": d_loss, "generator": g_loss}}` を返すだけで, `update_parameters`, `state_dict`, `resume` は上書きしない. ML-Found は損失ごとに受け持つ部分のパラメータだけの勾配を求めるので, 生成器の損失の勾配は識別器に入らない
@@ -77,14 +79,14 @@ A から C は config の `train.variant` で切り替え, D は別のスクリ�
 - 記録は `train/loss_discriminator`, `train/loss_generator` と合計の `train/loss`, 学習率は `lr_discriminator` と `lr_generator`. 合計は良し悪しを表さないので, 監視する指標は `train/loss_generator` にし, B と同じく `select_best: false`
 - 識別器を更新した後の値で生成器の損失を求める順 (C) にしたい場合は, `manual_optimization` で `self.optimizer["generator"]` などを使う
 
-## step と Trainer の設計
+### step と Trainer の設計
 
 - `step` は `{"loss", "d_loss", "g_loss", "d_real", "d_fake"}` を返す. `d_real` と `d_fake` は識別器が本物と生成画像を本物と判定した確率の平均
 - `on_epoch_end` で, エポック 1, `visualize.sample_every` (5) の倍数, 最後のエポックに, 固定したノイズから 64 枚を生成して `samples/epoch_XXX.png` に保存する
 - `train/loss` は B と C では生成器の損失, A では 2 つの和で, 画像の質を表さないので, `trainer.select_best: false` でベストモデルを選ばない. `best.pt` は作られず, `final_model.pt` と学習後のモデルは最後のエポックの重みになる
 - 学習後に, 最後のエポックの重みで生成し, `last_model.png` に保存する
 
-## config
+### config
 
 ```yaml
 # default
@@ -121,7 +123,7 @@ visualize:
   sample_every: 5
 ```
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] 2 つ目の Optimizer を config で表せるか → B と C では `discriminator_optimizer` を自分で足し, ML-Found の `build_optimizer` で作る (ML-Found の `optimizer` の項目と違い, クラスを変えたときに引数を捨てる扱いなどは効かない). D では ML-Found の `optimizers` に名前付きで書ける
 - [x] `update_parameters` を上書きして交互の更新が書けるか → 書けた (B). ただし生成器を先に更新する順にする必要がある
@@ -135,7 +137,7 @@ visualize:
 - A: 生成画像が数字にならない (想定通り失敗する)
 - B か C: 20 エポックで数字と分かる画像が生成される
 
-## 予想される問題
+### 予想される問題
 
 - Optimizer, Scheduler, チェックポイントがすべて 1 つの Optimizer を前提にしている → `optimizer` の項目はその通りで, B と C では 2 つ目を自分で扱う. `optimizers` を使う D では ML-Found が扱う
 - `check_outputs` が `loss` を必須にし, 学習時はその `loss` で必ず `backward` するので, C の書き方では勾配の流れない損失を返す工夫が要る → `check_outputs` は `loss` がテンソルであることしか確かめないので通るが, 元の `update_parameters` の `backward` で失敗する. 勾配の流れない損失を返すか, `update_parameters` を上書きするか, `trainer.manual_optimization: true` にする必要がある
@@ -174,9 +176,9 @@ PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13, mps で�
 - `train_named.py` は, B で上書きしている `update_parameters`, `state_dict`, `resume` と, 2 つ目の Optimizer の作成が要らない (`GANTrainer` は 3 つの書き方を含めて約 260 行, `NamedGANTrainer` は `__init__`, `step`, `on_epoch_end` だけで約 100 行). 2 つ目の Optimizer も config の確認 (範囲, typo) とダッシュボードの学習の起動のフォームの対象になる
 - A と C の数値は載せていない. 実行して, `history.csv` のエポック 20 の行 (`d_loss`, `g_loss`, `d_real`, `d_fake`) と `last_model.png` を見る. A は生成画像が数字にならず, 生成画像の判定 `d_fake` が 0.5 付近, `g_loss` が log 2 (約 0.69) 付近から動かないはず. C は B と同じく数字が読める画像になるはず (更新の順が違うので値は B と一致しない)
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - `optimizer` の項目と `update_parameters` は 1 つの Optimizer と 1 つの損失を前提にしているので, 2 つ目を自分で扱う B と C では, 2 つの損失を `step` から `self` を経由して渡す必要があり, 計算グラフの都合で更新の順も制約された. `optimizers` を使う D ではこれらを書かずに済む
 - 識別器を更新した後の値で生成器の損失を求める順 (C) は, `optimizers` の同時の更新では書けないので, `trainer.manual_optimization: true` で `step` の中で更新する

@@ -52,7 +52,7 @@
 - `Decoder` は Sigmoid を掛けずにロジットを出し, 損失関数の側で Sigmoid と合わせて計算する (数値的に安定するため). 画素値が要る生成では `decode` で Sigmoid を掛ける
 - 再パラメータ化のノイズは `torch.randn_like(mu)` で作る
 
-## step と Trainer の設計
+## 学習の設計
 
 `Trainer` を継承した `VAETrainer` で `step` を上書きする.
 
@@ -62,7 +62,7 @@
 - `beta` が変わる間は `loss` が比べられないので, ベストモデルの判定には重み 1 の負の ELBO (`valid/nelbo`) を使う
 - 学習後に, ベストモデルで標準正規分布から 64 枚を生成して `samples.png` に保存する. `latent_dim: 2` の場合は潜在空間の -3 から 3 を 20×20 の格子でたどった画像も `traversal.png` に保存する
 
-## config
+### config
 
 ```yaml
 # default
@@ -102,7 +102,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 4. `loss.kl_warmup_epochs: 0`, annealing なし (`no_warmup.yaml`)
 5. `loss.beta: 4.0`, β-VAE (`beta4.yaml`)
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] 損失の内訳 (`recon`, `kl`) が `train/` と `valid/` を付けて記録され, それぞれ学習曲線 (`recon_curve.png`, `kl_curve.png`) が描かれる
 - [x] `step_fn` (関数を渡す形) からはエポックを参照できないので, 継承する必要があるか → 引数では渡らないので, 継承するか, closure の中から作った `trainer` の `epoch` を参照する必要がある. このタスクでは継承した `step` で `self.epoch` を使った
@@ -114,7 +114,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 - `latent_dim: 16` で, 検証用データの負の ELBO が 1 枚あたり 100 前後
 - 生成画像で数字らしい形が出る
 
-## 予想される問題
+### 予想される問題
 
 - `step_fn(model, batch, phase)` にはエポックが渡らないので, KL annealing のようにエポックに依存する損失は関数の形では書けない → 引数では渡らなかった. 関数の形でも closure で `trainer` を参照すれば書けるが, 継承する方が素直
 - `valid/loss` の定義がエポックによって変わる (annealing 中) ので, ベストモデルの判定に向かない. 利用者が `monitor` を変える必要がある → その通りだった
@@ -171,9 +171,9 @@ PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13, mps で�
 - KL の重みは再開しても続きの値 (エポック 6 で 0.6) になり, `self.epoch` を使う `step` も再開で正しく動いた
 - ワーカーを使い回す (`persistent_workers=True`) DataLoader では, ワーカーの乱数の種をイテレータを最初に作るときに 1 回だけ torch の全体の乱数 (ML-Found が固定, 保存するもの) から引く. 通しの学習ではエポック 1 で引くが, 再開した学習では再開後の最初のエポックで学習用と検証用の DataLoader がそれぞれ引くので, その後の乱数の流れがずれ, データの並べ替えが変わる. ML-Found は乱数の状態を正しく戻しているが, それだけでは再開した学習が通しの学習と一致しないので, 警告を出す (ワーカーを使い回さない `num_workers > 0` は試していない)
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - `step_fn(model, batch, phase)` には引数としてエポックが渡らないので, KL annealing のようにエポックに依存する損失は, `Trainer` を継承して `self.epoch` を使うか, closure の中から `trainer.epoch` を参照する必要がある
 - 学習の途中で損失の定義が変わる場合 (annealing, β のスケジュール), `monitor` の指標を何にするかで選ばれるベストモデルが大きく変わり, 既定では最後にその重みに戻される. 実験 5 では学習の途中のモデルが残った. 最後の重みを残すには `trainer.restore_best: false` か `trainer.select_best: false` にする

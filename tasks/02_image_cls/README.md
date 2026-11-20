@@ -51,12 +51,12 @@ MNIST は 08 から 11 の生成系のタスクで使う.
 余力があれば, torchvision の事前学習済み ResNet-18 を CIFAR-10 で転移学習する版も追加する.
 その場合は, 一部の層だけを学習するためのパラメータグループの渡し方も確かめる対象になる.
 
-## step の設計
+## 学習の設計
 
 - `batch` は `(x, y)` のタプル
 - `nn.CrossEntropyLoss()` で損失を求め, `{"loss": loss, "acc": acc}` を返す
 
-## config
+### config
 
 ```yaml
 # default
@@ -101,7 +101,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 4. `data.num_workers: 0` でワーカーを使わない場合と比べる (`workers0.yaml`)
 5. `experiment.device: cpu` で速度を比べる. 時間がかかるので `trainer.epochs: 3` にする (`cpu.yaml`)
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] `experiment.device: auto` で cuda または mps が選ばれ, バッチが自動でデバイスに移る (この環境では mps)
 - [x] `scheduler.interval: step` で学習率がバッチごとに更新される. `lr_curve.png` にはエポックの開始時点の値が出て, 更新ごとの学習率は `lr_steps.csv` と `lr_steps.png` に残る
@@ -116,7 +116,7 @@ experiment で次の差分を試す. 2 から 5 は `configs/experiment/examples
 - テスト用データの正解率が 0.91 以上
 - MPS や CUDA で数分以内に終わる
 
-## 予想される問題
+### 予想される問題
 
 - `OneCycleLR` の `steps_per_epoch` はバッチ数に依存するので, config だけでは決めにくい → 書かなければ ML-Found が補うので, config に書く必要は無い
 - 進捗バーがエポック単位なので, 1 エポックが長い場合にバッチの進み具合が見えない → このタスクでは 1 エポックが数秒なので困らない. 長い場合は `trainer.progress_bar_batches` でバッチ単位の進捗バーを出せる
@@ -168,8 +168,8 @@ PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13 での値
 - 実験 5 では `trainer.epochs: 3` に合わせて `scheduler.params.epochs` も 3 になり, `diff.yaml` にも出る. `${trainer.epochs}` の参照は ML-Found の config でそのまま使える
 - 学習時間は `train.log` の最後の「学習時間」に出る. 他の学習と GPU を分け合うと mps の学習時間は大きく延びる
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - `final_model.pt` は cpu のテンソルで保存されるので, mps の無い環境でもそのまま読める. `evaluate.py` は `map_location="cpu"` も付けている

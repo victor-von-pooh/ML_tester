@@ -47,7 +47,7 @@
 - `ImbalancedClassifier`: `Linear → ReLU → Dropout` を 2 回と出力層の 3 層の MLP, 出力は 1 つのロジット (隠れ層 64, ドロップアウト 0.2)
 - 損失は `nn.BCEWithLogitsLoss(pos_weight=...)`. `pos_weight` は学習用データの (負例の数 / 正例の数) で, 5 % のとき 17.2
 
-## step と Trainer の設計
+## 学習の設計
 
 `Trainer` を継承した `AUCTrainer` で, `step_fn` を渡さずに次のメソッドを上書きする.
 
@@ -56,7 +56,7 @@
 - `step(batch, phase)`: 損失を求め, 予測確率を `detach().cpu()` してリストに追加し, `{"loss": loss, "batch_size": len(y)}` を返す
 - `on_epoch_end(phase)`: 集めた予測から `roc_auc_score` と `average_precision_score` を求めて `{"auc": ..., "ap": ...}` を返す
 
-## config
+### config
 
 ```yaml
 # default
@@ -97,7 +97,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 3. `data.pos_ratio: 0.01` (`pos1.yaml`)
 4. `trainer.eval_train: true` (`eval_train.yaml`, 学習用データを推論モードで評価し直す)
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] `Trainer` を継承し, `step_fn` を渡さずに `step` を上書きできる
 - [x] `on_epoch_end` の戻り値が `train/auc`, `valid/auc` として記録され, 学習曲線 (`auc_curve.png`, `ap_curve.png`) も描かれる
@@ -109,7 +109,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 
 - 検証用データの ROC-AUC が 0.90 以上, AP が 0.6 前後
 
-## 予想される問題
+### 予想される問題
 
 - `pos_weight` は学習用データの正例の割合から決まるので, config の値だけでは書けず, train.py で計算して損失関数に渡す形になる → その通り. ML-Found の問題ではない
 - 学習時の予測は Dropout が効いた状態なので `train/auc` は参考程度にしかならない → その通り (下の結果を参照). `trainer.eval_train: true` で学習用データを推論モードで評価し直せる (実験 4)
@@ -167,9 +167,9 @@ PyTorch 2.15.0, scikit-learn 1.9.1, macOS (Apple Silicon), Python 3.13, cpu で�
 - エポック 1 の差が最も大きい. `train/` はパラメータを更新しながら集めた予測なので, 学習の始めの悪い予測を含む. Dropout が効いた状態の予測であることと合わせて, 学習用の値が低く出る
 - 学習用データの推論 1 周分が増えるので, 学習時間は実験 1 より長くなる
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - `Trainer` を継承する書き方は README の説明通りで, `__init__`, `step`, `on_epoch_start`, `on_epoch_end` の上書きと `self.epoch` の参照に問題は無い
 - `on_epoch_end` の戻り値に `step` の戻り値と同じ名前の指標があると, エラーで止まる (黙って上書きされない)

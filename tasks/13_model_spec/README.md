@@ -51,7 +51,7 @@ ML-ModelControl のモデルの定義 (YAML) から組み立てたモデルを, 
 - 部分モデル `block` は `nn.Conv2d(16, 16, 3, padding=1)`, `nn.ReLU` と, 入力を足す残差のつなぎ (`op.Add`). 定義の `subgraphs` に写してあるので, 1 つのファイルだけで組み立てられる (2 つのブロックの重みは別)
 - パラメータ数は 7,370 (`cnn_wide.yaml` は 23,946)
 
-## train.py の流れ
+## 学習の設計
 
 1. `load_project_config` で config を作り, `model.spec` の定義から `build_model` で組み立てる. 定義に誤り (引数の不足など) があれば `SpecError` の誤りの一覧を表示し, **実験の出力先を作る前に**終える
 2. `infer` で形を推定する. 形の合わない定義 (`in_features` の食い違いなど. `build_model` は通る) は, 計算できなかったノードの理由を表示して終える. 出力の形の最後の次元がクラスの数 (10) と合うかも確かめる
@@ -66,20 +66,6 @@ ML-ModelControl のモデルの定義 (YAML) から組み立てたモデルを, 
 - [x] experiment で `model.spec` を変えると, 違う定義で学習でき, `diff.yaml` に `model.spec` の差分が残る
 - [x] 出力先の定義と重みだけで同じモデルを作り直せる (出力の差が 0)
 - [x] 書き出したコード (ML-ModelControl 無しで動く) のモデルも同じ出力になる
-
-## 実行方法
-
-ルートのディレクトリで, `.venv` を有効にして実行する.
-
-```bash
-python tasks/13_model_spec/train.py                                                      # 1. cnn.yaml
-python tasks/13_model_spec/train.py --experiment configs/experiment/examples/wide.yaml   # 2. cnn_wide.yaml
-python tasks/13_model_spec/train.py --experiment configs/experiment/examples/broken.yaml # 3. 引数の足りない定義
-python tasks/13_model_spec/train.py --experiment configs/experiment/examples/broken_shape.yaml # 4. 形の合わない定義
-python tasks/13_model_spec/train.py --experiment configs/experiment/examples/quick.yaml  # 動作の確認 (2 エポック)
-```
-
-CPU で, 1 と 2 はそれぞれ 5 秒ほど (Python の起動と読み込みを含む. 最初の 1 回は 10 秒ほど). `--experiment` の相対パスはタスクのディレクトリから辿るので, 別の場所から実行しても同じ結果になる.
 
 ## 期待する結果
 
@@ -96,11 +82,25 @@ CPU で, 1 と 2 はそれぞれ 5 秒ほど (Python の起動と読み込みを
 - head: RuntimeError: ... → 入る値の最後の次元 256 と in_features 255 が合いません (in_features を 256 にするか, 前のノードを直してください)
 ```
 
-## 予想される問題
+### 予想される問題
 
 - 定義の誤りは 2 つの段階で見つかる. 引数の不足や知らない項目は `build_model` (確認), 形の食い違いは `infer` (形の推定) で, `build_model` だけでは形の誤りは学習を始めてから (実験の出力先を作った後に) 分かる. 学習のスクリプトで両方を呼ぶ必要がある
 - ML-Found は定義を知らないので, 定義を実験の出力先に写すのは学習のスクリプトの仕事. 写し忘れると, 後から同じモデルを作れない
-- ML-Dashboard から起動し直す場合も, 起動した時点の `models/` の定義から組み立てる (下の結果のメモ)
+- ML-Dashboard から起動し直す場合も, 起動した時点の `models/` の定義から組み立てる (下の「気付いたこと」)
+
+## 実行方法
+
+ルートのディレクトリで, `.venv` を有効にして実行する.
+
+```bash
+python tasks/13_model_spec/train.py                                                      # 1. cnn.yaml
+python tasks/13_model_spec/train.py --experiment configs/experiment/examples/wide.yaml   # 2. cnn_wide.yaml
+python tasks/13_model_spec/train.py --experiment configs/experiment/examples/broken.yaml # 3. 引数の足りない定義
+python tasks/13_model_spec/train.py --experiment configs/experiment/examples/broken_shape.yaml # 4. 形の合わない定義
+python tasks/13_model_spec/train.py --experiment configs/experiment/examples/quick.yaml  # 動作の確認 (2 エポック)
+```
+
+CPU で, 1 と 2 はそれぞれ 5 秒ほど (Python の起動と読み込みを含む. 最初の 1 回は 10 秒ほど). `--experiment` の相対パスはタスクのディレクトリから辿るので, 別の場所から実行しても同じ結果になる.
 
 ## 結果のメモ
 
@@ -116,4 +116,7 @@ CPU で, 1 と 2 はそれぞれ 5 秒ほど (Python の起動と読み込みを
 
 - 1 と 2 の実験の出力先には, ML-Found のファイルに加えて, 写した `model_spec.yaml` と書き出した `model_export.py` が残る. 2 の `diff.yaml` には `model.spec` (`models/cnn.yaml` から `models/cnn_wide.yaml`) が残る
 - 3 と 4 は出力先を作らずに終わる (`outputs/digits_spec/` の下に増えるのは 1, 2, quick の 3 つだけ). 4 の理由の文は, 入ってきた値の形と直し方を添えた ML-ModelControl の形の推定の誤り
-- 定義を実験の出力先に写すのは学習のスクリプトの仕事で, ML-Found は定義を知らない. そのため ML-Dashboard の「この設定でもう一度起動」は, 起動した時点の `models/` の定義から組み立てる (前の実験の後に `models/cnn.yaml` を書き換えていれば, 違うモデルで学習する). 前の実験と同じモデルにしたい場合は, その実験の `model_spec.yaml` を `models/` に写してから起動する. 定義の置き場とプロジェクトの結び方は, 全体の方針 (ルートの VISION.md) で保留中の項目
+
+## 気付いたこと
+
+- 定義を実験の出力先に写すのは学習のスクリプトの仕事で, ML-Found は定義を知らない. そのため ML-Dashboard の「この設定でもう一度起動」は, 起動した時点の `models/` の定義から組み立てる (前の実験の後に `models/cnn.yaml` を書き換えていれば, 違うモデルで学習する). 前の実験と同じモデルにしたい場合は, その実験の `model_spec.yaml` を `models/` に写してから起動する. 定義の置き場とプロジェクトの結び方は, 利用者の判断を待つ項目 (ルートの TODO.md の「モデルの定義の置き場とプロジェクトの結び方」)

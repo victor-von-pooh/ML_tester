@@ -13,17 +13,6 @@
 
 **道具の外にあるもの**: 書き出した方策は, 観測から行動と守りの結果を返すだけで, 環境や機械には触れない. **実機 (ハードウェア) での実行は道具の外**で, ML-Found も推論の段階も実機を動かさない. **方策を使ってよいか (配備) と守りの範囲 (止める条件の値, 外れたときの動き) は人が決めて承認する**. ここで config に書いた範囲は確かめのための例で, 承認を経た値ではない (相談 7 の原則の当てはめ).
 
-## 追加の依存 (Gymnasium)
-
-強化学習には ML-Found の追加の依存 `rl` (Gymnasium) が要る. ルートの README の「導入」で `pip install -e "./ML-Found[examples,rl]"` と入れる. config の一番上に `requires: [rl]` を書いているので, 入っていないまま `train.py` を動かすと, `start_experiment` が出力先を作る前に `MissingRequirementError` で止まり, 学習のスクリプトが次の入れ方を示して終わる.
-
-```
-機能 rl に要るものが入っていません: gymnasium
-次の一手: pip install "gymnasium>=1.0"
-(ML-Found の追加の依存 rl でも入る: pip install -e "./ML-Found[rl]")
-説明: https://gymnasium.farama.org/introduction/basic_usage/
-```
-
 ## ディレクトリ構成
 
 ```
@@ -50,7 +39,15 @@
 | 検証 (`EvaluationLoader`) | 10 エピソード, 最もスコアの高い行動 | 10000, 10001, ... (毎エポック同じ) |
 | 守り付きの評価 | 読み直した方策で 10 エピソード | 20000, 20001, ... |
 
-## 守り
+## モデル
+
+`model.py` の `PolicyNet`. 観測 (4 つ) から行動ごとのスコア (2 つ) を出す, 隠れ層 1 つ (64, tanh) の全結合のモデル.
+
+## 学習の設計
+
+`RolloutLoader`, `EvaluationLoader`, `ReinforceStep` を `Trainer` に渡して学習する (上の「目的」の 1). Adam (学習率 0.01), 20 エポック, `valid/reward` を `mode: max` で監視し, 同じ値の場合は `train/reward` で比べる (`monitor_tiebreak`). 学習の後に守りと一緒に書き出し, 読み直して守り付きで動かす (上の「目的」の 2 から 5).
+
+### 守り
 
 | 一式 | 置き場 | 選んでよい行動 | 止める条件 (絶対値の上限) | 外れたときの動き |
 | --- | --- | --- | --- | --- |
@@ -70,7 +67,27 @@
 - [x] Gymnasium が無いと, config の `requires: [rl]` により出力先を作る前に入れ方を示して止まる (`test_guards.py` で Gymnasium を隠して確かめる)
 - [x] `task.yaml` を書ける (受け持ちは `effect`, 出力の形は `action`, 正解の種類は `reward`, 正解の出どころは `environment`)
 
+## 期待する結果
+
+- 1 で `valid/reward` が上限の 500 に届く. 本番の候補の守りでは, 棒を立て続けるので止める条件に当たらず, 全て `ok`
+- 練習の一式では止める条件が狭いので, `narrow_stop` はいくつかのエピソードを途中で止め (`stop`), `narrow_fallback` は止めずに行動 0 で続ける (`fallback`)
+- 2 では学習が足りず棒が傾くので, 本番の候補の守りでも止まるエピソードが出る
+- 実験のディレクトリに `policy/`, `drills/narrow_stop/`, `drills/narrow_fallback/`, `evaluations/guarded_episodes.json`, `task.yaml` ができる
+
 ## 実行方法
+
+### 追加の依存 (Gymnasium)
+
+強化学習には ML-Found の追加の依存 `rl` (Gymnasium) が要る. ルートの README の「導入」で `pip install -e "./ML-Found[examples,rl]"` と入れる. config の一番上に `requires: [rl]` を書いているので, 入っていないまま `train.py` を動かすと, `start_experiment` が出力先を作る前に `MissingRequirementError` で止まり, 学習のスクリプトが次の入れ方を示して終わる.
+
+```
+機能 rl に要るものが入っていません: gymnasium
+次の一手: pip install "gymnasium>=1.0"
+(ML-Found の追加の依存 rl でも入る: pip install -e "./ML-Found[rl]")
+説明: https://gymnasium.farama.org/introduction/basic_usage/
+```
+
+### 動かし方
 
 ルートのディレクトリで, `.venv` を有効にして実行する.
 
@@ -81,13 +98,6 @@ python -m pytest tasks/24_rl_cartpole                                           
 ```
 
 CPU で, 1 は 10 秒ほど, 2 は 3 秒ほど, 3 は 1 秒ほど (Python の起動を含む). 3 には pytest が要る (ルートの README の「導入」で入れる).
-
-## 期待する結果
-
-- 1 で `valid/reward` が上限の 500 に届く. 本番の候補の守りでは, 棒を立て続けるので止める条件に当たらず, 全て `ok`
-- 練習の一式では止める条件が狭いので, `narrow_stop` はいくつかのエピソードを途中で止め (`stop`), `narrow_fallback` は止めずに行動 0 で続ける (`fallback`)
-- 2 では学習が足りず棒が傾くので, 本番の候補の守りでも止まるエピソードが出る
-- 実験のディレクトリに `policy/`, `drills/narrow_stop/`, `drills/narrow_fallback/`, `evaluations/guarded_episodes.json`, `task.yaml` ができる
 
 ## 結果のメモ
 
@@ -115,7 +125,9 @@ Gymnasium 1.4.0, PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 - `evaluations/guarded_episodes.json` は 1 行が 1 つの守りの 1 エピソード (`name`, `guards` と `evaluate_policy` の列 `episode`, `seed`, `reward`, `length`, `end`, 守りの結果ごとの数) の 30 行
 - `test_guards.py` の 8 つのテストが通る (1 秒ほど)
 
-### 気付いたこと (ML-Found)
+## 気付いたこと
+
+### ML-Found
 
 - **`policy.json` の `model_class` が `model.PolicyNet`**: スクリプトの隣の `model.py` から読み込んだので, モジュールの名前は `model` になる. 読む側が組み立て方を探す手がかりとしては弱いので, ML-Found の例と同じく `metadata` の `model` にクラスと引数 (`class`, `args`) を書いた
 - `save_evaluation` の `split` は文字なら何でもよいので `simulator` とした. 環境で評価した表の分割の名前の決まりは無い

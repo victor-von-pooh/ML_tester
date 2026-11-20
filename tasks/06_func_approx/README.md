@@ -50,7 +50,7 @@ ML-Found は closure が必要な Optimizer を見分けて `optimizer.step(clos
 - `FunctionMLP`: `Linear → Tanh` を 3 回と 1 次元の出力層の MLP (隠れ層 64, パラメータ数 8,513)
 - 滑らかな関数なので活性化関数は `nn.Tanh()` にする
 
-## step と Trainer の設計
+## 学習の設計
 
 - `step` は MSE の損失 (`nn.MSELoss()`) と, 絶対誤差の最大値 `max_err` を返す
 - LBFGS のために, `Trainer` を継承した `ClosureTrainer` を用意し, config の `train.use_closure: true` で切り替える
@@ -58,7 +58,7 @@ ML-Found は closure が必要な Optimizer を見分けて `optimizer.step(clos
     - `update_parameters`: 保存したバッチから損失を計算し直して逆伝播する closure を作り, `optimizer.step(closure)` を呼ぶ
     - 元の `update_parameters` にある勾配クリッピング (closure の中で逆伝播の後に適用) と, `interval: step` の Scheduler の更新も写す
 
-## config
+### config
 
 ```yaml
 # default
@@ -91,7 +91,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 3. 2 と同じ LBFGS を `ClosureTrainer` で (`lbfgs_closure.yaml`)
 4. Adam を `ClosureTrainer` で. 実験 1 と同じ結果になるかの確認 (`adam_closure.yaml`)
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] フルバッチ (`[data]` を渡す形) で数千エポック回したときの速度とログの量. 5000 エポックで `train.log` は約 5,100 行. 学習時間の大部分はチェックポイントの保存 (下の「気付いたこと」)
 - [x] LBFGS を `Trainer` のままで使える → ML-Found が closure が必要な Optimizer を登録簿の仕様とクラスの属性 `requires_closure` で見分け, `train.log` に「更新の手順: closure を Optimizer に渡して更新」と出る. 実験 2 の `history.csv` は `ClosureTrainer` の実験 3 と完全に一致する
@@ -102,7 +102,7 @@ experiment で次の差分を試す. 2 から 4 は `configs/experiment/examples
 - Adam: 検証用データの MSE が 1e-4 程度
 - LBFGS: Adam より少ないエポックで MSE が 1e-5 程度まで下がる
 
-## 予想される問題
+### 予想される問題
 
 - LBFGS は `optimizer.step(closure)` が必要 → ML-Found が見分けて closure を渡すので, 問題にならない
 - エポック数が多いと, 毎エポックの `last.pt` の保存とログの出力が学習そのものより遅くなる可能性がある → 保存はその通りで, 学習時間の大部分を占める. `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空けられる
@@ -126,7 +126,7 @@ python tasks/06_func_approx/train.py --experiment configs/experiment/examples/ad
 - 実験 2 は ML-Found が closure を渡すので学習でき, 結果は実験 3 と一致する
 - 進捗バーは表示しない設定にしている. 学習時間は `train.log` の最後の「学習時間」に出る. 時間の目安は Apple Silicon の Mac での値
 
-## PINN (実験 5 と 6)
+### PINN (実験 5 と 6)
 
 検証時に勾配の計算が止まる ML-Found の仕様と, 損失の中で入力に対する微分を使う学習が衝突するかを確かめる.
 `train_pinn.py` で, 微分方程式 `u''(x) = -π² sin(πx)`, `u(0) = u(1) = 0` (厳密解 `u = sin(πx)`) を, `FunctionMLP` (隠れ層 32, 3 層, パラメータ数 2,209) で解く.
@@ -171,9 +171,9 @@ PyTorch 2.15.0, macOS (Apple Silicon), Python 3.13, cpu での値.
 - 実験 4 は `history.csv` が実験 1 と完全に一致する. `ClosureTrainer` は勾配法の Optimizer でも同じ結果になる (ただし closure の中で順伝播をもう 1 回行うので, 順伝播の回数は 2 倍)
 - 学習時間は `train.log` の最後の「学習時間」に出る. 実験 1 は `trainer.checkpoint.save_last: false` と `save_best: false` にすると数分の 1 になる (記録は同じ)
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - `Trainer` を継承して closure を自分で渡す場合, `update_parameters` は損失しか受け取らないので, closure で損失を計算し直すためにバッチを `step` で `self` に保存する必要がある. また元の `update_parameters` の勾配クリッピングと Scheduler の処理を自分で写す必要がある (このタスクの `ClosureTrainer` では両方を写した). LBFGS を使うだけなら, ML-Found が closure を渡すので継承は要らない
 - 記録される `train/loss` は, `update_parameters` の前に `step` で計算した損失, つまり前のエポックの更新の後のパラメータでの損失. これはどの Optimizer でも同じだが, LBFGS は 1 回の `step` の中でパラメータが大きく動くので, 記録と現在のパラメータの差が大きい

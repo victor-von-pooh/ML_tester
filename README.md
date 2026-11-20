@@ -1,10 +1,13 @@
 # ML_tester
-機械学習のテストフィールド.
+機械学習の整理と試しの場.
 
-[ML-Found](https://github.com/victor-von-pooh/ML-Found) を利用者の立場で使い, いろいろな種類のタスクで機能するかを確かめる.
-各タスクの `train.py` を手で動かして結果を見て, 書きにくい点や足りない機能を [FEEDBACK.md](FEEDBACK.md) にまとめる. 結果は ML-Dashboard の画面でも見られる (下の「ML-Dashboard で見る」).
+「機械学習を全て GUI 上で行う」ための 10 のリポジトリ (問題の設定の ML-Quest と ML-Pathfinder, データの分析の ML-EDA と ML-Fathom, モデルの作成の ML-ModelControl と ML-CreateArchitecture, 学習の [ML-Found](https://github.com/victor-von-pooh/ML-Found) と ML-Dashboard, 推論の ML-Inference と ML-Provide) を, 利用者の立場でまとめて使い, いろいろな種類のタスクで機能するかを確かめる. 各タスクのスクリプトを手で動かして結果を見て, 気付いたことを各タスクの README に書く. 結果は ML-Dashboard の画面でも見られる (下の「ML-Dashboard で見る」).
 
-「機械学習を全て GUI 上で行う」という全体の方針と, 各リポジトリの役割は [VISION.md](VISION.md) にまとめた. このリポジトリは動作確認の場で, 各リポジトリはこのリポジトリが無くても単独で使えるようにする.
+ML_tester は他のリポジトリの依存ではない. 各リポジトリはこのリポジトリが無くても単独で使え, 手順書, 例, テストも各リポジトリだけで完結する.
+
+- [VISION.md](VISION.md): 全体の方針と各リポジトリの役割
+- [TASK_TYPES.md](TASK_TYPES.md): 課題の型と全体の広げ方, 利用者の決めたこと
+- [TODO.md](TODO.md): まだやっていないこと. 各リポジトリの TODO.md の項目を, リポジトリをまたいで進める順に並べる
 
 ## 導入
 
@@ -81,7 +84,7 @@ tasks/XX_name/
 │       └── examples/   # README の実験で使う差分, --experiment で切り替える
 ├── model.py        # モデルのクラス
 ├── train.py        # データ, step, 学習の実行
-└── README.md       # 目的, 確かめる機能, 実行方法, 期待する結果, 結果のメモ
+└── README.md       # 目的, ディレクトリ構成, データ, モデル, 学習の設計, 確かめること, 期待する結果, 実行方法, 結果のメモ, 気付いたこと
 ```
 
 必要に応じて `data.py` (データの用意) や `evaluate.py` (学習後の評価) などを足す.

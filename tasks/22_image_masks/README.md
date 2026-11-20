@@ -40,6 +40,14 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 
 用意してもらう必要があるデータは無い (`make_data.py` が作る). ML-EDA はルートの README の「導入」で入れる.
 
+## モデル
+
+`model.py` の `TinyUNet`. 畳み込みの塊 (3x3 の畳み込み 2 回, BatchNorm, ReLU) で 16 チャンネルにし, 最大値のプーリングで縮めて 32 チャンネルの塊を通し, 転置畳み込みで戻して縮める前の特徴とつなぎ, 1x1 の畳み込みで画素ごとのクラスのスコアを出す. 入力のチャンネル数とクラスの数は `dataset.yaml` から決める.
+
+## 学習の設計
+
+`load_items` の分割を torch の `Dataset` に包んで学習する. `step` は画素ごとの交差エントロピーの損失を返し, 背景を除いた IoU の平均 (`valid/miou`) はエポック全体の画素数から `on_epoch_end` で求める. Adam (学習率 0.003), `valid/miou` を監視して Early Stopping (待つ回数 8). 学習の後に `task.yaml`, テスト用の IoU の表 (`evaluations/`), 見本 (`samples/`) を書く (上の「目的」).
+
 ## 確かめること
 
 - [x] `export_image_masks` が組を stem で作り, 版 2 の `dataset.yaml` (受け持ち, 正解の種類, 正解の出どころ, 項目の形と型, 領域の値の名前) を書く
@@ -50,6 +58,12 @@ ML-EDA の書き出しの約束 `dataset.yaml` の版 2 の, 最初の利用者�
 - [x] IoU を `on_epoch_end` で求め, `valid/miou` でベストモデルを選ぶ. テスト用の分割でも同じ数え方で評価する
 - [x] `task_from_dataset` で `dataset.yaml` (版 2) から受け持ち, 正解の種類と出どころを埋め, 出力の形 (`region`), 意味, 作り方 (`scratch`) を足して `write_task` で `task.yaml` に書ける
 - [x] テスト用の IoU の表を `save_evaluation` で, 入力の画像と, 正解と予測の領域 (`kind="mask"`) を `save_sample` で実験のディレクトリに書ける
+
+## 期待する結果
+
+- 2 で `版: 2, 受け持ち: predict, 正解の種類: mask`, 正解の出どころ `{'type': 'synthetic', 'name': 'ml_eda.synthetic.write_image_masks', ...}`, 分割 `{'train': {'items': 36}, 'valid': {'items': 12}, 'test': {'items': 12}}`, 注意なし
+- 3 で検証用の mIoU が 1 に近くなる. テスト用の IoU と正解の出どころは `train.log` にも残る
+- 実験のディレクトリに `task.yaml`, `evaluations/test_iou.json`, `samples/index.json` と, 3 件の入力, 正解, 予測の 9 つの見本 (`samples/test_<id>_input/epoch_<ベストのエポック>.png` と `_truth`, `_pred`) ができる
 
 ## 実行方法
 
@@ -63,12 +77,6 @@ python tasks/22_image_masks/train.py --experiment configs/experiment/examples/qu
 ```
 
 CPU で, 1 と 2 は 1 秒ほど, 3 は 5 秒ほど (Python の起動を含む).
-
-## 期待する結果
-
-- 2 で `版: 2, 受け持ち: predict, 正解の種類: mask`, 正解の出どころ `{'type': 'synthetic', 'name': 'ml_eda.synthetic.write_image_masks', ...}`, 分割 `{'train': {'items': 36}, 'valid': {'items': 12}, 'test': {'items': 12}}`, 注意なし
-- 3 で検証用の mIoU が 1 に近くなる. テスト用の IoU と正解の出どころは `train.log` にも残る
-- 実験のディレクトリに `task.yaml`, `evaluations/test_iou.json`, `samples/index.json` と, 3 件の入力, 正解, 予測の 9 つの見本 (`samples/test_<id>_input/epoch_<ベストのエポック>.png` と `_truth`, `_pred`) ができる
 
 ## 結果のメモ
 
@@ -85,12 +93,14 @@ PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 - `task.yaml` には `role: predict`, `target.kind: mask`, `target.origin` (type, name, settings), `dataset` (`path: outputs/dataset`, `name: image_masks`, `format_version: 2`) が埋まり, 足した `output: region`, `what`, `method: scratch` と一緒に書かれた. `describe_origin` は「正解は作った正確な値 (ml_eda.synthetic.write_image_masks). 実際のデータでの性能は別に確かめる」を返した
 - `evaluations/test_iou.json` は `epoch: 29`, `guard: false` で, クラスごとの行と `miou` の行を持つ. 見本は `samples/test_sample_005_input/epoch_0029.png` など 9 つ (32x32). 正解と予測は `kind: mask` で, 決まった色の表で色分けした PNG と, 一覧の `classes` に番号, 名前, 色 (`background` が黒, `circle` が `#800000`, `square` が `#008000`) が残る
 
-### 気付いたこと (ML-EDA)
+## 気付いたこと
+
+### ML-EDA
 
 - `load_items` が返す画像の配列は書き込めない (`np.asarray` で Pillow の画像から作るため). そのまま `torch.from_numpy` に渡すと PyTorch の警告 (`The given NumPy array is not writable`) が出る. ここでは `np.array` で写してから渡した. 領域の配列は書き込めるので出ない (同じ `load_items` でも項目によって違う)
 - 版 2 の説明の `classes` は `value` と `name` の並び (値の順) で, 領域の値をそのままクラスの番号にしてよいかは書かれない. 値から番号の表は学習のスクリプトで作った. 値が 0 から続かない領域 (255 を境界にするなど) でも同じ書き方で済む
 
-### 気付いたこと (ML-Found)
+### ML-Found
 
 - `output`, `what`, `method` は `dataset.yaml` に無いので, 学習のスクリプトが書く. `output` の値 (ここでは `region`) は ML-Quest の出力の形から選ぶが, 学習の側からは問題の設定の受け渡しを読む決まった口が無く, 手で写した
 - 領域の見本は `save_sample(..., kind="mask", classes=names)` にクラスの番号の配列を渡すだけで, 色分けと番号の表は ML-Found が作る. 入力と並べた 1 枚の画像にはならないので, 入力は別の見本 (`kind="image"`) にした

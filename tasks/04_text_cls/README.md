@@ -71,7 +71,7 @@ arXiv の論文のタイトルと要旨から, その論文がどの分野に属
 - 重いので, 学習用から 20,000 件, 検証用から 5,000 件を乱数で取り出して使う
 - 依存に `transformers` (Apache 2.0) が増える
 
-## step と Trainer の設計
+## 学習の設計
 
 - 段階 1: `collate` でパディングし, `batch` は `{"input_ids", "attention_mask", "labels"}` の辞書にする
 - 段階 2: トークナイザの出力 (`BatchEncoding`) に `labels` を加えたものをそのままバッチにする
@@ -82,7 +82,7 @@ arXiv の論文のタイトルと要旨から, その論文がどの分野に属
 - ベストモデルの判定は `valid/macro_f1` (`mode: max`)
 - 段階 2 の Scheduler は, 既定では `transformers` の `get_linear_schedule_with_warmup` (最初の 10 % で warmup, その後は線形に減衰) で作って `Trainer` に渡す. 全体のステップ数がバッチ数で決まるため. experiment で Scheduler か warmup を書くと, 代わりに ML-Found が作る (下の「config の warmup」を参照)
 
-## config
+### config
 
 ```yaml
 # default (段階 1)
@@ -114,7 +114,7 @@ model:
 
 段階 2 (`configs/default/hf.yaml`) は, `optimizer.name: AdamW`, `lr: 2.0e-5`, `weight_decay: 0.01`, `scheduler.interval: step` (Scheduler 自体は `train_hf.py` で作る), `trainer.epochs: 2`, `warmup_ratio: 0.1`, `data.n_train: 20000`, `data.n_valid: 5000`, `data.batch_size: 32`, `model.name: distilbert-base-uncased`. `experiment.device` は既定の `auto` (この環境では mps).
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] 辞書のバッチが `move_to_device` で丸ごとデバイスに移る → 段階 1 は cpu なので移動は起きない. 段階 2 の `BatchEncoding` は `.to` を持つので, `move_to_device` の `.to` の分岐で mps に丸ごと移る. `dict` の分岐を GPU で通す確認はしていない
 - [x] 辞書のバッチから `get_batch_size` がサンプル数を正しく推定する (最初に見つかったテンソルの 0 次元目) → 段階 1 の `dict` も, 段階 2 の `BatchEncoding` (`dict` の子クラスではない `UserDict`) も Mapping として推定できる. 段階 2 の `step` は `batch_size` も明示している
@@ -128,7 +128,7 @@ model:
 - 段階 1: 検証用データで, 分野ごとの F1 が 0.8 以上
 - 段階 2: 段階 1 より高い
 
-## 予想される問題
+### 予想される問題
 
 - `last.pt` にベストモデルの重みと Optimizer の状態が入るので, 事前学習済みモデルではファイルが大きく (DistilBERT で 1 GB 近く), 毎エポックの保存に時間がかかる → 容量はその通り (下の「実行方法」). `trainer.checkpoint` の設定で減らせる. 時間は測っていない
 - warmup の総ステップ数は 02 の `OneCycleLR` と同じく, config だけでは決めにくい → ML-Found の `auto` と `warmup_ratio` で config だけで書ける (下の「config の warmup」)
@@ -214,8 +214,8 @@ python tasks/04_text_cls/train_hf.py --experiment configs/experiment/examples/hf
 - エポック 1 の `train/loss` は 0.58847997 と 0.58847998 で, 7 桁目まで同じ (mps の計算の非決定性の範囲)
 - warmup の回数の求め方は, transformers が切り捨て (`int`), ML-Found が Python の `round` (ちょうど半分は偶数へ丸める) なので, 総ステップ数 × 割合の小数部が 0.5 を超える場合と, 整数部が奇数で小数部がちょうど 0.5 の場合は 1 回違う. 段階 2 の本番 (20,000 件, バッチ 32, 2 エポックで 1,250 ステップ) では 125 回で同じになり, ML-Found は `warmup_steps=125, total_iters=1125` を補う
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - Scheduler を自分で作って `Trainer` に渡すと, `config.yaml` の `scheduler` は `name: null` のままで, ML-Found が残す記録は `train.log` の `Scheduler: LambdaLR` だけになる. このタスクでは `warmup_ratio` を自分の config の項目にしたので, 引数は `config.yaml` に残る. config の warmup で書けば Scheduler も `config.yaml` に残る

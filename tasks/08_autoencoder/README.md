@@ -43,7 +43,7 @@
 - `AutoEncoder`: `forward` は `outputs, z` を返し, 潜在空間の図のために `encode` と `decode` のメソッドも持つ. パラメータ数は 17 万 (潜在変数 16 次元), 8.2 万 (2 次元)
 - 09 の VAE (`model.type: cnn`) と畳み込み・転置畳み込みの部分をそろえ, 再構成の質を比べられるようにした (09 は潜在変数と畳み込みの間に隠れ層を 1 つ挟み, Sigmoid を掛けずにロジットを出す点が違う)
 
-## step と Trainer の設計
+## 学習の設計
 
 `Trainer` を継承した `AETrainer` で, 次のメソッドを上書きする.
 
@@ -52,7 +52,7 @@
 - 学習後に, ベストモデルの再構成画像を `recon/best.png` に保存する (Early Stopping で `trainer.epochs` より前に止まった場合も, 最後の状態を残すため)
 - 学習後に, ベストモデルで検証用データを潜在変数に変換し, 2 次元 (`latent_dim: 2` ならそのまま, それ以外は特異値分解による主成分分析) に落としてラベルで色分けした図を `latent.png` に保存する. `torch.pca_lowrank` は乱数を使う近似で, 図が実行ごとに変わりうるので使わない
 
-## config
+### config
 
 ```yaml
 # default
@@ -82,7 +82,7 @@ experiment で次の差分を試す.
 1. 差分なし (`configs/experiment/train.yaml`, 空のファイル)
 2. `model.latent_dim: 2` で潜在空間を直接図にする (`configs/experiment/examples/latent2.yaml`)
 
-## 確かめる ML-Found の機能
+## 確かめること
 
 - [x] 正解ラベルを使わない `step` でも問題なく学習できる
 - [x] `on_epoch_end` の中で `self.experiment.run_dir` を使って画像を保存できる
@@ -93,7 +93,7 @@ experiment で次の差分を試す.
 
 - 検証用データの BCE が 0.08 前後まで下がり, 再構成画像で数字が読める
 
-## 予想される問題
+### 予想される問題
 
 - `on_epoch_end` は指標を返すための仕組みなので, 画像の保存に使うと役割が混ざる. 学習後の可視化用のフックがあると良さそう → その通りだった. 学習後の図は `fit` の後に `train.py` で作った
 - `on_epoch_end` が呼ばれる時点で `torch.set_grad_enabled` の範囲から抜けているので, 推論するときに自分で `torch.no_grad()` を書く必要がある → その通りだった
@@ -131,11 +131,11 @@ PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13, mps で�
 - 実験 2 は 2 次元に圧縮するので再構成がぼやけ, BCE は実験 1 の 2 倍以上だった. 4 が 9 に再構成されるなど, 別の数字になったものもあった. `latent.png` では 0 と 1 がはっきり分かれ, 6 と 7 もおおむね分かれた一方, 2, 3, 5, 8 と 4, 9 は重なった
 - どちらもエポック 28 まで小さな上下を挟みつつゆっくり下がり, 29 と 30 はわずかに悪化した. 下げ止まりかけで, 明確な過学習ではない
 
-### ML-Found について気付いたこと
+## 気付いたこと
 
-[FEEDBACK.md](../../FEEDBACK.md) に転記した (ML-Found で解消したものは FEEDBACK.md から消し, 残っているものだけを載せる).
+ML-Found について気付いたこと. リポジトリをまたいで残っている項目は [TODO.md](../../TODO.md) にまとめた.
 
 - 正解ラベルを使わない教師なし学習でも, `step` で再構成の損失を返すだけで問題なく書けた
-- `on_epoch_end` は勾配の計算を止める範囲 (`torch.set_grad_enabled(train)`) の外で呼ばれるので, 検証の後でも勾配の計算が有効になっている. 中で推論すると, `torch.no_grad()` を書かない限り計算グラフが作られる. ML-Found の README の「継承して細かく変える」にも, `torch.no_grad()` を書くよう注意がある
-- エポックの途中や学習後に画像などを残す仕組みは無いので, 指標を返すための `on_epoch_end` を流用した. 学習後の処理は `fit` の後に書けば済むが, 出力先や間隔の扱いは自分で書く必要がある
+- `on_epoch_end` は勾配の計算を止める範囲 (`torch.set_grad_enabled(train)`) の外で呼ばれるので, 検証の後でも勾配の計算が有効になっている. 中で推論すると, `torch.no_grad()` を書かない限り計算グラフが作られる. ML-Found の docs/DESIGN.md の「継承して細かく変える」にも, `torch.no_grad()` を書くよう注意がある
+- このタスクは再構成の画像を `on_epoch_end` の中で `torchvision` の `save_image` で書く (出力先と間隔は自分で書く). ML-Found の `save_sample` (`kind="image"`) で書けば `samples/<名前>/epoch_XXXX.png` に置かれ, ML-Dashboard の見本のタブで見られる
 

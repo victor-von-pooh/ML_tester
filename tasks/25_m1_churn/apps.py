@@ -4,6 +4,7 @@ ML-Dashboard, ML-Provide) を作業用の置き場で起動し, 画面と同じ 
 問題の設定から推論までを通す部品 (25 と 26 で使う)
 """
 import argparse
+import http.client
 import http.cookiejar
 import json
 import os
@@ -20,6 +21,9 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 # アプリの名前, 起動のコマンド, 置き場の環境変数, トークンの環境変数
+# API の 1 回の呼び出しの待ちの上限 (秒. 答えないアプリで止まらないため)
+CALL_TIMEOUT = 300
+
 APPS = {
     "pathfinder": ("ML-Pathfinder", "ml-pathfinder", "ML_PATHFINDER_HOME",
                    "ML_PATHFINDER_TOKEN"),
@@ -124,7 +128,7 @@ class Client:
         request.add_header("Content-Type", "application/json")
         request.add_header("x-pathfinder-token", self.token)
         try:
-            with self.opener.open(request) as response:
+            with self.opener.open(request, timeout=CALL_TIMEOUT) as response:
                 code, text = response.status, response.read()
         except urllib.error.HTTPError as error:
             code, text = error.code, error.read()
@@ -280,7 +284,7 @@ class Apps:
             for job_id in running_ids(jobs) if code == 200 else []:
                 dash.call("POST", f"/api/jobs/{job_id}/stop",
                           {"force": True})
-        except OSError as error:
+        except (OSError, http.client.HTTPException) as error:
             print(f"学習のジョブを止められませんでした: {error}", flush=True)
 
     def stop(self) -> None:

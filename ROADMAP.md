@@ -57,7 +57,7 @@
 | X2 | 学習の環境を画面から作る. M1 で埋めた (25 と 26 で確かめた) | 無し |
 | X3 | 比べる相手 (今のやり方) を骨組みの評価と推論のたどり直しで作る. M1 で埋めた (25 と 26 で確かめた) | 無し |
 | X4 | **選定が無い.** 候補を並べて起動し, 定義ごとに比べる | ML-Dashboard の「候補のモデルを並べて起動し比べる」, ML-Dashboard の「データ全体の評価を一覧と比較に出す」, ML-Found の「モデルの定義を実験に写す」(条件待ち) |
-| X5 | 画面が自分の組のライブラリの公開の口だけを使う (ML-Dashboard, ML-Fathom, ML-Provide, ML-Pathfinder が公開されていない機能を使う. VISION.md の「段階の間の関係」の 8. 項目があるのは ML-Dashboard と ML-Found の組だけ) | ML-Found の「画面が使う確かめの関数を公開する」, ML-Dashboard の「ML-Found の内部のモジュールを使わない」 |
+| X5 | 画面が自分の組のライブラリの公開の口だけを使う (ML-Dashboard, ML-Fathom, ML-Provide, ML-Pathfinder が公開されていない機能を使う. VISION.md の「段階の間の関係」の 8) | ML-Found の「画面が使う確かめの関数を公開する」, ML-Dashboard の「ML-Found の内部のモジュールを使わない」, ML-Fathom の「ML-EDA の公開されていない名前を使わない」, ML-Pathfinder の「ML-Quest の公開されていない名前を使わない」, ML-Provide の「ML-Quest と ML-Inference の公開されていない名前を使わない」, ML-Inference の「版 2 のデータセットの説明と items の既定を公開する」 |
 
 ### 縦の穴 (型ごと)
 

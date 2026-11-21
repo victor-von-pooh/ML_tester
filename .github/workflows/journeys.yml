@@ -7,7 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tasks:
-        description: 動かすタスク (空白で区切る)
+        description: >-
+          動かすタスクのディレクトリの名前 (空白で区切る. 25_m1_churn,
+          26_m1_sozai, 27_m2_image_masks, 28_m2_capture_clouds)
         default: 27_m2_image_masks 28_m2_capture_clouds
 
 permissions:
@@ -57,6 +59,10 @@ jobs:
           UV_TORCH_BACKEND: cpu
           TASKS: ${{ inputs.tasks }}
         run: |
+          if [ -z "$TASKS" ]; then
+            echo "動かすタスクがありません"
+            exit 1
+          fi
           failed=0
           for task in $TASKS; do
             echo "::group::$task"
@@ -72,7 +78,7 @@ jobs:
           [ -d "$RUNNER_TEMP/work" ] || exit 0
           (cd "$RUNNER_TEMP/work" && find . \( -name .venv -o -name '*.pt' \
             -o -name '*.npy' -o -name '*.png' \) -prune -o -type f \
-            -size -2M -print | tar -cf - -T -) | tar -xf - -C out
+            -size -2048k -print | tar -cf - -T -) | tar -xf - -C out
       - uses: actions/upload-artifact@v4
         if: always()
         with:

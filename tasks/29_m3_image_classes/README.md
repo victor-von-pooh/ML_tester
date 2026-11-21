@@ -27,7 +27,7 @@
 
 ## モデル
 
-ML-CreateArchitecture の同梱の例 `cnn_classifier` (入力 `image` [4, 1, 28, 28], 畳み込み 2 つ, 全体の平均のプーリング, 全結合の `head` の出す値 10). 画面の「データセットから入力と出力を作る」(ML-CreateArchitecture の `frontend/src/lib/dataset.ts` の `applyDatasetInputs`) と同じ当て方を `classes.py` の `apply_dataset_inputs` に写す. 入力の名前の付け替え, 形と型, 入力に直につながる部品の `in_features` と `in_channels`, 出力のつなぎ元の `out_features` と `out_channels`. 部品が引数を持つかは, 画面と同じく ML-CreateArchitecture の部品の一覧 (`GET /api/units`) で見る. 当てた後と手で直した後に, 画面の「確かめる」(`POST /api/check`) で形を確かめる. 当てた後に残る直しを「手」と数える (この例では無し).
+ML-CreateArchitecture の同梱の例 `cnn_classifier` (入力 `image` [4, 1, 28, 28], 畳み込み 2 つ, 全体の平均のプーリング, 全結合の `head` の出す値 10). 画面の「データセットから入力と出力を作る」(ML-CreateArchitecture の `frontend/src/lib/dataset.ts` の `applyDatasetInputs`) と同じ当て方を `classes.py` の `apply_dataset_inputs` に写す. 入力の名前の付け替え, 形と型, 入力に直につながる部品の `in_features` と `in_channels` と `num_embeddings` (入力が語彙の大きさを持つときだけ. 30 で使う), 出力のつなぎ元の `out_features` と `out_channels`. 部品が引数を持つかは, 画面と同じく ML-CreateArchitecture の部品の一覧 (`GET /api/units`) で見る. 当てた後と手で直した後に, 画面の「確かめる」(`POST /api/check`) で形を確かめる. 当てた後に残る直しを「手」と数える (この例では無し).
 
 ## 学習の設計
 
@@ -76,8 +76,8 @@ CI の「通しを測る」で, 5 つのアプリの main を使って動かし�
 | ML-CreateArchitecture (入力と出力, プロジェクトに保存) | OK | 画面が当てる: 入力 `image` の名前を `x` に, `conv1` の `in_channels` を 3 に, `head` の `out_features` を 2 に. 形の確かめが通る. 入力 [4, 3, 28, 28] |
 | ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | 問題の設定「解約の引き止め」が記録したプロジェクト |
 | 学習の準備 | OK | 足りない機能 eda, modelcontrol, inference |
-| 環境を作る (画面から) | OK | 7 秒 (uv のキャッシュあり) |
-| 学習 | OK | ベストの valid/loss 0.4653 (50 エポック目). テスト用の正解率 0.6111. 推論の一式: valid の acc 0.8333 (監視した指標が loss なので, 学習の記録とは比べない) |
+| 環境を作る (画面から) | OK | 6 秒 (uv のキャッシュあり) |
+| 学習 | OK | ベストの valid/loss 0.4653 (50 エポック目). テスト用の正解率 0.6111. 推論の一式: valid の acc 0.8333 (監視した指標が accuracy か mae でないので, 学習の記録とは比べない) |
 | 比べる相手の評価 (ML-Dashboard の結果) | 誤り | 今のやり方の評価が無い (骨組みが「問題の設定に今のやり方をデータで書いていない」ので比べないと書く) |
 | ML-Provide で実験を一覧から登録 | OK | 問題の設定の名前と実験の場所の行を選ぶ |
 | 問題の設定をつなぐ (候補から) | OK | 候補は元の問題の設定. 損得 (価値 24,000, 費用 1,500, 防げる割合 0.2, 上限 300, 当たりのクラス `circle`) が入る |

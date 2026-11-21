@@ -153,7 +153,7 @@ CPU (Apple Silicon の Mac) で, 2 は 2 秒ほど, 3 は 2 分半ほど, 4 と 
 
 動作の確認には, 4 は `--experiment configs/experiment/examples/quick.yaml` (1 エポック), 3, 5, 6 は差分の config に `trainer.epochs=1` を足す (`--experiment` は 1 つだけ). 4 は事前学習の重み (`outputs/pretrained.pt`) が要るので, 先に 3 を通すか `model.init=null` を足す.
 
-モデルの定義を画面で直す場合は, ML-CreateArchitecture の「開く」で `models/` の定義を開いて直し, 保存した定義を `models/` に写す (定義を ML-CreateArchitecture の置き場と結ぶ方法は, 利用者の判断を待つ項目. ルートの TODO.md の「モデルの定義の置き場とプロジェクトの結び方」).
+モデルの定義を画面で直す場合は, ML-CreateArchitecture の「開く」で `models/` の定義を開いて直し, 保存した定義を `models/` に写す (実験ごとの定義の残し方の決まりは, TASK_TYPES.md の 6 の節の 17).
 
 ## 結果のメモ
 

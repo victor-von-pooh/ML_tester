@@ -8,7 +8,7 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 ## 優先度 高
 
 ### M5 生成を画面で通す
-- 何を: 次の順に進める. 1. ML-Provide の「一式を作る画面に手順と出力と複数の入力の欄」 2. ML_tester の 11 の `DiffusionTrainer` の EMA を ML-Found の設定 (`trainer.ema`) に置き換える. 設定の EMA は検証, ベスト, `final_model.pt` を必ず EMA にするので, 11 の今の既定 (EMA は生成の見本だけ. `ema.eval: false`) を残すには `eval_model` を上書きして学習しているモデルを返す. このとき生成の見本は `trainer.ema_model.module` から作り, `extra_state_dict` と `load_extra_state_dict` の EMA の分は要らなくなる (EMA はチェックポイントの `ema` に入る). 11 の config (`ema.use`, `ema.decay` は `trainer.ema.decay` に移り, EMA を使わないなら `decay: null`. `ema.eval`, `no_ema.yaml`, `ema_eval.yaml`) と, それを使う ML-Dashboard の docs/GUIDE.md の 3 つの実験の説明も合わせて直す. 生成の骨組みは条件待ちの「型ごとの通り道」(ML-Quest の「型ごとの骨組み」)
+- 何を: 次の順に進める. 1. ML-Provide の「一式を作る画面に手順と出力と複数の入力の欄」 2. ML_tester の 11 の `DiffusionTrainer` の EMA を ML-Found の設定 (`trainer.ema`) に置き換える. 設定の EMA は検証, ベスト, `final_model.pt` を必ず EMA にするので, 11 の今の既定 (EMA は生成の見本だけ. `ema.eval: false`) を残すには `eval_model` を上書きして学習しているモデルを返す. 実験 3 (`ema_eval.yaml`. 検証も EMA) は上書きしない既定の形にする. このとき生成の見本と `ema_model.pt`, `ema_model.png` は EMA の重み (`ema_model.module`. EMA を使わない設定では `ema_model` が `None` なので学習しているモデル) から作り, 自前の EMA の属性には `ema_model` の名前を使わない. `extra_state_dict` と `load_extra_state_dict` の EMA の分は要らなくなる (EMA はチェックポイントの `ema` に入る). 11 の config (`ema.use`, `ema.decay` は `trainer.ema.decay` に移り, EMA を使わないなら `decay: null`. `ema.eval`, `no_ema.yaml`, `ema_eval.yaml`) と, それを使う ML-Dashboard の docs/GUIDE.md の 3 つの実験の説明も合わせて直す. 生成の骨組みは条件待ちの「型ごとの通り道」(ML-Quest の「型ごとの骨組み」)
 - なぜ: 生成の学習で毎回同じ書き方が要り, 生成の一式を画面で作れないため
 - 終わりの条件: 1 の項目が持ち主の TODO.md から消え, 11 の README が今の設定で書かれている
 - つながり: 上の 1 の項目と 11

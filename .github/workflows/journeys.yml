@@ -1,0 +1,86 @@
+# 画面のアプリの通し (25 から 28) を, 5 つのアプリの main で動かして測る.
+# 手で起動したときだけ動く (自動の判定ではない. 結果は各タスクの README の
+# 「結果のメモ」に手で写す). 段階の表は記録に, 作業用の場所は成果物に残す
+name: 通しを測る
+
+on:
+  workflow_dispatch:
+    inputs:
+      tasks:
+        description: >-
+          動かすタスクのディレクトリの名前 (空白で区切る. 25_m1_churn,
+          26_m1_sozai, 27_m2_image_masks, 28_m2_capture_clouds)
+        default: 27_m2_image_masks 28_m2_capture_clouds
+
+permissions:
+  contents: read
+
+jobs:
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+          path: ML_tester
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      # 5 つのアプリを ML_tester と同じ並びに clone し, backend だけを用意
+      # (通しは画面の API だけを使う)
+      - name: 5 つのアプリ
+        run: |
+          for repo in ML-Pathfinder ML-Fathom ML-CreateArchitecture \
+                      ML-Dashboard ML-Provide; do
+            git clone --recursive https://github.com/victor-von-pooh/$repo.git
+            git -C $repo log -1 --format="$repo %h %s"
+            git -C $repo submodule status
+          done
+          (cd ML-Pathfinder/backend && uv sync)
+          (cd ML-Fathom/backend && uv sync)
+          (cd ML-CreateArchitecture/backend && uv sync --extra project)
+          (cd ML-Dashboard/backend && uv sync)
+          (cd ML-Provide/backend && uv sync)
+      # ML_tester の側は合成のデータを作るだけ (README の「導入」の ML-EDA)
+      - name: ML_tester の環境
+        working-directory: ML_tester
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -q \
+            "ml-eda[image] @ git+https://github.com/victor-von-pooh/ML-EDA.git@ebc045e" \
+            pyyaml
+      # プロジェクトの .venv に入れる torch を CPU 版に (時間と場所のため).
+      # 誤りの段階があっても, 他のタスクと記録を集めるのは続ける
+      - name: 通し
+        working-directory: ML_tester
+        env:
+          UV_TORCH_BACKEND: cpu
+          TASKS: ${{ inputs.tasks }}
+        run: |
+          if [ -z "$TASKS" ]; then
+            echo "動かすタスクがありません"
+            exit 1
+          fi
+          failed=0
+          for task in $TASKS; do
+            echo "::group::$task"
+            .venv/bin/python "tasks/$task/journey.py" \
+              --work "$RUNNER_TEMP/work/$task" || failed=1
+            echo "::endgroup::"
+          done
+          exit $failed
+      - name: 記録を集める
+        if: always()
+        run: |
+          mkdir -p out
+          [ -d "$RUNNER_TEMP/work" ] || exit 0
+          (cd "$RUNNER_TEMP/work" && find . \( -name .venv -o -name '*.pt' \
+            -o -name '*.npy' -o -name '*.png' \) -prune -o -type f \
+            -size -2048k -print | tar -cf - -T -) | tar -xf - -C out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journeys
+          path: out

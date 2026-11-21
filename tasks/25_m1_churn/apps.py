@@ -843,10 +843,14 @@ def provide_journey(
     )
     tested = provide.ok("POST", f"/api/results/{result['id']}/backtest", {})
     policies = (tested.get("backtest") or {}).get("policies") or {}
+    # 決まりで比べない課題は, 骨組みの README の比べない理由で確かめる
     compared = "今のやり方" in policies
+    skipped = setup.get("compare") is False and skip_reason(
+        Path(setup["project"]) / "README.md"
+    ) is not None
     journey.add(
         "今のやり方とのたどり直し (問題の設定から作る)",
-        "OK" if compared or (skipped and not rows) else "誤り",
+        "OK" if compared or skipped else "誤り",
         json.dumps(policies, ensure_ascii=False)
         + ("" if compared or not skipped else ". 決まりで今のやり方は無い")
     )

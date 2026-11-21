@@ -135,6 +135,13 @@ def apply_unet_info(spec: dict, info: dict) -> tuple[dict, list[str]]:
         return result
     item = inputs[0]
 
+    # ノードと同じ名前の入力は作らない (画面も何も変えずに知らせる)
+    if item.get("name") in nodes:
+        notes.append(f"ノード {item['name']} がデータセットの入力と同じ名前"
+                     "なので, 何も変えていません")
+        result = (spec, notes)
+        return result
+
     # 1 つずつで名前が違えば, 名前を変えてつなぎ先も書き換える
     name = next(iter(spec["inputs"]))
     if item.get("name") and item["name"] != name:
@@ -153,11 +160,16 @@ def apply_unet_info(spec: dict, info: dict) -> tuple[dict, list[str]]:
     if isinstance(shape, list):
         if (isinstance(dims, list) and isinstance(current, list)
                 and len(dims) == len(shape) == len(current)):
-            shape = [
+            merged = [
                 size if index == 0 or dims[index] is not None
                 else current[index]
                 for index, size in enumerate(shape)
             ]
+            if any(index > 0 and size is None
+                   for index, size in enumerate(dims)):
+                notes.append(f"入力 {name} のデータセットで決まらない次元は,"
+                             f" 定義の値のままにしました ({merged})")
+            shape = merged
         entry["shape"] = shape
         if item.get("dtype"):
             entry["dtype"] = item["dtype"]
@@ -188,6 +200,7 @@ def apply_unet_info(spec: dict, info: dict) -> tuple[dict, list[str]]:
     result = (spec, notes)
 
     return result
+
 
 def check_samples(
     dash: Client, run_path: str, results: dict[str, Any]

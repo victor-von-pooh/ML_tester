@@ -122,6 +122,8 @@ def build(work: Path) -> dict:
         "recipe_steps": [],
         "item_steps_from": same_size,
         "make_model": example_model("cnn_classifier", no_fix),
+        # 画像は 1 件の中身で学び, 骨組みは決まりで今のやり方と比べない
+        "compare": False,
         "cost_update": COST_UPDATE
     }
 

@@ -502,6 +502,34 @@ def model_from_inputs(info: dict[str, Any]) -> dict[str, Any]:
     return spec
 
 
+def skip_reason(readme: Path) -> Optional[str]:
+    """
+    骨組みの README から, 今のやり方と比べない理由を取り出す関数
+
+    Parameters
+    ----------
+    readme: Path
+        書き出した骨組みの README
+
+    Returns
+    ----------
+    reason: Optional[str]
+        「今のやり方とは比べない (...)」の括弧の中 (無ければ None)
+    """
+    # 学習の次にすることの文の, 比べない理由
+    reason: Optional[str] = None
+    if not readme.is_file():
+        return reason
+    text = readme.read_text(encoding="utf-8")
+    marker = "今のやり方とは比べない ("
+    start = text.find(marker)
+    if start >= 0:
+        end = text.find(" ため)", start)
+        reason = text[start + len(marker):end if end >= 0 else None]
+
+    return reason
+
+
 def run_journey(
     apps: Apps, journey: Journey, setup: dict[str, Any]
 ) -> None:
@@ -523,7 +551,10 @@ def run_journey(
         入力と出力, データセットから, 定義, 手で直す所, 画面が当てる所の
         説明を返す関数. 無ければ全結合の head だけの定義), past (推論と
         たどり直しのデータ. 目的の列を持つ), cost_update (学習の後に
-        ML-Pathfinder で直す損得の値), project (書き出し先)
+        ML-Pathfinder で直す損得の値), project (書き出し先), 任意で
+        compare (False なら, 骨組みが決まりで今のやり方と比べない課題.
+        骨組みの README が比べない理由を書けば, 比べる相手の評価と
+        たどり直しの今のやり方が無いのを OK とする. 既定は True)
 
     Returns
     ----------
@@ -697,10 +728,15 @@ def run_journey(
     results = dash.ok("GET", f"{run_path}/results")
     rows = {e["name"]: e["rows"][0] for e in results["evaluations"]
             if e["name"].startswith("baseline_") and e["rows"]}
+    # 決まりで比べない課題は, 骨組みの README の比べない理由で確かめる
+    reason = skip_reason(Path(setup["project"]) / "README.md")
+    skipped = setup.get("compare") is False and reason is not None
     journey.add(
         "比べる相手の評価 (ML-Dashboard の結果)",
-        "OK" if "baseline_test" in rows else "誤り",
-        json.dumps(rows.get("baseline_test"), ensure_ascii=False)
+        "OK" if "baseline_test" in rows or (skipped and not rows)
+        else "誤り",
+        f"決まりで比べない ({reason})" if skipped and not rows
+        else json.dumps(rows.get("baseline_test"), ensure_ascii=False)
     )
 
     # 6. ML-Provide と, ML-Pathfinder で損得を直した後の推論の既定
@@ -807,10 +843,12 @@ def provide_journey(
     )
     tested = provide.ok("POST", f"/api/results/{result['id']}/backtest", {})
     policies = (tested.get("backtest") or {}).get("policies") or {}
+    compared = "今のやり方" in policies
     journey.add(
         "今のやり方とのたどり直し (問題の設定から作る)",
-        "OK" if "今のやり方" in policies else "誤り",
+        "OK" if compared or (skipped and not rows) else "誤り",
         json.dumps(policies, ensure_ascii=False)
+        + ("" if compared or not skipped else ". 決まりで今のやり方は無い")
     )
 
     return bid

@@ -190,6 +190,8 @@ def build(work: Path) -> dict:
         "recipe_steps": [],
         "item_steps_from": recommended_steps,
         "make_model": example_model("lstm_classifier", fit_vocabulary),
+        # 文は 1 件の中身で学び, 骨組みは決まりで今のやり方と比べない
+        "compare": False,
         "cost_update": COST_UPDATE
     }
 

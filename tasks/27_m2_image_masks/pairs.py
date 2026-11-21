@@ -311,7 +311,7 @@ def build_model(
     journey: Journey
         結果の記録
     setup: dict[str, Any]
-        通しの設定 (example, adapt)
+        通しの設定 (example, adapt. 任意で apply_info)
     original: Path
         元の問題の設定
     record: dict[str, Any]
@@ -357,11 +357,17 @@ def build_model(
     spec = spec.get("spec", spec)
     dataset = target.get("dataset") or record["dataset"]
     code, info = ca.call("POST", "/api/dataset/inputs", {"path": dataset})
+    # 作れたら, 画面と同じく返った値を例に当ててから, 残る手直しを数える
+    applied: list[str] = []
+    if code == 200 and isinstance(info, dict) and setup.get("apply_info"):
+        spec, applied = setup["apply_info"](spec, info)
     spec, changes = setup["adapt"](spec, Path(record["dataset"]))
     if code == 200:
         # 作れても, 例を手で直した所があれば手 (隠れた手を数えないため)
         status = "手" if changes else "OK"
         note = (f"データセットから入力と出力: {info}"
+                + (f". 画面が当てる: {'; '.join(applied)}" if applied
+                   else "")
                 + (f". 例の定義を手で直す: {'; '.join(changes)}"
                    if changes else ""))
     else:
@@ -647,7 +653,8 @@ def run_pairs_journey(
         結果の記録
     setup: dict[str, Any]
         name, answers, data, origin, options, item_steps, example, adapt,
-        epochs, check_samples, new, check_outputs, project
+        epochs, check_samples, new, check_outputs, project (任意で
+        apply_info)
 
     Returns
     ----------

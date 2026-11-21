@@ -26,7 +26,7 @@
 
 ## モデル
 
-ML-CreateArchitecture の同梱の例 `unet_segmentation` (2 段の U-Net. 入力 `[4, 3, 32, 32]`, 背景を含む 2 クラス). クラスの数を 3 にするため, 最後の畳み込み (`head`) の `out_channels` を 3 に直す (画面でノードの欄を書き換えるのと同じ. `journey.py` の `adapt_unet` がデータセットの説明から直す所を決める). 入力の形とチャンネル数は書き出したデータセットと同じなので直さない.
+ML-CreateArchitecture の同梱の例 `unet_segmentation` (2 段の U-Net. 入力 `[4, 3, 32, 32]`, 背景を含む 2 クラス). クラスの数を 3 にするため, 最後の畳み込み (`head`) の `out_channels` を 3 にする. ML-CreateArchitecture の「データセットから入力と出力を作る」(`POST /api/dataset/inputs`) が作れれば, 画面と同じく返った値を例に当て (`journey.py` の `apply_unet_info`), 残る違いだけを手で直す. 作れなければ, 画面でノードの欄を書き換えるのと同じく手で直す (`adapt_unet` がデータセットの説明から直す所を決める). 入力の形とチャンネル数は書き出したデータセットと同じなので直さない.
 
 ## 学習の設計
 

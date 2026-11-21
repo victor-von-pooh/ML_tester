@@ -107,6 +107,101 @@ def adapt_unet(spec: dict, dataset: Path) -> tuple[dict, list[str]]:
     return result
 
 
+def apply_unet_info(spec: dict, info: dict) -> tuple[dict, list[str]]:
+    """
+    ML-CreateArchitecture の「データセットから入力と出力を作る」と同じく,
+    返った入力の名前, 形, 型と出す値の数を U-Net の例に当てはめる関数
+
+    画面の applyDatasetInputs のうち, U-Net の例 (入力 1 つ, 出力 1 つ)
+    に要る所だけを写す. 当てられない所は当てずに飛ばす (画面も同じ)
+
+    Parameters
+    ----------
+    spec: dict
+        例の定義
+    info: dict
+        POST /api/dataset/inputs の応答 (ML-EDA の model_inputs)
+
+    Returns
+    ----------
+    result: tuple[dict, list[str]]
+        当てはめた定義 (同じ辞書) と, 当てた所の説明
+    """
+    notes: list[str] = []
+    inputs = info.get("inputs") or []
+    nodes = spec.get("nodes") or {}
+    if len(inputs) != 1 or len(spec.get("inputs") or {}) != 1:
+        result = (spec, notes)
+        return result
+    item = inputs[0]
+
+    # ノードと同じ名前の入力は作らない (画面も何も変えずに知らせる)
+    if item.get("name") in nodes:
+        notes.append(f"ノード {item['name']} がデータセットの入力と同じ名前"
+                     "なので, 何も変えていません")
+        result = (spec, notes)
+        return result
+
+    # 1 つずつで名前が違えば, 名前を変えてつなぎ先も書き換える
+    name = next(iter(spec["inputs"]))
+    if item.get("name") and item["name"] != name:
+        spec["inputs"] = {item["name"]: spec["inputs"][name]}
+        for node in nodes.values():
+            if node.get("inputs") == name:
+                node["inputs"] = item["name"]
+        notes.append(f"入力 {name} の名前を {item['name']} にしました")
+        name = item["name"]
+
+    # 形と型. データセットで決まらない次元 (dataset_shape が None) は定義の値
+    entry = spec["inputs"][name]
+    shape = item.get("shape")
+    dims = item.get("dataset_shape")
+    current = entry.get("shape")
+    if isinstance(shape, list):
+        if (isinstance(dims, list) and isinstance(current, list)
+                and len(dims) == len(shape) == len(current)):
+            merged = [
+                size if index == 0 or dims[index] is not None
+                else current[index]
+                for index, size in enumerate(shape)
+            ]
+            if any(index > 0 and size is None
+                   for index, size in enumerate(dims)):
+                notes.append(f"入力 {name} のデータセットで決まらない次元は,"
+                             f" 定義の値のままにしました ({merged})")
+            shape = merged
+        entry["shape"] = shape
+        if item.get("dtype"):
+            entry["dtype"] = item["dtype"]
+
+        # 入力に直につながる in_channels を, 3 次元以上の入力のチャンネルに
+        first = next(
+            (n for n in nodes.values() if n.get("inputs") == name), None
+        )
+        if first is not None and len(shape) >= 3:
+            params = first.setdefault("params", {})
+            if "in_channels" in params and params["in_channels"] != shape[1]:
+                params["in_channels"] = shape[1]
+                notes.append(f"最初の畳み込みの in_channels を {shape[1]}"
+                             " にしました")
+
+    # 出す値の数. 点群の outputs は点の数なので当てない. 出力が 1 つだけ
+    outputs = info.get("outputs")
+    refs = list((spec.get("outputs") or {}).values())
+    if (isinstance(outputs, int) and not isinstance(outputs, bool)
+            and info.get("target_kind") != "point_cloud" and len(refs) == 1
+            and isinstance(refs[0], str)):
+        head = nodes.get(refs[0].split(".")[0])
+        params = head.setdefault("params", {}) if head is not None else {}
+        if "out_channels" in params and params["out_channels"] != outputs:
+            params["out_channels"] = outputs
+            notes.append(f"最後の畳み込みの out_channels を {outputs}"
+                         " にしました")
+    result = (spec, notes)
+
+    return result
+
+
 def check_samples(
     dash: Client, run_path: str, results: dict[str, Any]
 ) -> tuple[str, str]:
@@ -240,6 +335,7 @@ def build(work: Path) -> dict:
         "item_steps": {"image": [RESIZE]},
         "example": "unet_segmentation",
         "adapt": adapt_unet,
+        "apply_info": apply_unet_info,
         "epochs": EPOCHS,
         "check_samples": check_samples,
         "new": new / "images",

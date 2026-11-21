@@ -1,7 +1,7 @@
 """
 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture,
 ML-Dashboard, ML-Provide) を作業用の置き場で起動し, 画面と同じ API で
-問題の設定から推論までを通す部品 (25 から 28 で使う)
+問題の設定から推論までを通す部品 (25 から 30 で使う)
 """
 import argparse
 import http.client
@@ -502,6 +502,34 @@ def model_from_inputs(info: dict[str, Any]) -> dict[str, Any]:
     return spec
 
 
+def skip_reason(readme: Path) -> Optional[str]:
+    """
+    骨組みの README から, 今のやり方と比べない理由を取り出す関数
+
+    Parameters
+    ----------
+    readme: Path
+        書き出した骨組みの README
+
+    Returns
+    ----------
+    reason: Optional[str]
+        「今のやり方とは比べない (...)」の括弧の中 (無ければ None)
+    """
+    # 学習の次にすることの文の, 比べない理由
+    reason: Optional[str] = None
+    if not readme.is_file():
+        return reason
+    text = readme.read_text(encoding="utf-8")
+    marker = "今のやり方とは比べない ("
+    start = text.find(marker)
+    if start >= 0:
+        end = text.find(" ため)", start)
+        reason = text[start + len(marker):end if end >= 0 else None]
+
+    return reason
+
+
 def run_journey(
     apps: Apps, journey: Journey, setup: dict[str, Any]
 ) -> None:
@@ -518,8 +546,15 @@ def run_journey(
         example (ML-Pathfinder の見本の名前), data (元のデータ), answers
         (足す答えの辞書), recipe_steps (ML-Fathom で足す手順),
         recipe_update (ML-Fathom の雛形の手順を直す関数. 無ければ None),
-        past (推論とたどり直しのデータ. 目的の列を持つ), cost_update
-        (学習の後に ML-Pathfinder で直す損得の値), project (書き出し先)
+        任意で item_steps_from (ML-Fathom の客とデータの ID から, 中身の手順,
+        判定, 説明を返す関数) と make_model (ML-CreateArchitecture の客,
+        入力と出力, データセットから, 定義, 手で直す所, 画面が当てる所の
+        説明を返す関数. 無ければ全結合の head だけの定義), past (推論と
+        たどり直しのデータ. 目的の列を持つ), cost_update (学習の後に
+        ML-Pathfinder で直す損得の値), project (書き出し先), 任意で
+        compare (False なら, 骨組みが決まりで今のやり方と比べない課題.
+        骨組みの README が比べない理由を書けば, 比べる相手の評価と
+        たどり直しの今のやり方が無いのを OK とする. 既定は True)
 
     Returns
     ----------
@@ -569,6 +604,11 @@ def run_journey(
     if setup.get("recipe_update"):
         setup["recipe_update"](recipe)
     recipe["steps"] += setup["recipe_steps"]
+    if setup.get("item_steps_from"):
+        # 画像と文の中身の手順 (画面で選ぶ値. 表と時系列には無い)
+        steps, status, note = setup["item_steps_from"](fathom, sid)
+        recipe["item_steps"] = steps
+        journey.add("ML-Fathom の中身の手順 (画像と文)", status, note)
     fathom.ok("PUT", f"/api/sources/{sid}/recipe", {"recipe": recipe})
     check = fathom.ok(
         "POST", f"/api/sources/{sid}/problem/check", {"recipe": recipe}
@@ -611,7 +651,14 @@ def run_journey(
         status, note = "手", "データセットの場所を手で打つ"
         dataset = record["dataset"]
     info = ca.ok("POST", "/api/dataset/inputs", {"path": dataset})
-    spec = model_from_inputs(info)
+    if setup.get("make_model"):
+        # 同梱の例に画面と同じく入力と出力を当て, 残る手直しの数え上げ
+        spec, manual, applied = setup["make_model"](ca, info, Path(dataset))
+        note += f". 画面が当てる: {applied}"
+        if manual:
+            status, note = "手", f"{note}. 手で直す: {manual}"
+    else:
+        spec = model_from_inputs(info)
     ca.ok(
         "PUT", "/api/project/model",
         {"path": chosen["path"], "spec": spec,
@@ -619,8 +666,8 @@ def run_journey(
     )
     journey.add(
         "ML-CreateArchitecture (入力と出力, プロジェクトに保存)", status,
-        f"{note}. 入力 {spec['inputs']['x']['shape']}, 出す値 "
-        f"{info['outputs']}"
+        f"{note}. 入力 {next(iter(spec['inputs'].values()))['shape']}, "
+        f"出す値 {info['outputs']}"
     )
 
     # 5. ML-Dashboard: 一覧から登録, 学習の準備, 環境づくり, 学習
@@ -681,10 +728,15 @@ def run_journey(
     results = dash.ok("GET", f"{run_path}/results")
     rows = {e["name"]: e["rows"][0] for e in results["evaluations"]
             if e["name"].startswith("baseline_") and e["rows"]}
+    # 決まりで比べない課題は, 骨組みの README の比べない理由で確かめる
+    reason = skip_reason(Path(setup["project"]) / "README.md")
+    skipped = setup.get("compare") is False and reason is not None
     journey.add(
         "比べる相手の評価 (ML-Dashboard の結果)",
-        "OK" if "baseline_test" in rows else "誤り",
-        json.dumps(rows.get("baseline_test"), ensure_ascii=False)
+        "OK" if "baseline_test" in rows or (skipped and not rows)
+        else "誤り",
+        f"決まりで比べない ({reason})" if skipped and not rows
+        else json.dumps(rows.get("baseline_test"), ensure_ascii=False)
     )
 
     # 6. ML-Provide と, ML-Pathfinder で損得を直した後の推論の既定
@@ -791,10 +843,16 @@ def provide_journey(
     )
     tested = provide.ok("POST", f"/api/results/{result['id']}/backtest", {})
     policies = (tested.get("backtest") or {}).get("policies") or {}
+    # 決まりで比べない課題は, 骨組みの README の比べない理由で確かめる
+    compared = "今のやり方" in policies
+    skipped = setup.get("compare") is False and skip_reason(
+        Path(setup["project"]) / "README.md"
+    ) is not None
     journey.add(
         "今のやり方とのたどり直し (問題の設定から作る)",
-        "OK" if "今のやり方" in policies else "誤り",
+        "OK" if compared or skipped else "誤り",
         json.dumps(policies, ensure_ascii=False)
+        + ("" if compared or not skipped else ". 決まりで今のやり方は無い")
     )
 
     return bid
@@ -914,4 +972,4 @@ def main_with(
 
 
 if __name__ == "__main__":
-    sys.exit("25 から 28 の journey.py から使う")
+    sys.exit("25 から 30 の journey.py から使う")

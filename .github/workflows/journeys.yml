@@ -1,4 +1,4 @@
-# 画面のアプリの通し (25 から 28) を, 5 つのアプリの main で動かして測る.
+# 画面のアプリの通し (25 から 30) を, 5 つのアプリの main で動かして測る.
 # 手で起動したときだけ動く (自動の判定ではない. 結果は各タスクの README の
 # 「結果のメモ」に手で写す). 段階の表は記録に, 作業用の場所は成果物に残す
 name: 通しを測る
@@ -9,7 +9,8 @@ on:
       tasks:
         description: >-
           動かすタスクのディレクトリの名前 (空白で区切る. 25_m1_churn,
-          26_m1_sozai, 27_m2_image_masks, 28_m2_capture_clouds)
+          26_m1_sozai, 27_m2_image_masks, 28_m2_capture_clouds,
+          29_m3_image_classes, 30_m3_text_classes)
         default: 27_m2_image_masks 28_m2_capture_clouds
 
 permissions:

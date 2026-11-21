@@ -1,25 +1,25 @@
 # TODO
 
 このリポジトリでまだやっていないことを, 優先度の順に並べる. 終えたら消す.
-優先度: 高 = 「生成を画面で通す」に要るものか, リポジトリの間の食い違い. 中 = 「強化学習の方策を推論まで通す」に要るもの. 低 = その先. 条件待ち = 実例か利用者の判断が要る.
+優先度: 高 = 「強化学習の方策を推論まで通す」に要るものか, リポジトリの間の食い違い. 中 = 「生成と強化学習の学習を画面で通す」に要るもの. 低 = その先. 条件待ち = 実例か利用者の判断が要る.
 
 ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つは, 各リポジトリの TODO.md の項目を, リポジトリをまたいで進める順に並べたもの (中身は持ち主の TODO.md にある. ここでは `<リポジトリ> の「<項目名>」` で指す). もう 1 つは, ML_tester 自身の項目. 項目は [ROADMAP.md](ROADMAP.md) の節目ごとにまとめ (名前の頭の M1 など), 節目の順 (M1 → M2 → …) に並べる. 1 つの項目の中は, 流れの段階の順 (問題の設定 → データ → モデル → 学習 → 推論) に並べる.
 
 ## 優先度 高
-
-### M5 生成を画面で通す
-- 何を: ML_tester の 11 の `DiffusionTrainer` の EMA を ML-Found の設定 (`trainer.ema`) に置き換える. 設定の EMA は検証, ベスト, `final_model.pt` を必ず EMA にするので, 11 の今の既定 (EMA は生成の見本だけ. `ema.eval: false`) を残すには `eval_model` を上書きして学習しているモデルを返す. 実験 3 (`ema_eval.yaml`. 検証も EMA) は上書きしない既定の形にする. このとき生成の見本と `ema_model.pt`, `ema_model.png` は EMA の重み (`ema_model.module`. EMA を使わない設定では `ema_model` が `None` なので学習しているモデル) から作り, 自前の EMA の属性には `ema_model` の名前を使わない. `extra_state_dict` と `load_extra_state_dict` の EMA の分は要らなくなる (EMA はチェックポイントの `ema` に入る). 11 の config (`ema.use`, `ema.decay` は `trainer.ema.decay` に移り, EMA を使わないなら `decay: null`. `ema.eval`, `no_ema.yaml`, `ema_eval.yaml`) と, それを使う ML-Dashboard の docs/GUIDE.md の 3 つの実験の説明も合わせて直す. 生成の骨組みは条件待ちの「型ごとの通り道」(ML-Quest の「型ごとの骨組み」)
-- なぜ: 生成の学習で毎回同じ書き方が要るため
-- 終わりの条件: 11 の README が今の設定で書かれている
-- つながり: 11
-
-## 優先度 中
 
 ### M6 強化学習の方策を推論まで通す
 - 何を: 次の順に進める. 1. ML-Found の「強化学習の環境の状態の再開」 2. ML-Inference の「方策の一式を読んで守りを当てる」. 2 が終わったら ML_tester の 24 で, ML-Inference で読んだ方策が ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかを確かめる
 - なぜ: 方策は学習の段階で書き出せるが, 推論の段階で読む口が無く, 画面で方策を確かめられないため
 - 終わりの条件: 2 つの項目が持ち主の TODO.md から消え, 24 で推論の段階から方策を読める
 - つながり: 上の 2 つの項目
+
+## 優先度 中
+
+### M7 生成と強化学習の学習を画面で通す
+- 何を: ML-Quest の「生成と強化学習の骨組み」. 終わったら, ML_tester の 11 (拡散) と 24 (CartPole) と同じ課題を, 問題の設定から骨組みを書き出して, 骨組みを書き換えずに学習から推論まで通すタスクを足して確かめる (21 と同じ形)
+- なぜ: 生成と強化学習は問題の設定まで画面でできるが, 学習のスクリプトを手で書くため
+- 終わりの条件: 項目が持ち主の TODO.md から消え, 足したタスクで, 書き換えない骨組みから生成の一式と方策の一式ができる
+- つながり: 上の項目, 11, 24
 
 ## 優先度 低
 
@@ -64,6 +64,12 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - なぜ: 固定した版が各リポジトリの main より古く, 13 から 24 が今の作りを確かめていないため
 - 終わりの条件: 「導入」の版が各リポジトリの main と同じか新しく, 13 から 24 の結果が今の版の値になっている
 - つながり: 無し
+
+### 節目の外: 11 の EMA を ML-Found の設定で書く
+- 何を: ML_tester の 11 の `DiffusionTrainer` の EMA を ML-Found の設定 (`trainer.ema`) に置き換える. 設定の EMA は検証, ベスト, `final_model.pt` を必ず EMA にするので, 11 の今の既定 (EMA は生成の見本だけ. `ema.eval: false`) を残すには `eval_model` を上書きして学習しているモデルを返す. 実験 3 (`ema_eval.yaml`. 検証も EMA) は上書きしない既定の形にする. このとき生成の見本と `ema_model.pt`, `ema_model.png` は EMA の重み (`ema_model.module`. EMA を使わない設定では `ema_model` が `None` なので学習しているモデル) から作り, 自前の EMA の属性には `ema_model` の名前を使わない. `extra_state_dict` と `load_extra_state_dict` の EMA の分は要らなくなる (EMA はチェックポイントの `ema` に入る). 11 の config (`ema.use`, `ema.decay` は `trainer.ema.decay` に移り, EMA を使わないなら `decay: null`. `ema.eval`, `no_ema.yaml`, `ema_eval.yaml`) と, それを使う ML-Dashboard の docs/GUIDE.md の 3 つの実験の説明も合わせて直す. 生成の骨組みは M7
+- なぜ: 生成の学習で毎回同じ書き方が要るため
+- 終わりの条件: 11 の README が今の設定で書かれている
+- つながり: 11
 
 ### 節目の外: 低の項目 (段階の順)
 - 何を: 次の順に進める. 1. ML-Quest の「ファイルの組の書き出しの設定の確かめを足す」 2. ML-Quest の「見本を書く前に値を確かめる」 3. ML-Quest の「データの場所の型を確かめる」 4. ML-EDA の「グループと時刻を組にした分割と群の層別」 5. ML-Fathom の「グループと時刻を組にした分割と群の層別」(条件待ち. 4 を待つ) 6. ML-EDA の「版 2 の正解の欠けた件」 7. ML-EDA の「他の形式の読み込み」 8. ML-EDA の「中身の手順の知らない引数を誤りにする」 9. ML-ModelControl の「別の部品を引数に取るクラス」 10. ML-CreateArchitecture の「保存先の守りの残り」 11. ML-CreateArchitecture の「部品の検索に op.Max の別名を足す」 12. ML-CreateArchitecture の「名前の保存先の上書きの確認を保存先と結ぶ」 13. ML-CreateArchitecture の「確かめに失敗した後の「確かめ直してください」」 14. ML-Found の「自分で渡した Scheduler の引数を出力先に残す」 15. ML-Found の「追加の依存の版の確かめ」 16. ML-Found の「出力先を作る前に config 全体の参照を確かめる」 17. ML-Found の「評価の読み込みでリンクと普通でないファイルを読まない」 18. ML-Found の「ActorCriticStep の利得と打ち切りの確かめ」 19. ML-Found の「利得の足し合わせを配列でまとめて求める」 20. ML-Dashboard の「同じ名前の実験を比べるときの見出し」 21. ML-Dashboard の「候補のまとまりの記録の後片付け」 22. ML-Dashboard の「登録で上の階層の関係ない仮想環境を拾わない」 23. ML-Dashboard の「守り付きの評価の判定と応答の欄」 24. ML-Dashboard の「方策のタブの割合のカードの表示の残り」 25. ML-Dashboard の「方策のタブの図と e2e に守り付きの評価」 26. ML-Inference の「外れ方を行の種類ごとに分ける」 27. ML-Inference の「1 行ごとの予測の理由」 28. ML-Inference の「点群の一式の点の数を定義と照らす」 29. ML-Inference の「領域を戻す式を ML-EDA と比べるテスト」 30. ML-Inference の「手順の設定の名前と既定値を公開する」 31. ML-Provide の「見本の一式に予測以外の受け持ち」 32. ML-Provide の「一式を作る対話の読み込み中の扱いと値の飛ぶ見本」 33. ML-Provide の「手順の設定の名前を ML-Inference の公開の口から読む」 34. ML-Provide の「設定の値で数に見える文字に引用符」 35. ML-Provide の「問題の設定を一式と並べて読む」 36. ML-Provide の「雑音だけの一式の欄の名前のテストと手順の文書」 37. ML-Provide の「tokens の列の無い古い文の結果の読み方」. 14 は ML_tester の 02 と 04 (自分で作った Scheduler) で確かめる

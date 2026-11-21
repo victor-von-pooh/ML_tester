@@ -518,8 +518,12 @@ def run_journey(
         example (ML-Pathfinder の見本の名前), data (元のデータ), answers
         (足す答えの辞書), recipe_steps (ML-Fathom で足す手順),
         recipe_update (ML-Fathom の雛形の手順を直す関数. 無ければ None),
-        past (推論とたどり直しのデータ. 目的の列を持つ), cost_update
-        (学習の後に ML-Pathfinder で直す損得の値), project (書き出し先)
+        任意で item_steps (ML-Fathom の客とデータの ID から, 中身の手順,
+        判定, 説明を返す関数) と make_model (ML-CreateArchitecture の客,
+        入力と出力, データセットから, 定義, 手で直す所, 画面が当てる所の
+        説明を返す関数. 無ければ全結合の head だけの定義), past (推論と
+        たどり直しのデータ. 目的の列を持つ), cost_update (学習の後に
+        ML-Pathfinder で直す損得の値), project (書き出し先)
 
     Returns
     ----------
@@ -569,6 +573,11 @@ def run_journey(
     if setup.get("recipe_update"):
         setup["recipe_update"](recipe)
     recipe["steps"] += setup["recipe_steps"]
+    if setup.get("item_steps"):
+        # 画像と文の中身の手順 (画面で選ぶ値. 表と時系列には無い)
+        steps, status, note = setup["item_steps"](fathom, sid)
+        recipe["item_steps"] = steps
+        journey.add("ML-Fathom の中身の手順 (画像と文)", status, note)
     fathom.ok("PUT", f"/api/sources/{sid}/recipe", {"recipe": recipe})
     check = fathom.ok(
         "POST", f"/api/sources/{sid}/problem/check", {"recipe": recipe}
@@ -611,7 +620,14 @@ def run_journey(
         status, note = "手", "データセットの場所を手で打つ"
         dataset = record["dataset"]
     info = ca.ok("POST", "/api/dataset/inputs", {"path": dataset})
-    spec = model_from_inputs(info)
+    if setup.get("make_model"):
+        # 同梱の例に画面と同じく入力と出力を当て, 残る手直しを数える
+        spec, manual, applied = setup["make_model"](ca, info, Path(dataset))
+        note += f". 画面が当てる: {applied}"
+        if manual:
+            status, note = "手", f"{note}. 手で直す: {manual}"
+    else:
+        spec = model_from_inputs(info)
     ca.ok(
         "PUT", "/api/project/model",
         {"path": chosen["path"], "spec": spec,
@@ -619,8 +635,8 @@ def run_journey(
     )
     journey.add(
         "ML-CreateArchitecture (入力と出力, プロジェクトに保存)", status,
-        f"{note}. 入力 {spec['inputs']['x']['shape']}, 出す値 "
-        f"{info['outputs']}"
+        f"{note}. 入力 {next(iter(spec['inputs'].values()))['shape']}, "
+        f"出す値 {info['outputs']}"
     )
 
     # 5. ML-Dashboard: 一覧から登録, 学習の準備, 環境づくり, 学習

@@ -17,6 +17,7 @@ ML_tester で作業するときの方針をまとめる.
 - 環境
     - 仮想環境は `.venv` (Python 3.13). 他の版の `python3` で動かさない
     - 実行はリポジトリのルートから `.venv/bin/python tasks/XX_name/train.py`
+    - 25 から 28 の画面の通しは, 手元で動かせなければ CI の「通しを測る」(`.github/workflows/journeys.yml`. 手で起動する. 5 つのアプリの main を使う) で動かしてよい. 結果は成果物と記録から各タスクの「結果のメモ」に手で写す (自動の判定にはしない)
     - 商用利用できるライセンスのライブラリなら, 必要に応じて入れてよい (scikit-learn, torchvision, PyG, qiskit, matplotlib, transformers など). 入れたものはルートの README の「導入」に書く
 
 ## コードの書き方

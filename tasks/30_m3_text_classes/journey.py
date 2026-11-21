@@ -40,7 +40,9 @@ PAST_COUNT = 10
 COST_UPDATE = {"cost": 3000}
 
 
-def make_texts(root: Path, count: int, seed: int, skip: set) -> set:
+def make_texts(
+    root: Path, count: int, seed: int, skip: set[str]
+) -> set[str]:
     """
     <クラス>/<文>.txt のディレクトリに合成の問い合わせの文を書く関数
 
@@ -52,17 +54,17 @@ def make_texts(root: Path, count: int, seed: int, skip: set) -> set:
         クラスごとの文の数
     seed: int
         乱数の種
-    skip: set
+    skip: set[str]
         書かない文 (学習のデータと同じ文を推論に混ぜないため)
 
     Returns
     ----------
-    written: set
+    written: set[str]
         書いた文
     """
-    # 部品の組み合わせから, 同じ文を作らずに選ぶ
+    # 部品の組み合わせからの, 同じ文の無い選び出し
     rng = np.random.default_rng(seed)
-    written: set = set()
+    written: set[str] = set()
     for label, bodies in BODIES.items():
         (root / label).mkdir(parents=True, exist_ok=True)
         index = 0
@@ -81,7 +83,9 @@ def make_texts(root: Path, count: int, seed: int, skip: set) -> set:
     return written
 
 
-def recommended_steps(fathom: Client, sid: str) -> tuple[list, str, str]:
+def recommended_steps(
+    fathom: Client, sid: str
+) -> tuple[list[dict], str, str]:
     """
     ML-Fathom の分析の結果が勧める文の区切り方を, 中身の手順にする関数
     (画面の「勧めを使う」と同じ値)
@@ -95,7 +99,7 @@ def recommended_steps(fathom: Client, sid: str) -> tuple[list, str, str]:
 
     Returns
     ----------
-    result: tuple[list, str, str]
+    result: tuple[list[dict], str, str]
         中身の手順, 判定, 説明
     """
     # 分析の結果の tokenizers の recommended (ML-EDA の compare_tokenizers)
@@ -114,7 +118,8 @@ def recommended_steps(fathom: Client, sid: str) -> tuple[list, str, str]:
 def fit_vocabulary(spec: dict, dataset: Path) -> list[str]:
     """
     埋め込みの語彙の数を, 書き出したデータセットの語彙の大きさにする関数
-    (画面が当てないので, 利用者が ML-Fathom の書き出しの結果から写す値)
+    (画面が当てていなければ, 利用者が ML-Fathom の書き出しの結果から写す
+    値. 当てていれば直す所は無し)
 
     Parameters
     ----------
@@ -136,8 +141,8 @@ def fit_vocabulary(spec: dict, dataset: Path) -> list[str]:
     changes = []
     for name, node in spec["nodes"].items():
         params = node.get("params") or {}
-        if node.get("unit") == "nn.Embedding" and size is not None \
-                and params.get("num_embeddings") != size:
+        if (node.get("unit") == "nn.Embedding" and size is not None
+                and params.get("num_embeddings") != size):
             changes.append(f"{name} の num_embeddings "
                            f"{params.get('num_embeddings')} → {size} (語彙の"
                            "大きさを ML-Fathom の書き出しの結果から写す)")
@@ -171,7 +176,7 @@ def build(work: Path) -> dict:
         "example": "解約の引き止め",
         "data": data,
         "past": past,
-        # 見本の答えを文の表 (ML-EDA の load_data の列) に合わせる
+        # 文の表 (ML-EDA の load_data の列) に合わせた見本の答え
         "answers": {
             "information.columns": columns,
             "ml.parts.0.target.column": "label",
@@ -183,7 +188,7 @@ def build(work: Path) -> dict:
         },
         "recipe_update": None,
         "recipe_steps": [],
-        "item_steps": recommended_steps,
+        "item_steps_from": recommended_steps,
         "make_model": example_model("lstm_classifier", fit_vocabulary),
         "cost_update": COST_UPDATE
     }

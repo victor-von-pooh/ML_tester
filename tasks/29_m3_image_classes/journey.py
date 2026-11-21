@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw
 from classes import example_model, no_fix, table_columns
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "25_m1_churn"))
-from apps import main_with
+from apps import Client, main_with
 
 # 図形のクラスと, クラスごとの枚数 (学習用と, 推論とたどり直し用).
 # 見本の意思決定 (選ぶ) は 2 クラスの分類にだけ使えるので 2 つ
@@ -76,7 +76,7 @@ def make_images(root: Path, count: int, seed: int) -> None:
     ----------
     None
     """
-    # クラスごとのディレクトリ (ML-EDA の load_data がラベルとして読む)
+    # クラスごとのディレクトリ (ML-EDA の load_data がラベルとして読む名前)
     rng = np.random.default_rng(seed)
     for shape in SHAPES:
         (root / shape).mkdir(parents=True, exist_ok=True)
@@ -108,7 +108,7 @@ def build(work: Path) -> dict:
         "example": "解約の引き止め",
         "data": data,
         "past": past,
-        # 見本の答えを画像の表 (ML-EDA の load_data の列) に合わせる
+        # 画像の表 (ML-EDA の load_data の列) に合わせた見本の答え
         "answers": {
             "information.columns": columns,
             "ml.parts.0.target.column": "label",
@@ -120,7 +120,7 @@ def build(work: Path) -> dict:
         },
         "recipe_update": None,
         "recipe_steps": [],
-        "item_steps": same_size,
+        "item_steps_from": same_size,
         "make_model": example_model("cnn_classifier", no_fix),
         "cost_update": COST_UPDATE
     }
@@ -128,7 +128,7 @@ def build(work: Path) -> dict:
     return setup
 
 
-def same_size(fathom, sid: str) -> tuple[list, str, str]:
+def same_size(fathom: Client, sid: str) -> tuple[list[dict], str, str]:
     """
     ML-Fathom の分析の結果から画像の大きさを見て, 中身の手順を決める関数
 
@@ -141,7 +141,7 @@ def same_size(fathom, sid: str) -> tuple[list, str, str]:
 
     Returns
     ----------
-    result: tuple[list, str, str]
+    result: tuple[list[dict], str, str]
         中身の手順, 判定, 説明
     """
     # 分析の結果の画像の大きさ (画面の画像の分析に出る表). 1 種類なら手順

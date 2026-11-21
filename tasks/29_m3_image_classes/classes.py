@@ -55,16 +55,17 @@ def sources_of(value: Any) -> list[str]:
     names: list[str]
         つなぎ元の名前 (「名前:口」の口は除く)
     """
-    # 画面の parseRef と同じく, 「:」より前と「.」より前の名前
+    # 画面の parseRef と同じく「:」より前の名前. 辞書の値の並びも対象
     if isinstance(value, str):
         refs = [value]
-    elif isinstance(value, dict):
-        refs = [v for v in value.values() if isinstance(v, str)]
-    elif isinstance(value, list):
-        refs = [v for v in value if isinstance(v, str)]
+    elif isinstance(value, (dict, list)):
+        values = value.values() if isinstance(value, dict) else value
+        refs = [ref for v in values
+                for ref in (v if isinstance(v, list) else [v])
+                if isinstance(ref, str)]
     else:
         refs = []
-    names = [ref.split(":")[0].split(".")[0] for ref in refs]
+    names = [ref.split(":")[0] for ref in refs]
 
     return names
 
@@ -73,14 +74,15 @@ def apply_dataset_inputs(
     spec: dict, info: dict, units: dict[str, set[str]]
 ) -> tuple[dict, list[str]]:
     """
-    ML-CreateArchitecture の「データセットから入力と出力を作る」と同じく,
-    返った入力の名前, 形, 型と出す値の数を, 入力が 1 つの例に当てはめる
-    関数
+    画面の「データセットから入力と出力を作る」と同じく, 入力と出力を例に
+    当てはめる関数
 
-    画面の applyDatasetInputs (frontend/src/lib/dataset.ts) のうち, 入力が
-    1 つで部品を持つ例に要る所 (名前の付け替え, 形と型, 入力に直につながる
-    in_features と in_channels, 出力のつなぎ元の out_features と
-    out_channels) を写す. 当てられない所は当てずに飛ばす (画面も同じ)
+    ML-CreateArchitecture の画面の applyDatasetInputs
+    (frontend/src/lib/dataset.ts) のうち, 入力が 1 つで部品を持つ分類の例に
+    要る所 (名前の付け替え, 形と型, 入力に直につながる in_features,
+    in_channels, num_embeddings (入力が語彙の大きさを持つときだけ), 出力の
+    つなぎ元の out_features と out_channels) を写す. 当てられない所は当てず
+    に飛ばす (画面も同じ). 決まらない次元の残る形と点群は扱わない
 
     Parameters
     ----------
@@ -104,25 +106,26 @@ def apply_dataset_inputs(
         return result
     item = inputs[0]
 
-    # ノードと同じ名前の入力は作らない (画面も何も変えずに知らせる)
+    # ノードと同じ名前の入力の扱い (画面も何も変えずに知らせるだけ)
     if item.get("name") in nodes:
         notes.append(f"ノード {item['name']} がデータセットの入力と同じ名前"
                      "なので, 何も変えていません")
         result = (spec, notes)
         return result
 
-    # 1 つずつで名前が違えば, 名前を変えてつなぎ先も書き換える
+    # 1 つずつで名前が違うときの, 名前とつなぎ先と出力の書き換え
     name = next(iter(spec["inputs"]))
     if item.get("name") and item["name"] != name:
         spec["inputs"] = {item["name"]: spec["inputs"][name]}
         for node in nodes.values():
             node["inputs"] = renamed(node.get("inputs"), name, item["name"])
+        if spec.get("outputs"):
+            spec["outputs"] = renamed(spec["outputs"], name, item["name"])
         notes.append(f"入力 {name} の名前を {item['name']} にしました")
         name = item["name"]
 
-    # 形と型 (値の作り方 fill と位置 ui は残す). 行ごとの受け持ちの
-    # データセットは決まらない次元が無い (dataset_shape を返さない)
-    # (バッチの次元が決まらない値 None なら, 例の大きさ 4)
+    # 形と型 (値の作り方 fill と位置 ui は残す). 大きさのそろった画像と
+    # 文は決まらない次元が無い. バッチの次元が None なら例の大きさ 4
     entry = spec["inputs"][name]
     shape = [4 if size is None else int(size)
              for size in item.get("shape") or []]
@@ -131,13 +134,16 @@ def apply_dataset_inputs(
         entry["dtype"] = item["dtype"]
 
     # 入力に直につながる in_features を最後の次元に, in_channels を 3 次元
-    # 以上の入力の 2 番目の次元に
+    # 以上の入力の 2 番目の次元に, num_embeddings を語彙の大きさに
+    vocabulary = item.get("vocabulary")
     for node_name, node in nodes.items():
         if name not in sources_of(node.get("inputs")) or len(shape) < 2:
             continue
         fits = [("in_features", shape[-1])]
         if len(shape) >= 3:
             fits.append(("in_channels", shape[1]))
+        if isinstance(vocabulary, int) and vocabulary > 0:
+            fits.append(("num_embeddings", vocabulary))
         params = node.setdefault("params", {})
         for param, size in fits:
             if (param in units.get(node.get("unit"), set())
@@ -149,7 +155,8 @@ def apply_dataset_inputs(
     outputs = info.get("outputs")
     refs = list((spec.get("outputs") or {}).values())
     if isinstance(outputs, int) and len(refs) == 1:
-        source = sources_of(refs[0])[0] if sources_of(refs[0]) else None
+        found = sources_of(refs[0])
+        source = found[0] if found else None
         head = nodes.get(source) if source else None
         has = units.get((head or {}).get("unit"), set())
         param = next(
@@ -181,20 +188,17 @@ def renamed(value: Any, old: str, new: str) -> Any:
     result: Any
         書き換えた inputs
     """
-    # 「名前:口」の口は残す
-    def one(ref: Any) -> Any:
-        if not isinstance(ref, str):
-            return ref
-        head, _, port = ref.partition(":")
-        value = new + (":" + port if port else "") if head == old else ref
-        return value
-
+    # 「名前:口」の口は残す. 辞書の値の並びも対象
     if isinstance(value, dict):
-        result: Any = {key: one(ref) for key, ref in value.items()}
+        result: Any = {key: renamed(ref, old, new)
+                       for key, ref in value.items()}
     elif isinstance(value, list):
-        result = [one(ref) for ref in value]
+        result = [renamed(ref, old, new) for ref in value]
+    elif isinstance(value, str):
+        head, _, port = value.partition(":")
+        result = new + (":" + port if port else "") if head == old else value
     else:
-        result = one(value)
+        result = value
 
     return result
 
@@ -229,8 +233,7 @@ def example_model(
     example: str, fix: Fix
 ) -> Callable[[Client, dict, Path], tuple[dict, str, str]]:
     """
-    同梱の例から定義を作る関数 (25 の run_journey の make_model) を返す
-    関数
+    同梱の例から定義を作る, 25 の run_journey の make_model を返す関数
 
     Parameters
     ----------
@@ -248,7 +251,24 @@ def example_model(
     def make_model(
         ca: Client, info: dict, dataset: Path
     ) -> tuple[dict, str, str]:
-        # 例を開き, 画面と同じく当ててから確かめ, 残る手直しの後も確かめる
+        """
+        同梱の例を開き, 画面と同じく当てて, 残る手直しをする関数
+
+        Parameters
+        ----------
+        ca: Client
+            ML-CreateArchitecture の客
+        info: dict
+            POST /api/dataset/inputs の応答
+        dataset: Path
+            書き出したデータセット
+
+        Returns
+        ----------
+        result: tuple[dict, str, str]
+            定義, 手で直した所, 画面が当てた所の説明
+        """
+        # 当てた後と手で直した後の, 画面の「確かめる」と同じ形の確かめ
         spec = ca.ok("GET", f"/api/examples/{example}")
         spec = spec.get("spec", spec)
         spec, notes = apply_dataset_inputs(spec, info, unit_params(ca))
@@ -287,8 +307,7 @@ def no_fix(spec: dict, dataset: Path) -> list[str]:
 
 def table_columns(data: Union[str, Path]) -> list[str]:
     """
-    ML-EDA の load_data の表の列 (問題の設定の「データの列」に答える値) を
-    返す関数
+    問題の設定の「データの列」に答える, ML-EDA の load_data の列を返す関数
 
     Parameters
     ----------

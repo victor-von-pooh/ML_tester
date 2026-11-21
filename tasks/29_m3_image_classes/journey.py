@@ -14,8 +14,9 @@ from classes import example_model, no_fix, table_columns
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "25_m1_churn"))
 from apps import main_with
 
-# 図形のクラスと, クラスごとの枚数 (学習用と, 推論とたどり直し用)
-SHAPES = ["circle", "square", "triangle"]
+# 図形のクラスと, クラスごとの枚数 (学習用と, 推論とたどり直し用).
+# 見本の意思決定 (選ぶ) は 2 クラスの分類にだけ使えるので 2 つ
+SHAPES = ["circle", "square"]
 COUNT = 60
 PAST_COUNT = 10
 
@@ -33,7 +34,7 @@ def draw_shape(shape: str, rng: np.random.Generator) -> Image.Image:
     Parameters
     ----------
     shape: str
-        circle, square, triangle のどれか
+        circle か square
     rng: np.random.Generator
         乱数
 
@@ -52,13 +53,8 @@ def draw_shape(shape: str, rng: np.random.Generator) -> Image.Image:
     box = (cx - half, cy - half, cx + half, cy + half)
     if shape == "circle":
         draw.ellipse(box, fill=color)
-    elif shape == "square":
-        draw.rectangle(box, fill=color)
     else:
-        draw.polygon(
-            [(cx, cy - half), (cx - half, cy + half), (cx + half, cy + half)],
-            fill=color
-        )
+        draw.rectangle(box, fill=color)
 
     return image
 

@@ -7,7 +7,7 @@ ML_tester は他のリポジトリの依存ではない. 各リポジトリは�
 
 - [VISION.md](VISION.md): 全体の方針と各リポジトリの役割
 - [TASK_TYPES.md](TASK_TYPES.md): 課題の型と全体の広げ方, 利用者の決めたこと
-- [ROADMAP.md](ROADMAP.md): 理想と今の差, 差を埋める節目 (M1 から M6) の順
+- [ROADMAP.md](ROADMAP.md): 理想と今の差, 差を埋める節目 (M1 から M7) の順
 - [TODO.md](TODO.md): まだやっていないこと. 各リポジトリの TODO.md の項目を, 節目ごとに, リポジトリをまたいで進める順に並べる
 
 ## 導入

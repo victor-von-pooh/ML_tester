@@ -52,7 +52,7 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - つながり: 上の 2 つの項目
 
 ### 節目の外: ML-Found を上げて Scheduler の引数の記録を確かめる
-- 何を: submodule の ML-Found を main に上げ, 02 と 04 を流し直して, 自分で作った Scheduler (04 は transformers の `get_linear_schedule_with_warmup`) の主な引数が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる. 04 の「気付いたこと」の Scheduler の記録の文を今の挙動に直す
+- 何を: submodule の ML-Found を main に上げ, 02 と 04 を流し直して, Scheduler の主な引数が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる (02 は config から作った Scheduler, 04 は自分で作って渡した transformers の `get_linear_schedule_with_warmup`). 04 の「気付いたこと」の Scheduler の記録の文を今の挙動に直す
 - なぜ: ML-Found が自分で渡した Scheduler の引数を残すようになったが, 固定した ML-Found が古く, 02 と 04 では確かめていないため
 - 終わりの条件: 02 と 04 の `run.json` に Scheduler の引数が残り, 04 の「気付いたこと」が今の挙動と合う
 - つながり: ML-Found の docs/FORMAT.md の「run.json」

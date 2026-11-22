@@ -8,9 +8,9 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 ## 優先度 高
 
 ### M8: 方策を画面で推論する
-- 何を: 次の順に進める. 1. ML-Quest の「方策の一式にモデルの定義を写す」 2. ML-Provide の「方策の一式を実験の一覧から登録する」. 1 は, 骨組みの方策の一式がモデルの組み立て方を `metadata.model` の `class` と `args` (`model.PolicyNet`) でしか持たず, 名前からコードを読まない ML-Inference の `load_policy` が画面から組み立てられないため, 方策のモデルを ML-ModelControl の定義で書いて一式に写し, `metadata.model.spec` に書く. 2 は実験の一覧から `policy/policy.json` を持つ実験を一式として登録し, 骨組みの一式で登録から行動を決めるまでを e2e で確かめる. 場所での登録と, 観測を入れて ML-Inference の `load_policy(...).act` の行動, `status`, `reasons` を見る画面は ML-Provide にある (docs/DESIGN.md の「11. 方策の一式」)
-- なぜ: J9 の推論だけが画面に無く, ML-Inference の `load_policy` をコードで呼ぶ手が残るため (ROADMAP.md の M8)
-- 終わりの条件: 2 つの項目が持ち主の TODO.md から消え, 書き換えない方策の骨組みで学んだ実験の一式を ML-Provide に一覧から登録して, 観測から行動と守りの結果が出る
+- 何を: ML-Provide の「方策の一式を実験の一覧から登録する」. 実験の一覧から `policy/policy.json` を持つ実験を一式として登録し, 骨組みの一式で登録から行動を決めるまでを e2e で確かめる. 骨組みの方策の一式は方策の頭を ML-ModelControl の定義で組み, 定義を一式に写して `metadata.model.spec` に書く (ML-Quest の docs/DESIGN.md の方策の骨組み). 場所での登録と, 観測を入れて ML-Inference の `load_policy(...).act` の行動, `status`, `reasons` を見る画面は ML-Provide にある (docs/DESIGN.md の「11. 方策の一式」)
+- なぜ: 学習した方策の一式を, 推論の画面に場所を手で写して登録する手が残り, 骨組みの一式で画面の推論を通していないため (ROADMAP.md の M8)
+- 終わりの条件: 項目が持ち主の TODO.md から消え, 書き換えない方策の骨組みで学んだ実験の一式を ML-Provide に一覧から登録して, 観測から行動と守りの結果が出る
 - つながり: 24, ML-Inference の docs/DESIGN.md の「10. 方策の一式」
 
 ### 食い違い: 読み込んだディレクトリの外を指すリンク

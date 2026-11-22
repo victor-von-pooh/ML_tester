@@ -2,7 +2,7 @@
 
 ## 目的
 
-節目「画像と文の分類を画面で通す」(ROADMAP.md の M3) の確かめ. 画像の分類を, 問題の設定から推論まで 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard, ML-Provide) の API だけで, 画面と同じ順に通す. 段階ごとに, 画面だけでできたか (OK), 値や場所を手で写すか打つか (手), 誤りかを表にする.
+節目「画像と文の分類を画面で通す」(ROADMAP.md の 4 の節の「済んだこと」) の確かめ. 画像の分類を, 問題の設定から推論まで 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard, ML-Provide) の API だけで, 画面と同じ順に通す. 段階ごとに, 画面だけでできたか (OK), 値や場所を手で写すか打つか (手), 誤りかを表にする.
 
 - **課題**: ML-Pathfinder の見本「解約の引き止め」(架空) の問いの答えを, 画像の表 (ML-EDA の `load_data` の列) に合わせたもの. 当たりのクラスは `circle`
 - 通しは 25 の `apps.py` の `run_journey` をそのまま使う. 足りない所 (同梱の例からのモデルの作り方と, 中身の手順) だけを設定の関数 (`make_model`, `item_steps_from`) で渡す

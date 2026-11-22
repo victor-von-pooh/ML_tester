@@ -8,16 +8,16 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 ## 優先度 高
 
 ### M8: 方策を画面で推論する
-- 何を: 次の順に進める. 1. ML-Quest の「方策の一式にモデルの定義を写す」 2. ML-Provide の「方策の一式を登録する」 3. ML-Provide の「方策の推論の画面」. 3 つとも持ち主の TODO.md に足す (今は項目が無い). 1 は, 骨組みの方策の一式がモデルの組み立て方を `metadata.model` の `class` と `args` (`model.PolicyNet`) でしか持たず, 名前からコードを読まない ML-Inference の `load_policy` が画面から組み立てられないため, 方策のモデルを ML-ModelControl の定義で書いて一式に写し, `metadata.model.spec` に書く. 2 は実験の一覧と場所で `policy/policy.json` を持つ実験を一式として登録し, 守りの表, 外れたときの動き, 観測と行動の空間を出す (重みは配らない). 3 は観測を入れて ML-Inference の `load_policy(...).act` の行動, `status`, `reasons` を見る
+- 何を: 次の順に進める. 1. ML-Quest の「方策の一式にモデルの定義を写す」 2. ML-Provide の「方策の一式を実験の一覧から登録する」. 1 は, 骨組みの方策の一式がモデルの組み立て方を `metadata.model` の `class` と `args` (`model.PolicyNet`) でしか持たず, 名前からコードを読まない ML-Inference の `load_policy` が画面から組み立てられないため, 方策のモデルを ML-ModelControl の定義で書いて一式に写し, `metadata.model.spec` に書く. 2 は実験の一覧から `policy/policy.json` を持つ実験を一式として登録し, 骨組みの一式で登録から行動を決めるまでを e2e で確かめる. 場所での登録と, 観測を入れて ML-Inference の `load_policy(...).act` の行動, `status`, `reasons` を見る画面は ML-Provide にある (docs/DESIGN.md の「11. 方策の一式」)
 - なぜ: J9 の推論だけが画面に無く, ML-Inference の `load_policy` をコードで呼ぶ手が残るため (ROADMAP.md の M8)
-- 終わりの条件: 3 つの項目が持ち主の TODO.md から消え, 書き換えない方策の骨組みで学んだ実験の一式を ML-Provide に一覧から登録して, 観測から行動と守りの結果が出る
+- 終わりの条件: 2 つの項目が持ち主の TODO.md から消え, 書き換えない方策の骨組みで学んだ実験の一式を ML-Provide に一覧から登録して, 観測から行動と守りの結果が出る
 - つながり: 24, ML-Inference の docs/DESIGN.md の「10. 方策の一式」
 
 ### 食い違い: 読み込んだディレクトリの外を指すリンク
-- 何を: 次の順に進める. 1. ML-EDA の「読み込んだディレクトリの外を指すリンクの扱い」 2. ML-Fathom の「読み込んだディレクトリの外のファイルを分析と書き出しで読まない」. 決まりは TASK_TYPES.md の 6 の節の 33 (既定は外を読まず, 設定でたどれる. 読み込んだディレクトリ自体のリンクは信頼する. 表の `path` の列も同じ). 2 は, 設定の「たどる」の欄も画面に足す
-- なぜ: 同じ件が, ML-Fathom の 1 件の表示では読めないのに, 分析と書き出し (ML-EDA) では読まれるため
-- 終わりの条件: 2 つの項目が持ち主の TODO.md から消え, ML-EDA と ML-Fathom の docs/DESIGN.md が同じ決まりを書いている
-- つながり: 上の 2 つの項目
+- 何を: ML-Fathom の「外を指すリンクの設定の欄と, 1 件の中身の表示の決まりをそろえる」. 決まりは TASK_TYPES.md の 6 の節の 33 (既定は外を読まず, 設定でたどれる. 読み込んだディレクトリ自体のリンクは信頼する. 表の `path` の列も同じ). ML-EDA は読み込みの設定 `follow_links` と `load_item` でこの決まりを持つ (ML-EDA の docs/DESIGN.md 4 章). 版 2 の書き出しと文の読み込みの残りは ML-EDA の低の「版 2 の書き出しと文の読み込みで外を指すリンクを読まない」
+- なぜ: 同じ件が, ML-Fathom の 1 件の表示と ML-EDA の分析と書き出しで, 読めるかどうかが違いうるため
+- 終わりの条件: 項目が持ち主の TODO.md から消え, ML-EDA と ML-Fathom の docs/DESIGN.md が同じ決まりを書いている
+- つながり: 上の項目
 
 ## 優先度 中
 

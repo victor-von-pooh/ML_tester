@@ -51,6 +51,12 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - 終わりの条件: 2 つの項目が持ち主の TODO.md から消える
 - つながり: 上の 2 つの項目
 
+### 節目の外: ML-Found を上げて Scheduler の引数の記録を確かめる
+- 何を: submodule の ML-Found を main に上げ, 02 と 04 を流し直して, 自分で作った Scheduler (04 は transformers の `get_linear_schedule_with_warmup`) の主な引数が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる. 04 の「気付いたこと」の Scheduler の記録の文を今の挙動に直す
+- なぜ: ML-Found が自分で渡した Scheduler の引数を残すようになったが, 固定した ML-Found が古く, 02 と 04 では確かめていないため
+- 終わりの条件: 02 と 04 の `run.json` に Scheduler の引数が残り, 04 の「気付いたこと」が今の挙動と合う
+- つながり: ML-Found の docs/FORMAT.md の「run.json」
+
 ### 節目の外: 導入の版を上げて流し直す
 - 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある. 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる
 - なぜ: 固定した版が各リポジトリの main より古く, 13 から 24 が今の作りを確かめていないため. 24 は推論の段階で方策を読めるようになったが, 通しでは確かめていない
@@ -70,10 +76,10 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - つながり: 11, 24
 
 ### 節目の外: 低の項目 (段階の順)
-- 何を: 次の順に進める. 1. ML-EDA の「書き出したデータセットに手元の絶対パスを残さない」 2. ML-Fathom の「読み込んだディレクトリの外のファイルを分析と書き出しで読まない」 3. ML-Fathom の「音声のレシピの e2e」 4. ML-Fathom の「中身の手順の大きな値の上限」 5. ML-ModelControl の「別の部品を引数に取るクラス」 6. ML-Found の「生成の画像の FID を追加の依存で数える」 7. ML-Dashboard の「同じ名前の実験を比べるときの見出し」 8. ML-Dashboard の「候補のまとまりの記録の後片付け」 9. ML-Dashboard の「登録で上の階層の関係ない仮想環境を拾わない」 10. ML-Dashboard の「守り付きの評価の判定と応答の欄」 11. ML-Dashboard の「方策のタブの割合のカードの表示の残り」 12. ML-Dashboard の「方策のタブの図と e2e に守り付きの評価」 13. ML-Dashboard の「実験の詳細に Scheduler の主な引数を出す」 14. ML-Dashboard の「追加の依存の版が古い時を「無い」と分けて出す」 15. ML-Dashboard の「確かめた config の画面に環境変数の値を出さない」 16. ML-Dashboard の「実験のディレクトリのファイルをリンクを辿らずに読み書きする」 17. ML-Dashboard の「評価の読み方を ML-Found とそろえる」 18. ML-Inference の「外れ方を行の種類ごとに分ける」 19. ML-Inference の「1 行ごとの予測の理由」 20. ML-Inference の「点群の一式の点の数を定義と照らす」 21. ML-Inference の「領域を戻す式を ML-EDA と比べるテスト」 22. ML-Inference の「手順の設定の名前と既定値を公開する」 23. ML-Provide の「見本の一式に予測以外の受け持ち」 24. ML-Provide の「一式を作る対話の読み込み中の扱いと値の飛ぶ見本」 25. ML-Provide の「手順の設定の名前を ML-Inference の公開の口から読む」 26. ML-Provide の「設定の値で数に見える文字に引用符」 27. ML-Provide の「問題の設定を一式と並べて読む」 28. ML-Provide の「雑音だけの一式の欄の名前のテストと手順の文書」 29. ML-Provide の「tokens の列の無い古い文の結果の読み方」
+- 何を: 次の順に進める. 1. ML-EDA の「書き出したデータセットに手元の絶対パスを残さない」 2. ML-Fathom の「音声のレシピの e2e」 3. ML-Fathom の「中身の手順の大きな値の上限」 4. ML-ModelControl の「別の部品を引数に取るクラス」 5. ML-Found の「生成の画像の FID を追加の依存で数える」 6. ML-Dashboard の「同じ名前の実験を比べるときの見出し」 7. ML-Dashboard の「候補のまとまりの記録の後片付け」 8. ML-Dashboard の「登録で上の階層の関係ない仮想環境を拾わない」 9. ML-Dashboard の「守り付きの評価の判定と応答の欄」 10. ML-Dashboard の「方策のタブの割合のカードの表示の残り」 11. ML-Dashboard の「方策のタブの図と e2e に守り付きの評価」 12. ML-Dashboard の「実験の詳細に Scheduler の主な引数を出す」 13. ML-Dashboard の「追加の依存の版が古い時を「無い」と分けて出す」 14. ML-Dashboard の「確かめた config の画面に環境変数の値を出さない」 15. ML-Dashboard の「実験のディレクトリのファイルをリンクを辿らずに読み書きする」 16. ML-Dashboard の「評価の読み方を ML-Found とそろえる」 17. ML-Inference の「外れ方を行の種類ごとに分ける」 18. ML-Inference の「1 行ごとの予測の理由」 19. ML-Inference の「点群の一式の点の数を定義と照らす」 20. ML-Inference の「領域を戻す式を ML-EDA と比べるテスト」 21. ML-Inference の「手順の設定の名前と既定値を公開する」 22. ML-Provide の「見本の一式に予測以外の受け持ち」 23. ML-Provide の「一式を作る対話の読み込み中の扱いと値の飛ぶ見本」 24. ML-Provide の「手順の設定の名前を ML-Inference の公開の口から読む」 25. ML-Provide の「設定の値で数に見える文字に引用符」 26. ML-Provide の「問題の設定を一式と並べて読む」 27. ML-Provide の「雑音だけの一式の欄の名前のテストと手順の文書」 28. ML-Provide の「tokens の列の無い古い文の結果の読み方」
 - なぜ: どれも節目に要らず, あると手間が減るもの
-- 終わりの条件: 29 の項目が持ち主の TODO.md から消える
-- つながり: 上の 29 の項目
+- 終わりの条件: 28 の項目が持ち主の TODO.md から消える
+- つながり: 上の 28 の項目
 
 ### 節目の外: 22 と 23 の手順を画面の操作で書き直す
 - 何を: 22 (画像と領域) と 23 (撮影と点群) の README の手順 (ライブラリの関数で書き出して学習する) を, 27 と 28 の画面の操作 (問題の設定から始めて書き出し, 骨組みで学習する) で書き直す. 23 は「節目の外: 導入の版を上げて流し直す」と合わせる

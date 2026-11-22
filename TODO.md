@@ -56,10 +56,10 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - つながり: 上の 2 つの項目
 
 ### 節目の外: 導入の版を上げて流し直す
-- 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる
-- なぜ: 固定した版が各リポジトリの main より古く, 13 から 24 が今の作りを確かめていないため
+- 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある. 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる
+- なぜ: 固定した版が各リポジトリの main より古く, 13 から 24 が今の作りを確かめていないため. 24 は推論の段階で方策を読めるようになったが, 通しでは確かめていない
 - 終わりの条件: 「導入」の版が各リポジトリの main と同じか新しく, 13 から 24 の結果が今の版の値になっていて, 24 で ML-Inference の読んだ方策が ML-Found と同じ行動と守りの結果を返す
-- つながり: 無し
+- つながり: 24
 
 ### 節目の外: 11 の EMA を ML-Found の設定で書く
 - 何を: ML_tester の 11 の `DiffusionTrainer` の EMA を ML-Found の設定 (`trainer.ema`) に置き換える. 設定の EMA は検証, ベスト, `final_model.pt` を必ず EMA にするので, 11 の今の既定 (EMA は生成の見本だけ. `ema.eval: false`) を残すには `eval_model` を上書きして学習しているモデルを返す. 実験 3 (`ema_eval.yaml`. 検証も EMA) は上書きしない既定の形にする. このとき生成の見本と `ema_model.pt`, `ema_model.png` は EMA の重み (`ema_model.module`. EMA を使わない設定では `ema_model` が `None` なので学習しているモデル) から作り, 自前の EMA の属性には `ema_model` の名前を使わない. `extra_state_dict` と `load_extra_state_dict` の EMA の分は要らなくなる (EMA はチェックポイントの `ema` に入る). 11 の config (`ema.use`, `ema.decay` は `trainer.ema.decay` に移り, EMA を使わないなら `decay: null`. `ema.eval`, `no_ema.yaml`, `ema_eval.yaml`) と, それを使う ML-Dashboard の docs/GUIDE.md の 3 つの実験の説明も合わせて直す. 生成の骨組みは M7

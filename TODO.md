@@ -16,10 +16,10 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 ## 優先度 低
 
 ### 節目の外: 画面は自分の組のライブラリの公開の口だけを使う
-- 何を: 次の順に進める. 1. ML-Found の「画面が使う確かめの関数を公開する」 2. ML-Dashboard の「ML-Found の内部のモジュールを使わない」 3. ML-Inference の「版 2 のデータセットの説明と items の既定を公開する」 4. ML-Fathom の「ML-EDA の公開されていない名前を使わない」 5. ML-Pathfinder の「ML-Quest の公開されていない名前を使わない」 6. ML-Provide の「ML-Quest と ML-Inference の公開されていない名前を使わない」. 3 は 6 の ML-Inference の分の前に要る
+- 何を: 次の順に進める. 1. ML-Found の「画面が使う確かめの関数を公開する」 2. ML-Dashboard の「ML-Found の内部のモジュールを使わない」 3. ML-Inference の「版 2 のデータセットの説明と items の既定を公開する」 4. ML-Fathom の「ML-EDA の公開されていない名前を使わない」 5. ML-Provide の「ML-Quest と ML-Inference の公開されていない名前を使わない」. 3 は 5 の ML-Inference の分の前に要る
 - なぜ: VISION.md の方針の柱 2 (画面は自分の組のライブラリだけを使う) と食い違い, ライブラリの中のモジュールを変えると画面が壊れうるため (ROADMAP.md の X5)
-- 終わりの条件: 6 つの項目が持ち主の TODO.md から消え, VISION.md の「段階の間の関係」の 8 の例外の文を消す
-- つながり: 上の 6 つの項目
+- 終わりの条件: 5 つの項目が持ち主の TODO.md から消え, VISION.md の「段階の間の関係」の 8 の例外の文を消す
+- つながり: 上の 5 つの項目
 
 ### 節目の外: 問題の設定から後ろの段階へ値を渡す
 - 何を: 次の順に進める. 1. ML-Quest の「後ろの段階のアプリに値を渡す」 2. ML-Pathfinder の「後ろの段階のアプリに値を渡す」. ML-CreateArchitecture と ML-Dashboard の側の受け取る口は, 1 が終わったときにそれぞれの TODO.md に項目を足す (今は項目が無い. ML-CreateArchitecture の問題の設定のファイルを選ぶ口は, 今は定義の保存先にだけ使う)
@@ -28,10 +28,10 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - つながり: 上の 2 つの項目
 
 ### 節目の外: 問題の設定の名前と損得の値
-- 何を: 次の順に進める. 1. ML-Quest の「画面が写している名前を返す」 2. ML-Pathfinder の「画面に写した名前を外す」 3. ML-Quest の「損得の値の決め方の手伝い」 4. ML-Pathfinder の「損得の値を決める手伝い」 5. ML-Quest の「データの読み方の指定」 6. ML-Quest の「守る指標を後ろの段階で数える」
-- なぜ: 名前を足すたびに 2 つのリポジトリを直す手間を無くし, 損得の値の決め手を利用者が見られるようにするため. 守る指標は後ろの段階で確かめる手が無い
-- 終わりの条件: 6 つの項目が持ち主の TODO.md から消える
-- つながり: 上の 6 つの項目
+- 何を: 次の順に進める. 1. ML-Quest の「損得の値の決め方の手伝い」 2. ML-Pathfinder の「損得の値を決める手伝い」 3. ML-Quest の「データの読み方の指定」 4. ML-Quest の「守る指標を後ろの段階で数える」
+- なぜ: 損得の値の決め手を利用者が見られるようにするため. 守る指標は後ろの段階で確かめる手が無い
+- 終わりの条件: 4 つの項目が持ち主の TODO.md から消える
+- つながり: 上の 4 つの項目
 
 ### 節目の外: 学習済みの重みの案内
 - 何を: 次の順に進める. 1. ML-ModelControl の「申請制の重みの読み込みの誤りの文」 2. ML-CreateArchitecture の「申請制の重みの取得に失敗した理由」 3. ML-ModelControl の「学習済みの重みの表示の義務と大きさ」 4. ML-CreateArchitecture の「ライセンスの表示の義務」(条件待ち. 3 を待つ) 5. ML-Inference の「学習済みの重みの置き方を部分モデルの中のノードにも」
@@ -50,6 +50,12 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - なぜ: 振り分けの型は確率が当たっていることを前提にし, 結論の決め方を変えたときの違いを 1 つずつ開いて見比べるため
 - 終わりの条件: 2 つの項目が持ち主の TODO.md から消える
 - つながり: 上の 2 つの項目
+
+### 節目の外: ML-Found を上げて Scheduler の引数の記録を確かめる
+- 何を: submodule の ML-Found を main に上げ, 02 と 04 を流し直して, Scheduler の主な引数が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる (02 は config から作った Scheduler, 04 は自分で作って渡した transformers の `get_linear_schedule_with_warmup`). 04 の「気付いたこと」の Scheduler の記録の文を今の挙動に直す
+- なぜ: ML-Found が自分で渡した Scheduler の引数を残すようになったが, 固定した ML-Found が古く, 02 と 04 では確かめていないため
+- 終わりの条件: 02 と 04 の `run.json` に Scheduler の引数が残り, 04 の「気付いたこと」が今の挙動と合う
+- つながり: ML-Found の docs/FORMAT.md の「run.json」
 
 ### 節目の外: 導入の版を上げて流し直す
 - 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある. 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる
@@ -70,10 +76,10 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - つながり: 11, 24
 
 ### 節目の外: 低の項目 (段階の順)
-- 何を: 次の順に進める. 1. ML-EDA の「グループと時刻を組にした分割と群の層別」 2. ML-Fathom の「グループと時刻を組にした分割と群の層別」(条件待ち. 1 を待つ) 3. ML-EDA の「版 2 の正解の欠けた件」 4. ML-EDA の「他の形式の読み込み」 5. ML-EDA の「中身の手順の知らない引数を誤りにする」 6. ML-ModelControl の「別の部品を引数に取るクラス」 7. ML-CreateArchitecture の「保存先の守りの残り」 8. ML-CreateArchitecture の「部品の検索に op.Max の別名を足す」 9. ML-CreateArchitecture の「名前の保存先の上書きの確認を保存先と結ぶ」 10. ML-CreateArchitecture の「確かめに失敗した後の「確かめ直してください」」 11. ML-Found の「自分で渡した Scheduler の引数を出力先に残す」 12. ML-Found の「追加の依存の版の確かめ」 13. ML-Found の「出力先を作る前に config 全体の参照を確かめる」 14. ML-Found の「評価の読み込みでリンクと普通でないファイルを読まない」 15. ML-Found の「ActorCriticStep の利得と打ち切りの確かめ」 16. ML-Found の「利得の足し合わせを配列でまとめて求める」 17. ML-Found の「生成の画像の FID を追加の依存で数える」 18. ML-Dashboard の「同じ名前の実験を比べるときの見出し」 19. ML-Dashboard の「候補のまとまりの記録の後片付け」 20. ML-Dashboard の「登録で上の階層の関係ない仮想環境を拾わない」 21. ML-Dashboard の「守り付きの評価の判定と応答の欄」 22. ML-Dashboard の「方策のタブの割合のカードの表示の残り」 23. ML-Dashboard の「方策のタブの図と e2e に守り付きの評価」 24. ML-Inference の「外れ方を行の種類ごとに分ける」 25. ML-Inference の「1 行ごとの予測の理由」 26. ML-Inference の「点群の一式の点の数を定義と照らす」 27. ML-Inference の「領域を戻す式を ML-EDA と比べるテスト」 28. ML-Inference の「手順の設定の名前と既定値を公開する」 29. ML-Provide の「見本の一式に予測以外の受け持ち」 30. ML-Provide の「一式を作る対話の読み込み中の扱いと値の飛ぶ見本」 31. ML-Provide の「手順の設定の名前を ML-Inference の公開の口から読む」 32. ML-Provide の「設定の値で数に見える文字に引用符」 33. ML-Provide の「問題の設定を一式と並べて読む」 34. ML-Provide の「雑音だけの一式の欄の名前のテストと手順の文書」 35. ML-Provide の「tokens の列の無い古い文の結果の読み方」. 11 は ML_tester の 02 と 04 (自分で作った Scheduler) で確かめる
+- 何を: 次の順に進める. 1. ML-EDA の「書き出したデータセットに手元の絶対パスを残さない」 2. ML-Fathom の「音声のレシピの e2e」 3. ML-Fathom の「版 1 のレシピの欄で中身の手順の上限を前もって示す」 4. ML-ModelControl の「別の部品を引数に取るクラス」 5. ML-Found の「生成の画像の FID を追加の依存で数える」 6. ML-Dashboard の「同じ名前の実験を比べるときの見出し」 7. ML-Dashboard の「候補のまとまりの記録の後片付け」 8. ML-Dashboard の「登録で上の階層の関係ない仮想環境を拾わない」 9. ML-Dashboard の「守り付きの評価の判定と応答の欄」 10. ML-Dashboard の「方策のタブの割合のカードの表示の残り」 11. ML-Dashboard の「方策のタブの図と e2e に守り付きの評価」 12. ML-Dashboard の「実験の詳細に Scheduler の主な引数を出す」 13. ML-Dashboard の「追加の依存の版が古い時を「無い」と分けて出す」 14. ML-Dashboard の「実験のディレクトリのファイルをリンクを辿らずに読み書きする」 15. ML-Dashboard の「評価の読み方を ML-Found とそろえる」 16. ML-Inference の「外れ方を行の種類ごとに分ける」 17. ML-Inference の「1 行ごとの予測の理由」 18. ML-Inference の「領域を戻す式を ML-EDA と比べるテスト」 19. ML-Inference の「手順の設定の名前と既定値を公開する」 20. ML-Provide の「見本の一式に予測以外の受け持ち」 21. ML-Provide の「一式を作る対話の読み込み中の扱いと値の飛ぶ見本」 22. ML-Provide の「ML-Inference の点の数の確かめに合わせて点群の一式のテストを直す」 23. ML-Provide の「手順の設定の名前を ML-Inference の公開の口から読む」 24. ML-Provide の「設定の欄で入れ子の値を読む」 25. ML-Provide の「問題の設定を一式と並べて読む」 26. ML-Provide の「雑音だけの一式の欄の名前のテストと手順の文書」 27. ML-Provide の「tokens の列の無い古い文の結果の読み方」
 - なぜ: どれも節目に要らず, あると手間が減るもの
-- 終わりの条件: 35 の項目が持ち主の TODO.md から消える
-- つながり: 上の 35 の項目
+- 終わりの条件: 27 の項目が持ち主の TODO.md から消える
+- つながり: 上の 27 の項目
 
 ### 節目の外: 22 と 23 の手順を画面の操作で書き直す
 - 何を: 22 (画像と領域) と 23 (撮影と点群) の README の手順 (ライブラリの関数で書き出して学習する) を, 27 と 28 の画面の操作 (問題の設定から始めて書き出し, 骨組みで学習する) で書き直す. 23 は「節目の外: 導入の版を上げて流し直す」と合わせる

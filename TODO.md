@@ -15,15 +15,9 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 
 ## 優先度 低
 
-### 節目の外: 問題の設定の名前と損得の値
-- 何を: 次の順に進める. 1. ML-Pathfinder の「損得の値を決める手伝い」 2. ML-Quest の「データの読み方の指定」 3. ML-Quest の「守る指標を後ろの段階で数える」
-- なぜ: 損得の値の決め手を利用者が見られるようにするため. 守る指標は後ろの段階で確かめる手が無い
-- 終わりの条件: 3 つの項目が持ち主の TODO.md から消える
-- つながり: 上の 3 つの項目
-
-### 節目の外: 見本の横の評価
-- 何を: ML-Dashboard の「見本の横に同じエポックの評価」
-- なぜ: 見本は, 進み具合と数字を比べにくいため
+### 節目の外: 守る指標を後ろの段階で数える
+- 何を: ML-Quest の「守る指標を後ろの段階で数える」
+- なぜ: 守る指標は後ろの段階で確かめる手が無いため
 - 終わりの条件: 項目が持ち主の TODO.md から消える
 - つながり: 無し
 
@@ -40,7 +34,7 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - つながり: 24
 
 ### 節目の外: 11 の EMA を ML-Found の設定で書く
-- 何を: ML_tester の 11 の `DiffusionTrainer` の EMA を ML-Found の設定 (`trainer.ema`) に置き換える. 設定の EMA は検証, ベスト, `final_model.pt` を必ず EMA にするので, 11 の今の既定 (EMA は生成の見本だけ. `ema.eval: false`) を残すには `eval_model` を上書きして学習しているモデルを返す. 実験 3 (`ema_eval.yaml`. 検証も EMA) は上書きしない既定の形にする. このとき生成の見本と `ema_model.pt`, `ema_model.png` は EMA の重み (`ema_model.module`. EMA を使わない設定では `ema_model` が `None` なので学習しているモデル) から作り, 自前の EMA の属性には `ema_model` の名前を使わない. `extra_state_dict` と `load_extra_state_dict` の EMA の分は要らなくなる (EMA はチェックポイントの `ema` に入る). 11 の config (`ema.use`, `ema.decay` は `trainer.ema.decay` に移り, EMA を使わないなら `decay: null`. `ema.eval`, `no_ema.yaml`, `ema_eval.yaml`) と, それを使う ML-Dashboard の docs/GUIDE.md の 3 つの実験の説明も合わせて直す. 生成の骨組みは済んだ「生成と強化学習の学習を画面で通す」
+- 何を: ML_tester の 11 の `DiffusionTrainer` の EMA を ML-Found の設定 (`trainer.ema`) に置き換える. 設定の EMA は検証, ベスト, `final_model.pt` を必ず EMA にするので, 11 の今の既定 (EMA は生成の見本だけ. `ema.eval: false`) を残すには `eval_model` を上書きして学習しているモデルを返す. 実験 3 (`ema_eval.yaml`. 検証も EMA) は上書きしない既定の形にする. このとき生成の見本と `ema_model.pt`, `ema_model.png` は EMA の重み (`ema_model.module`. EMA を使わない設定では `ema_model` が `None` なので学習しているモデル) から作り, 自前の EMA の属性には `ema_model` の名前を使わない. `extra_state_dict` と `load_extra_state_dict` の EMA の分は要らなくなる (EMA はチェックポイントの `ema` に入る). 11 の config (`ema.use`, `ema.decay` は `trainer.ema.decay` に移り, EMA を使わないなら `decay: null`. `ema.eval`, `no_ema.yaml`, `ema_eval.yaml`) と, それを使う ML-Dashboard の docs/GUIDE.md の 3 つの実験の説明も合わせて直す. 生成の骨組みは済んだ「生成と強化学習の学習」
 - なぜ: 生成の学習で毎回同じ書き方が要るため
 - 終わりの条件: 11 の README が今の設定で書かれている
 - つながり: 11
@@ -67,7 +61,7 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - 何を: 24 で ε-greedy の方策を ML-Found の `evaluate_policy` に渡して `action_prob` 付きの軌跡を書き出し, ML-Fathom で分析し, ML-Found の `estimate_policy_value` で方策の価値を見積もる
 - なぜ: 24 の本物の軌跡での, 書き出しから分析と見積もりまでの通しは確かめていないため
 - 終わりの条件: 24 の軌跡を ML-Fathom で分析でき, `estimate_policy_value` の見積もりが出る
-- つながり: 24, ML-EDA の「軌跡の行動を選んだ確率の列を読む」, ML-Fathom の「軌跡の画面に方策の見積もりを出す」
+- つながり: 24, ML-Dashboard の「記録した軌跡から方策の見積もりを出す」
 
 ### 節目の外: 本物の ResNet18 の画面の通し
 - 何を: 本物の ResNet18 の一式を ML-Provide の画面 (ブラウザ) から登録し, 新しい画像の種類の名前が画像の分類の画面に出ることを確かめる (今は作り物の出どころの e2e と, 本物の一式を API で手で通しただけ)

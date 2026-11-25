@@ -81,7 +81,7 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - 何を: 24 で ε-greedy の方策を ML-Found の `evaluate_policy` に渡して `action_prob` 付きの軌跡を書き出し, ML-Fathom で分析し, ML-Found の `estimate_policy_value` で方策の価値を見積もる
 - なぜ: 24 の本物の軌跡での, 書き出しから分析と見積もりまでの通しは確かめていないため
 - 終わりの条件: 24 の軌跡を ML-Fathom で分析でき, `estimate_policy_value` の見積もりが出る
-- つながり: 24, ML-Dashboard の「記録した軌跡から方策の見積もりを出す」
+- つながり: 24
 
 ### 本物の ResNet18 の画面の通し
 - 何を: 本物の ResNet18 の一式を ML-Provide の画面 (ブラウザ) から登録し, 新しい画像の種類の名前が画像の分類の画面に出ることを確かめる (今は作り物の出どころの e2e と, 本物の一式を API で手で通しただけ)

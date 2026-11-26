@@ -15,19 +15,13 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 
 ## 優先度 中
 
-### 11 の EMA を ML-Found の設定で書く
-- 何を: ML_tester の 11 の `DiffusionTrainer` の EMA を ML-Found の設定 (`trainer.ema`) に置き換える. 設定の EMA は検証, ベスト, `final_model.pt` を必ず EMA にするので, 11 の今の既定 (EMA は生成の見本だけ. `ema.eval: false`) を残すには `eval_model` を上書きして学習しているモデルを返す. 実験 3 (`ema_eval.yaml`. 検証も EMA) は上書きしない既定の形にする. このとき生成の見本と `ema_model.pt`, `ema_model.png` は EMA の重み (`ema_model.module`. EMA を使わない設定では `ema_model` が `None` なので学習しているモデル) から作り, 自前の EMA の属性には `ema_model` の名前を使わない. `extra_state_dict` と `load_extra_state_dict` の EMA の分は要らなくなる (EMA はチェックポイントの `ema` に入る). 11 の config (`ema.use`, `ema.decay` は `trainer.ema.decay` に移り, EMA を使わないなら `decay: null`. `ema.eval`, `no_ema.yaml`, `ema_eval.yaml`) と, それを使う ML-Dashboard の docs/GUIDE.md の 3 つの実験の説明も合わせて直す. 生成の骨組みは済んだ「生成と強化学習の学習」
-- なぜ: 11 が自前で書いている EMA は, 生成の学習で毎回同じ書き方が要るもので, ML-Found の設定に任せられるため
-- 終わりの条件: 11 が `trainer.ema` で学習し, 3 つの実験 (既定, `no_ema.yaml`, `ema_eval.yaml`) が今までと同じ意味で動き, 11 の README と ML-Dashboard の docs/GUIDE.md の説明が今の設定に合う
-- つながり: 11
-
-## 優先度 低
-
 ### 生成と方策の骨組みから通すタスク
 - 何を: ML_tester の 11 (拡散) と 24 (CartPole) と同じ課題を, 問題の設定から ML-Quest の骨組みを書き出し, 骨組みを書き換えずに学習から推論まで通すタスクを足す (21 と同じ形). 画像の生成は ML-Inference の雑音だけの一式, 方策は ML-Inference の `load_policy` で読む
 - なぜ: ML-Quest の CI は骨組みを書き換えずに学習して一式ができることを確かめるが, 利用者の立場で問題の設定から推論までを通しでは確かめていない
 - 終わりの条件: 足したタスクで, 書き換えない骨組みから生成の一式と方策の一式ができ, 推論の段階で読める
 - つながり: 11, 24
+
+## 優先度 低
 
 ### 推薦を問題の設定から推論まで通すタスク
 - 何を: ML_tester のタスクを 1 つ足し, 推薦 (並べる) の課題を問題の設定から推論まで画面の API だけで通す (21 と同じ形). 問題の設定から ML-Quest の骨組みを書き出し, ML-Fathom でデータを分析して書き出し, ML-CreateArchitecture で雛形 (`two_tower_retrieval`) からモデルの定義を保存し, ML-Dashboard で骨組みを書き換えずに学習し (Recall@K と NDCG が結果に出る), ML-Provide で一式を登録して利用者ごとの上位 K の品物を出す

@@ -16,8 +16,7 @@ TASK_DIR = Path(__file__).resolve().parent
 class DiffusionTrainer(Trainer):
     def __init__(
         self, model: nn.Module, experiment: Experiment, diffusion: Diffusion,
-        ema_decay: Optional[float], ema_eval: bool, image_size: int,
-        n_images: int, sample_every: int,
+        ema_eval: bool, image_size: int, n_images: int, sample_every: int,
         optimizer: Optional[optim.Optimizer] = None,
         scheduler: Optional[optim.lr_scheduler.LRScheduler] = None
     ):
@@ -29,18 +28,12 @@ class DiffusionTrainer(Trainer):
         # ノイズの加え方と生成の手順を保存
         self.diffusion = diffusion
 
-        # EMA を使う場合は重みの指数移動平均を持つモデルを作成
-        # 検証とベストモデルの判定に EMA の重みを使うかも保存
-        self.ema = None
-        if ema_decay is not None:
-            self.ema = optim.swa_utils.AveragedModel(
-                self.model,
-                multi_avg_fn=optim.swa_utils.get_ema_multi_avg_fn(ema_decay)
-            )
-        self.ema_eval = ema_eval and self.ema is not None
-        if ema_eval and self.ema is None:
+        # 検証, ベストモデルの判定, final_model.pt に EMA の重みを使うかを保存
+        # (EMA は trainer.ema.decay の設定で ML-Found が保持)
+        self.ema_eval = ema_eval
+        if ema_eval and self.ema_model is None:
             self.logger.warning(
-                "ema.use: false なので, ema.eval: true は無視します"
+                "trainer.ema.decay が null なので, ema.eval: true は無視します"
             )
 
         # 生成画像の大きさ, 枚数, 保存する間隔, 保存先を保存
@@ -149,24 +142,6 @@ class DiffusionTrainer(Trainer):
 
         return outputs
 
-    def update_parameters(self, loss: torch.Tensor) -> None:
-        """
-        パラメータを更新した後に EMA の重みも更新する関数
-
-        Parameters
-        ----------
-        loss: torch.Tensor
-            1 バッチ分の損失
-
-        Returns
-        ----------
-        None
-        """
-        # ML-Found の手順で更新した後に, 重みの指数移動平均を更新
-        super(DiffusionTrainer, self).update_parameters(loss)
-        if self.ema is not None:
-            self.ema.update_parameters(self.model)
-
     def on_epoch_end(self, phase: str) -> dict:
         """
         決まった間隔で画像を生成して保存する関数
@@ -189,7 +164,9 @@ class DiffusionTrainer(Trainer):
             return metrics
 
         # EMA がある場合は EMA の重みで生成
-        sampler = self.model if self.ema is None else self.ema.module
+        sampler = (
+            self.model if self.ema_model is None else self.ema_model.module
+        )
         sampler.eval()
         images = self.diffusion.sample(
             sampler, self.n_images, self.image_size
@@ -199,52 +176,6 @@ class DiffusionTrainer(Trainer):
         self.logger.info(f"生成画像を保存: {path.name}")
 
         return metrics
-
-    def extra_state_dict(self) -> dict:
-        """
-        チェックポイントに EMA の状態を加える関数
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        ----------
-        state: dict
-            EMA を使う場合は EMA の重みと更新回数
-        """
-        # EMA を使う場合だけ状態を追加
-        state = {}
-        if self.ema is not None:
-            state["ema"] = self.ema.state_dict()
-
-        return state
-
-    def load_extra_state_dict(self, state: dict) -> None:
-        """
-        チェックポイントから EMA の状態を戻す関数
-
-        Parameters
-        ----------
-        state: dict
-            extra_state_dict で加えた状態
-
-        Returns
-        ----------
-        None
-        """
-        # EMA を使わない場合は何もしない
-        if self.ema is None:
-            return
-
-        # EMA の状態が無い再開元 (EMA を使わなかった実験など) では作り直しのまま
-        if "ema" not in state:
-            self.logger.warning(
-                "再開元に EMA の状態が無いので, EMA は今の重みから始めます"
-            )
-            return
-        self.ema.load_state_dict(state["ema"])
-        self.logger.info("EMA の状態を復元")
 
     def eval_model(self) -> nn.Module:
         """
@@ -257,11 +188,14 @@ class DiffusionTrainer(Trainer):
         Returns
         ----------
         model: nn.Module
-            ema.eval が true なら EMA の重みのモデル, そうでなければ
-            学習するモデル
+            ema.eval が true なら ML-Found の既定 (EMA を使う場合は EMA の
+            重みのモデル), そうでなければ学習するモデル
         """
-        # 設定に応じて EMA のモデルを使用
-        model = self.ema.module if self.ema_eval else self.model
+        # ema.eval が false なら EMA を持っていても学習するモデルを使用
+        if self.ema_eval:
+            model = super(DiffusionTrainer, self).eval_model()
+        else:
+            model = self.model
 
         return model
 
@@ -296,9 +230,8 @@ def main() -> None:
         cfg.diffusion.timesteps, cfg.diffusion.beta_start,
         cfg.diffusion.beta_end, experiment.device
     )
-    ema_decay = cfg.ema.decay if cfg.ema.use else None
     trainer = DiffusionTrainer(
-        model, experiment, diffusion, ema_decay, cfg.ema.eval,
+        model, experiment, diffusion, cfg.ema.eval,
         cfg.data.image_size, cfg.sampling.n_images,
         cfg.sampling.every_n_epochs
     )
@@ -317,8 +250,9 @@ def main() -> None:
 
     # EMA を使った場合は, 最後の EMA の重みを保存して生成
     # 一度も更新されていない場合は初期の重みなので保存しない
-    if trainer.ema is not None and trainer.ema.n_averaged.item() > 0:
-        ema_model = trainer.ema.module
+    ema = trainer.ema_model
+    if ema is not None and ema.n_averaged.item() > 0:
+        ema_model = ema.module
         torch.save(ema_model.state_dict(), run_dir / "ema_model.pt")
         ema_model.eval()
         images = diffusion.sample(

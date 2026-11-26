@@ -16,6 +16,9 @@ scheduler:
 trainer:
   epochs: 30
   grad_clip_norm: 1.0
+  # 重みの指数移動平均 (EMA) の減衰率, null の場合は使わない
+  ema:
+    decay: 0.999
 
 # プロジェクト固有の設定
 data:
@@ -37,9 +40,8 @@ diffusion:
   beta_end: 0.02
 
 ema:
-  use: true
-  decay: 0.999
   # true の場合は検証, ベストモデルの判定, final_model.pt に EMA の重みを使う
+  # (ML-Found の既定), false の場合は EMA を生成だけに使う
   eval: false
 
 sampling:

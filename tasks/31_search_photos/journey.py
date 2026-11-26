@@ -283,10 +283,14 @@ def query_hits(provide: Client, result_id: str) -> dict[str, Any]:
 
 
 def link_problem(
-    provide: Client, journey: Journey, bid: str, project: Path
+    provide: Client, journey: Journey, bundle: dict[str, Any],
+    project: Path
 ) -> None:
     """
     一式の画面の候補を見て, 元の問題の設定をつなぐ関数
+
+    一式が問題の設定を使わない (画面に欄が無い) 場合は, つながずに欄が
+    無いことを記録する
 
     Parameters
     ----------
@@ -294,8 +298,8 @@ def link_problem(
         ML-Provide の客
     journey: Journey
         結果の記録
-    bid: str
-        一式の id
+    bundle: dict[str, Any]
+        登録した一式 (id と, 問題の設定を使うかの uses_problem)
     project: Path
         書き出したプロジェクト (problem.yaml の写しの origin が元を指す)
 
@@ -303,6 +307,16 @@ def link_problem(
     ----------
     None
     """
+    # 問題の設定を使わない一式は, 画面に欄が無く, つながない
+    bid = str(bundle["id"])
+    if bundle.get("uses_problem") is False:
+        journey.add(
+            "問題の設定の欄 (一式の画面)", "OK",
+            "問題の設定を使わない一式なので欄が無い (件数と待ち時間の上限"
+            "は一式が写して持つ)"
+        )
+        return
+
     # 候補は画面の欄に出るだけで, つなぐのは写しの origin が指す元の問題
     # の設定 (ML-Pathfinder で直した値が届く方)
     origin = yaml.safe_load(
@@ -411,7 +425,7 @@ def run_search(apps: Apps, journey: Journey, setup: dict[str, Any]) -> None:
         f"一式の場所は config の bundle.path. 種類 "
         f"{description.get('kind')}, 版 {description.get('format_version')}"
     )
-    link_problem(provide, journey, bid, project)
+    link_problem(provide, journey, bundle, project)
 
     # 5. 問いの写真ごとの上位 K 件と待ち時間 (件数は一式の既定)
     result = provide.ok("POST", f"/api/bundles/{bid}/predict",

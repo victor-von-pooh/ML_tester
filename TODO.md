@@ -7,19 +7,19 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 
 ## 優先度 高
 
-### ML-Found を上げて Scheduler の引数の記録を確かめる
-- 何を: submodule の ML-Found を main に上げ, 02 と 04 を流し直して, Scheduler の主な引数が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる (02 は config から作った Scheduler, 04 は自分で作って渡した transformers の `get_linear_schedule_with_warmup`). 04 の「気付いたこと」の Scheduler の記録の文を今の挙動に直す
-- なぜ: ML-Found が自分で渡した Scheduler の引数を残すようになったが, 固定した ML-Found が古く, 02 と 04 では確かめていないため
-- 終わりの条件: 02 と 04 の `run.json` に Scheduler の引数が残り, 04 の「気付いたこと」が今の挙動と合う
-- つながり: ML-Found の docs/FORMAT.md の「run.json」
+### 導入の版を上げて流し直す
+- 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を今の ML-Found (submodule は main) で流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある. 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる
+- なぜ: 固定した版が各リポジトリの main より古く, 13 から 24 が今の作りを確かめていないため. 24 は推論の段階で方策を読めるようになったが, 通しでは確かめていない
+- 終わりの条件: 「導入」の版が各リポジトリの main と同じか新しく, 13 から 24 の結果が今の版の値になっていて, 24 で ML-Inference の読んだ方策が ML-Found と同じ行動と守りの結果を返す
+- つながり: 24
 
 ## 優先度 中
 
-### 導入の版を上げて流し直す
-- 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある. 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる
-- なぜ: 固定した版が各リポジトリの main より古く, 13 から 24 が今の作りを確かめていないため. 24 は推論の段階で方策を読めるようになったが, 通しでは確かめていない
-- 終わりの条件: 「導入」の版が各リポジトリの main と同じか新しく, 13 から 24 の結果が今の版の値になっていて, 24 で ML-Inference の読んだ方策が ML-Found と同じ行動と守りの結果を返す
-- つながり: 24, 「ML-Found を上げて Scheduler の引数の記録を確かめる」(24 の確かめが ML-Found の版による)
+### 06 の結果のメモを ML-Found の測った値に合わせる
+- 何を: `tasks/06_func_approx/README.md` の「5000 エポック中 2351 回改善」は, ML-Found の `best.pt` の保存の時間の測定では 2438 回だった. 06 を流し直して値を確かめる. 保存の割合と, 保存を切る案も, ML-Found の docs/DESIGN.md の測定 (`best.pt` の保存の時間) に合わせて書き直す
+- なぜ: 06 の結果のメモが, ML-Found の測った値と食い違っているため
+- 終わりの条件: 06 の README の改善の回数, 保存の割合, 保存を切る案が, 流し直した値と ML-Found の測定に合う
+- つながり: 06
 
 ## 優先度 低
 
@@ -95,12 +95,6 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - 終わりの条件: 本物の ResNet18 の一式を画面から登録して推論し, 種類の名前が出る
 - つながり: 無し
 
-### 06 の結果のメモを ML-Found の測った値に合わせる
-- 何を: `tasks/06_func_approx/README.md` の「5000 エポック中 2351 回改善」は, ML-Found の `best.pt` の保存の時間の測定では 2438 回だった. 06 を流し直して値を確かめる. 保存の割合と, 保存を切る案も, ML-Found の docs/DESIGN.md の測定 (`best.pt` の保存の時間) に合わせて書き直す
-- なぜ: 06 の結果のメモが, ML-Found の測った値と食い違っているため
-- 終わりの条件: 06 の README の改善の回数, 保存の割合, 保存を切る案が, 流し直した値と ML-Found の測定に合う
-- つながり: 06
-
 ### 27 と 28 の確かめを固くする
 - 何を: 推論の出力を結果の行の件の名前で正解と引き合わせる (並びを決めつけない). 問題の設定の候補が出たら食い違いとして拾う. 28 の点の数を骨組みの config の `data.input_points` から読む. 28 の `journey.py` で 25 の場所を自分で足す
 - なぜ: ML-Provide の並びや骨組みの既定が変わると, 確かめが黙って外れるため
@@ -114,6 +108,11 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 - つながり: このリポジトリの「導入の版を上げて流し直す」
 
 ## 条件待ち
+
+### 04 を流し直して Scheduler の引数の記録を確かめる
+- 何を: 04 の段階 2 (`python tasks/04_text_cls/train_hf.py`. 動作確認なら `--experiment configs/experiment/examples/hf_smoke.yaml`) を今の ML-Found で流し, 自分で作って渡した transformers の `get_linear_schedule_with_warmup` の引数 (`num_warmup_steps`, `num_training_steps`) が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる. 04 の「気付いたこと」の Scheduler の記録の文 (`train.log` の `Scheduler: LambdaLR` だけになる) を今の挙動に直し, 段階 1 と段階 2 の「結果のメモ」を流し直した値にする
+- 待っているもの: 利用者に用意してもらう `data/arxiv/arXiv.csv` (04 の README の「データ」)
+- つながり: 04, ML-Found の docs/FORMAT.md の「run.json」
 
 ### 型ごとの通り道
 - 何を: 次の順に進める (済んだ型 (推薦, 群分け, 異常の検知, 無作為に配った記録からの効果の見積もり, 試しに変えた記録からの値段を変える判断, 時間をまたぐ量の判断, 既製の埋め込みで似た写真を探す) の分は除く). 1. ML-Quest の「型ごとの骨組み」 2. ML-Quest の「多視点の撮影から 3D を作り, 規則で検査する課題」 3. ML-Pathfinder の「波 3 の型を描く」 4. ML-EDA の「型ごとのデータの約束」 5. ML-EDA の「推薦で見せた記録を前提にするか」 6. ML-Fathom の「介入の記録」(偏りのある記録の分) 7. ML-Fathom の「波 3 のデータの種類」 8. ML-Found の「追加の依存の登録簿に機能を足す」 9. ML-Found の「型ごとの指標の共有」 10. ML-Inference の「作る受け持ちの見本の一覧」 11. ML-Inference の「繰り返しの手順のビームの探索」 12. ML-Inference の「表の列と中身を別々の入力に渡す」 13. ML-Inference の「複数の行動の同時の最適化」 14. ML-Inference の「見張り」 15. ML-Provide の「受け持ちごとの結果の画面」. 型ごとに, 問題の設定から推論までを通す ML_tester のタスクを 1 つ足して確かめる (21 と同じ形)

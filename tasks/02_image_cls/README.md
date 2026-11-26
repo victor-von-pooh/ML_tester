@@ -164,6 +164,7 @@ PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13 での値
 - 実験 1 は学習用データの正解率が 0.999 に達し, `valid/loss` はエポック 7 で最小 (0.238) になった後, エポック 9 以降は上がり続ける (15 で 0.400, 過学習). 一方で `valid/acc` は上下しながらも最後のエポックで最大になるので, `valid/acc` を監視したベストモデルは最後のエポックになる
 - 実験 1 の `train.log` には「OneCycleLR の引数を学習用データから補いました: steps_per_epoch=422」と出る
 - 実験 1 の `lr_curve.png` は OneCycleLR の山形 (0.0004 → 約 0.0099 → 0.0002) になる. エポックの開始時点の値なので, 本当の最大値 0.01 は出ない. 更新ごとの `lr_steps.csv` と `lr_steps.png` には, 最大値 0.01 がエポック 5 の途中 (6330 ステップ中のステップ 1899) に出る. `interval: step` の実験 (1, 3, 4, 5) は `lr_steps.csv` と `lr_steps.png` が出る
+- `run.json` の `optimizers` の `scheduler_params` に Scheduler の主な引数が残る. 実験 1 は OneCycleLR の `total_steps` 6330 (15 × 422), 上げる段の区切り `_schedule_phases` の `end_step` 1898.0 と 6329, `_anneal_func_type` `cos`, `groups` に `max_lr` 0.01, `min_lr` 4e-08, `base_momentum` 0.85, `max_momentum` 0.95. 実験 2 は StepLR の `step_size` 5, `gamma` 0.5. 実験 5 は `total_steps` 1266 (3 × 422) と `end_step` 378.8 と 1265
 - 実験 2 の学習率は 5 エポックごとに 0.001 → 0.0005 → 0.00025 と半分になる. Scheduler のクラスを変えたので, default の `max_lr` と `epochs` が捨てられたことが `diff.yaml` に出る
 - 実験 5 では `trainer.epochs: 3` に合わせて `scheduler.params.epochs` も 3 になり, `diff.yaml` にも出る. `${trainer.epochs}` の参照は ML-Found の config でそのまま使える
 - 学習時間は `train.log` の最後の「学習時間」に出る. 他の学習と GPU を分け合うと mps の学習時間は大きく延びる

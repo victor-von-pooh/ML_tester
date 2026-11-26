@@ -8,9 +8,9 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 ## 優先度 高
 
 ### 導入の版を上げて流し直す
-- 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を今の ML-Found (submodule は main) で流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある. 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる
-- なぜ: 固定した版が各リポジトリの main より古く, 13 から 24 が今の作りを確かめていないため. 24 は推論の段階で方策を読めるようになったが, 通しでは確かめていない
-- 終わりの条件: 「導入」の版が各リポジトリの main と同じか新しく, 13 から 24 の結果が今の版の値になっていて, 24 で ML-Inference の読んだ方策が ML-Found と同じ行動と守りの結果を返す
+- 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 01 から 24 (02 は実験 3 と 4. 実験 1, 2, 5 は今の ML-Found で流し直した値) を今の ML-Found (submodule は main) で流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある. 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる
+- なぜ: 固定した版が各リポジトリの main より古く, 01 から 12 の結果のメモは submodule を上げる前の ML-Found の値で, 13 から 24 は今の作りを確かめていないため. 24 は推論の段階で方策を読めるようになったが, 通しでは確かめていない
+- 終わりの条件: 「導入」の版が各リポジトリの main と同じか新しく, 01 から 24 の結果が今の版の値になっていて, 24 で ML-Inference の読んだ方策が ML-Found と同じ行動と守りの結果を返す
 - つながり: 24
 
 ## 優先度 中

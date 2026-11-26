@@ -108,7 +108,7 @@ def make_photos(root: Path, count: int, seed: int) -> None:
             draw_photo(kind, rng).save(root / kind / f"{index:03d}.png")
 
 
-def build(work: Path) -> dict:
+def build(work: Path) -> dict[str, Any]:
     """
     写真を作り, 通しの設定を返す関数
 
@@ -119,7 +119,7 @@ def build(work: Path) -> dict:
 
     Returns
     ----------
-    setup: dict
+    setup: dict[str, Any]
         run_search に渡す設定
     """
     # 索引にする写真と, 別の乱数の種の問いの写真
@@ -132,7 +132,9 @@ def build(work: Path) -> dict:
     return setup
 
 
-def bundle_environment(project: Path, journey: Journey) -> Path:
+def bundle_environment(
+    project: Path, logs: Path, journey: Journey
+) -> Path:
     """
     骨組みの README のとおりに, 一式づくりの環境をプロジェクトに作る関数
 
@@ -140,6 +142,8 @@ def bundle_environment(project: Path, journey: Journey) -> Path:
     ----------
     project: Path
         書き出したプロジェクト
+    logs: Path
+        ログのディレクトリ (作業用の場所の logs)
     journey: Journey
         結果の記録
 
@@ -155,14 +159,21 @@ def bundle_environment(project: Path, journey: Journey) -> Path:
     started = time.time()
     venv = project / ".venv"
     python = venv / "bin" / "python"
-    log = project.parent / "logs" / "bundle_env.log"
+    log = logs / "bundle_env.log"
     with log.open("w") as out:
         for command in (
             ["uv", "venv", "--python", "3.13", str(venv)],
             ["uv", "pip", "install", "--python", str(python), *PACKAGES]
         ):
-            subprocess.run(command, check=True, env=env, stdout=out,
-                           stderr=subprocess.STDOUT, timeout=JOB_TIMEOUT)
+            done = subprocess.run(
+                command, env=env, stdout=out, stderr=subprocess.STDOUT,
+                timeout=JOB_TIMEOUT
+            )
+            if done.returncode != 0:
+                break
+    if done.returncode != 0:
+        lines = log.read_text(encoding="utf-8").strip().splitlines()
+        raise RuntimeError(f"一式づくりの環境を作れません: {lines[-1:]}")
     journey.add(
         "一式づくりの環境 (骨組みの README の入れ方)", "手",
         f"画面に無いのでコマンドで作る. {time.time() - started:.0f} 秒"
@@ -171,7 +182,9 @@ def bundle_environment(project: Path, journey: Journey) -> Path:
     return python
 
 
-def run_bundle(python: Path, project: Path, journey: Journey) -> dict:
+def run_bundle(
+    python: Path, project: Path, logs: Path, journey: Journey
+) -> dict[str, Any]:
     """
     骨組みの bundle.py で索引と評価と検索の一式を作る関数
 
@@ -181,18 +194,20 @@ def run_bundle(python: Path, project: Path, journey: Journey) -> dict:
         一式づくりの環境の Python
     project: Path
         書き出したプロジェクト
+    logs: Path
+        ログのディレクトリ (作業用の場所の logs)
     journey: Journey
         結果の記録
 
     Returns
     ----------
-    made: dict
+    made: dict[str, Any]
         config (bundle.yaml の中身), row (評価の行), index (索引の説明),
         bundle (一式のディレクトリ)
     """
     # 書き換えない骨組みのまま, プロジェクトのディレクトリで動かす
     started = time.time()
-    log = project.parent / "logs" / "bundle.log"
+    log = logs / "bundle.log"
     with log.open("w") as out:
         done = subprocess.run(
             [str(python), "bundle.py"], cwd=project, stdout=out,
@@ -230,7 +245,7 @@ def run_bundle(python: Path, project: Path, journey: Journey) -> dict:
     return made
 
 
-def query_hits(provide: Client, result_id: str) -> dict:
+def query_hits(provide: Client, result_id: str) -> dict[str, Any]:
     """
     推論の結果の表から, 問いごとの上位 K 件の種類の当たりを数える関数
 
@@ -243,7 +258,7 @@ def query_hits(provide: Client, result_id: str) -> dict:
 
     Returns
     ----------
-    hits: dict
+    hits: dict[str, Any]
         queries (並べた問いの数), top1 (1 位が問いと同じ種類の問いの数),
         share (上位 K 件のうち問いと同じ種類の割合の平均)
     """
@@ -271,7 +286,7 @@ def link_problem(
     provide: Client, journey: Journey, bid: str, project: Path
 ) -> None:
     """
-    一式の画面の問題の設定のつなぎを, 候補か元の問題の設定で試す関数
+    一式の画面の候補を見て, 元の問題の設定をつなぐ関数
 
     Parameters
     ----------
@@ -288,35 +303,40 @@ def link_problem(
     ----------
     None
     """
-    # 候補があれば候補, 無ければ元の問題の設定を選んでつなぐ (画面の欄)
+    # 候補は画面の欄に出るだけで, つなぐのは写しの origin が指す元の問題
+    # の設定 (ML-Pathfinder で直した値が届く方)
     origin = yaml.safe_load(
         (project / "problem.yaml").read_text(encoding="utf-8")
     ).get("origin")
     state = provide.ok("GET", f"/api/bundles/{bid}/problem")
     hint = state["hint"]
+    is_original = bool(hint and origin) and problem_file(hint) == (
+        problem_file(str(origin))
+    )
+    shown = ("候補は元の問題の設定. " if is_original
+             else f"候補 {hint or '無し'}. ")
+    if not origin:
+        journey.add("問題の設定をつなぐ (候補から)", "誤り",
+                    shown + "骨組みの problem.yaml に元の場所 (origin) が無い")
+        return
     code, value = provide.call(
-        "PUT", f"/api/bundles/{bid}/problem", {"path": hint or str(origin)}
+        "PUT", f"/api/bundles/{bid}/problem", {"path": str(origin)}
     )
     linked = value.get("linked") if code == 200 else None
     if linked is None:
         detail = value.get("detail") if isinstance(value, dict) else value
-        journey.add(
-            "問題の設定をつなぐ (候補から)", "誤り",
-            f"候補 {hint or '無し'}. 元の問題の設定を選ぶと {code}: {detail}"
-        )
+        journey.add("問題の設定をつなぐ (候補から)", "誤り",
+                    shown + f"元の問題の設定をつなぐと {code}: {detail}")
         return
-    is_original = bool(hint) and problem_file(hint) == (
-        problem_file(str(origin))
-    )
+
     # 食い違いは誤り, 候補が元でなく選び直すなら手
     status = "OK" if is_original else "手"
     if linked["issues"]:
         status = "誤り"
     journey.add(
         "問題の設定をつなぐ (候補から)", status,
-        ("候補は元の問題の設定. " if is_original
-         else f"候補 {hint}. 元の問題の設定を選ぶ. ")
-        + f"{linked.get('text')} 食い違い {linked['issues']}"
+        shown + f"元の問題の設定をつなぐ. {linked.get('text')} 食い違い "
+        f"{linked['issues']}"
     )
 
 
@@ -377,8 +397,9 @@ def run_search(apps: Apps, journey: Journey, setup: dict[str, Any]) -> None:
     )
 
     # 3. 一式づくり (画面に無い段階. 骨組みの README のとおり)
-    python = bundle_environment(project, journey)
-    made = run_bundle(python, project, journey)
+    logs = apps.work / "logs"
+    python = bundle_environment(project, logs, journey)
+    made = run_bundle(python, project, logs, journey)
 
     # 4. ML-Provide: 場所で登録し, 元の問題の設定をつなぐ
     bundle = provide.ok("POST", "/api/bundles",

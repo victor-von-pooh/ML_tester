@@ -167,14 +167,17 @@ PyTorch 2.15.0, torchvision 0.29.2, macOS (Apple Silicon), Python 3.13, mps で�
 
 | 書き方 | エポック 20 の `d_loss` | `g_loss` | `d_real` | `d_fake` | 最後の重みの生成画像 |
 | --- | --- | --- | --- | --- | --- |
+| A | 0.694 | 0.694 | 1.000 | 0.500 | 数字にならない (全て同じ格子の模様) |
 | B `update_parameters` を上書き | 0.323 | 2.93 | 0.879 | 0.122 | 数字が読める |
+| C | 0.295 | 3.13 | 0.886 | 0.114 | 数字が読める |
 | D `optimizers` | 0.323 | 2.93 | 0.879 | 0.122 | 数字が読める (B と同じ) |
 
 - B は 20 エポックで数字と分かる画像を生成した (`last_model.png`, `samples/epoch_020.png`)
 - B の生成器の損失は上下しながらも全体として大きくなり (エポック 1 の 2.23 からエポック 20 の 2.93), 識別器が最も弱いエポック 1 で最小だった. `train/loss` (= `g_loss`) でベストモデルを判定すると崩れた画像のモデルが選ばれるので, `select_best: false` にしている
 - D は B と, 20 エポックの識別器と生成器の損失, 判定の確率 (`d_real`, `d_fake`) が全て一致した (差は 0). `samples/` の生成画像 (エポック 1, 5, 10, 15, 20) と `final_model.pt` の重みも一致した. D は B と同じ同時の更新なので, 期待どおり. D の記録の列は `train/loss_discriminator`, `train/loss_generator` と合計の `train/loss`
 - `train_named.py` は, B で上書きしている `update_parameters`, `state_dict`, `resume` と, 2 つ目の Optimizer の作成が要らない (`GANTrainer` は 3 つの書き方を含めて約 260 行, `NamedGANTrainer` は `__init__`, `step`, `on_epoch_end` だけで約 100 行). 2 つ目の Optimizer も config の確認 (範囲, typo) とダッシュボードの学習の起動のフォームの対象になる
-- A と C の数値は載せていない. 実行して, `history.csv` のエポック 20 の行 (`d_loss`, `g_loss`, `d_real`, `d_fake`) と `last_model.png` を見る. A は生成画像が数字にならず, 生成画像の判定 `d_fake` が 0.5 付近, `g_loss` が log 2 (約 0.69) 付近から動かないはず. C は B と同じく数字が読める画像になるはず (更新の順が違うので値は B と一致しない)
+- A は生成画像が数字にならず (`last_model.png` は全て同じ格子の模様), 生成画像の判定 `d_fake` が 0.5, `g_loss` が log 2 (約 0.69) 付近から動かない (エポック 1 で 0.696, エポック 20 で 0.694)
+- C は B と同じく数字が読める画像になる. 更新の順が違うので値は B と一致しない
 
 ## 気付いたこと
 

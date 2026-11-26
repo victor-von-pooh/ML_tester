@@ -119,6 +119,10 @@ python tasks/06_func_approx/train.py                                            
 python tasks/06_func_approx/train.py --experiment configs/experiment/examples/lbfgs.yaml          # 実験 2
 python tasks/06_func_approx/train.py --experiment configs/experiment/examples/lbfgs_closure.yaml  # 実験 3
 python tasks/06_func_approx/train.py --experiment configs/experiment/examples/adam_closure.yaml   # 実験 4 (1 分以内)
+
+# 実験 1 の保存の時間を比べる (それぞれ 3 回ずつ流し, 学習時間を平均する)
+python tasks/06_func_approx/train.py trainer.checkpoint.save_best=false trainer.checkpoint.save_last=false
+python tasks/06_func_approx/train.py trainer.checkpoint.every_n_epochs=5000 trainer.checkpoint.best_weights_only=true
 ```
 
 - `.venv` を有効にしない場合は, リポジトリの `.venv/bin/python` を絶対パスか, 実行した場所からの相対パスで指定する
@@ -169,7 +173,16 @@ PyTorch 2.15.0, macOS (Apple Silicon), Python 3.13, cpu での値.
 - 実験 2 と 3 は `history.csv` が完全に一致する. ML-Found が渡す closure と `ClosureTrainer` の closure は同じ計算になる
 - 実験 3 は, エポック 19 (LBFGS の 1 回の `step` は最大 20 回の内部反復, ここまでで損失と勾配の計算は約 450 回) で学習用 MSE が 1.09e-4 と雑音の下限の近くまで下がる. その後は LBFGS の `tolerance_change` による終了判定で, パラメータが全く動かなくなる (エポック 20 以降の記録は全て同じ値). Adam が 4952 エポックかけた所に 19 エポックで近づく (検証用 MSE は Adam の 3 倍程度, 学習用 MSE は Adam の 1.05e-4 より少し高い 1.09e-4)
 - 実験 4 は `history.csv` が実験 1 と完全に一致する. `ClosureTrainer` は勾配法の Optimizer でも同じ結果になる (ただし closure の中で順伝播をもう 1 回行うので, 順伝播の回数は 2 倍)
-- 学習時間は `train.log` の最後の「学習時間」に出る. 実験 1 は `trainer.checkpoint.save_last: false` と `save_best: false` にすると数分の 1 になる (記録は同じ)
+- 学習時間は `train.log` の最後の「学習時間」に出る. 実験 1 は 12.62 秒 (3 回の平均. 12.46 から 12.79 秒), 実験 2 は 1.56 秒, 実験 3 は 1.53 秒, 実験 4 は 13.86 秒. 実験 1 の 5000 エポックのうち 2351 回で検証用 MSE が改善し, そのたびに `best.pt` を保存する
+- 実験 1 の保存の設定 (`trainer.checkpoint`) を変えて 3 回ずつ流した学習時間は次のとおり. どの設定でも `history.csv` は実験 1 と同じ. 保存が占める割合は, 保存しない設定との平均の差を, その設定の平均の学習時間で割った値
+
+| 設定 (`trainer.checkpoint`) | 学習時間の平均 (最小から最大) | その設定の学習時間のうち保存が占める割合 |
+| --- | --- | --- |
+| `save_best: false`, `save_last: false` | 4.17 秒 (4.16 から 4.17 秒) | - |
+| `every_n_epochs: 5000`, `best_weights_only: true` | 5.27 秒 (5.26 から 5.28 秒) | 約 2 割 (`best.pt` の 1 回の保存は約 0.5 ms) |
+| 既定 | 12.62 秒 (12.46 から 12.79 秒) | 約 7 割 |
+
+- 既定では保存が学習時間の約 7 割を占める. ML-Found の docs/DESIGN.md の「config の項目」の `best.pt` の保存の時間の測定 (既定で約 7 割, 重みだけの `best.pt` で約 2 割, 1 回の保存は約 0.5 ms) と同じ割合になる
 
 ## 気付いたこと
 
@@ -177,4 +190,4 @@ ML-Found について気付いたこと. リポジトリをまたいで残って
 
 - `Trainer` を継承して closure を自分で渡す場合, `update_parameters` は損失しか受け取らないので, closure で損失を計算し直すためにバッチを `step` で `self` に保存する必要がある. また元の `update_parameters` の勾配クリッピングと Scheduler の処理を自分で写す必要がある (このタスクの `ClosureTrainer` では両方を写した). LBFGS を使うだけなら, ML-Found が closure を渡すので継承は要らない
 - 記録される `train/loss` は, `update_parameters` の前に `step` で計算した損失, つまり前のエポックの更新の後のパラメータでの損失. これはどの Optimizer でも同じだが, LBFGS は 1 回の `step` の中でパラメータが大きく動くので, 記録と現在のパラメータの差が大きい
-- チェックポイントは, `last.pt` を毎エポック, `best.pt` を改善したエポックごとに保存する (実験 1 では 5000 エポック中 2351 回改善). どちらにもモデルと Optimizer の状態, `history` の全ての記録, 乱数の状態が入る (既定では `last.pt` にベストモデルの重みも入る). そのため 1 エポックが短いフルバッチ学習では保存が学習時間の大部分を占める. 実験 1 の 5000 エポックの後で `best.pt` は約 400 KB, `last.pt` は約 440 KB. `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空け, `best_weights_only: true` で `best.pt` を重みだけにすると減らせる. `best.pt` は改善のたびに保存する
+- チェックポイントは, `last.pt` を毎エポック, `best.pt` を改善したエポックごとに保存する (実験 1 では 5000 エポック中 2351 回改善). どちらにもモデルと Optimizer の状態, `history` の全ての記録, 乱数の状態が入る (既定では `last.pt` にベストモデルの重みも入る). そのため 1 エポックが短いフルバッチ学習では保存が学習時間の大部分を占める. 実験 1 の 5000 エポックの後で `best.pt` は約 400 KB, `last.pt` は約 440 KB. `trainer.checkpoint.every_n_epochs` で `last.pt` の間隔を空け, `best_weights_only: true` で `best.pt` を重みだけ (約 37 KB) にすると, 保存の割合は約 7 割から約 2 割に減る. `best.pt` は改善のたびに保存するので `every_n_epochs` では減らず, エポックの約半分で改善するこの学習では重みだけでも約 2 割が残る. 残りも切るには `save_best: false` にする (ベストモデルの重みは `last.pt` に入るので再開はできる). 再開しないなら `save_best` と `save_last` を `false` にする (PINN の実験 5 と 6 はこの形)

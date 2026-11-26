@@ -7,19 +7,13 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 
 ## 優先度 高
 
-### 検索の一式の問題の設定の欄をそろえる
-- 何を: ML-Provide の「検索の一式の問題の設定の欄をそろえる」. 済んだら 31 を流し直し, 「問題の設定をつなぐ」の段階と「結果のメモ」と「気付いたこと」を今の挙動にする
-- なぜ: 31 の通しで, ML-Provide の検索の一式の画面に問題の設定の欄が出るのに, 似た写真を探すの問題の設定が候補に出ず, 選んでもつなげないため (ML-Provide の submodule の ML-Quest が検索の判断を知らない, リポジトリの間の食い違い)
-- 終わりの条件: ML-Provide の項目が消え, 31 の「問題の設定をつなぐ」が決めた扱いのとおりになる
-- つながり: 31, ROADMAP.md の済んだ「似た写真を探す (並べるで, 既製のモデルをそのまま) を画面で通す」
-
-## 優先度 中
-
 ### ML-Found を上げて Scheduler の引数の記録を確かめる
 - 何を: submodule の ML-Found を main に上げ, 02 と 04 を流し直して, Scheduler の主な引数が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる (02 は config から作った Scheduler, 04 は自分で作って渡した transformers の `get_linear_schedule_with_warmup`). 04 の「気付いたこと」の Scheduler の記録の文を今の挙動に直す
 - なぜ: ML-Found が自分で渡した Scheduler の引数を残すようになったが, 固定した ML-Found が古く, 02 と 04 では確かめていないため
 - 終わりの条件: 02 と 04 の `run.json` に Scheduler の引数が残り, 04 の「気付いたこと」が今の挙動と合う
 - つながり: ML-Found の docs/FORMAT.md の「run.json」
+
+## 優先度 中
 
 ### 導入の版を上げて流し直す
 - 何を: README の「導入」で固定した ML-ModelControl, ML-EDA, ML-Inference, ML-Quest の版を, それぞれの main に上げ, 13 から 24 を流し直して「結果のメモ」と「気付いたこと」を今の版の値にする. 23 は ML-EDA の公開の `read_capture` と `read_cloud`, `write_shape_captures` の `count` を使う形にし, 23 の「気付いたこと」の ML-EDA の 4 つ (深度の決まり, 1 つの撮影を読む公開の関数, 説明の `source` の手元のパス, 合成の見本の数) を消す. ML-EDA の main にはこの 4 つの答えがある. 24 は, 書き出した方策を ML-Inference の公開の `load_policy` で読み, ML-Found の `load_policy(...).act` と同じ行動と守りの結果を返すかも確かめる

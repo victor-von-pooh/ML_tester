@@ -1,7 +1,7 @@
 """
 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture,
 ML-Dashboard, ML-Provide) を作業用の置き場で起動し, 画面と同じ API で
-問題の設定から推論までを通す部品 (25 から 30 で使う)
+問題の設定から推論までを通す部品 (25 から 31 で使う)
 """
 import argparse
 import http.client
@@ -167,12 +167,16 @@ class Client:
         return value
 
 
-# 5 つのアプリを作業用の置き場で起動し, 止める仕組み (apps_dir は clone の親)
+# 5 つのアプリを作業用の置き場で起動し, 止める仕組み (apps_dir は clone の
+# 親, names は起動するアプリの名前. 既定は 5 つ全て)
 class Apps:
-    def __init__(self, apps_dir: Path, work: Path):
+    def __init__(
+        self, apps_dir: Path, work: Path, names: tuple[str, ...] = tuple(APPS)
+    ):
         # 起動したプロセスと客
         self.apps_dir = apps_dir
         self.work = work
+        self.names = names
         self.token = secrets.token_urlsafe(16)
         self.processes: list[subprocess.Popen] = []
         self.logs: list[Any] = []
@@ -180,7 +184,7 @@ class Apps:
 
     def start(self) -> None:
         """
-        全てのアプリを起動し, API が答えるまで待つ関数
+        names のアプリを起動し, API が答えるまで待つ関数
 
         利用者の置き場 (~/.ml-*) を使わないように, 置き場の環境変数を
         全て作業用の置き場にする. ML-Fathom は ML-Pathfinder の置き場の
@@ -201,7 +205,8 @@ class Apps:
             env[home] = str(self.work / "homes" / name)
             env[token] = self.token
         (self.work / "logs").mkdir(parents=True, exist_ok=True)
-        for name, (repo, command, _, _) in APPS.items():
+        for name in self.names:
+            repo, command = APPS[name][:2]
             backend = self.apps_dir / repo / "backend"
             if not backend.is_dir():
                 raise RuntimeError(
@@ -917,7 +922,7 @@ def check_cost_update(
 def main_with(
     build: Callable[[Path], dict[str, Any]], title: str, argv: list[str],
     runner: Optional[Callable[[Apps, Journey, dict[str, Any]], None]] = None,
-    prefix: str = "m1_"
+    prefix: str = "m1_", names: tuple[str, ...] = tuple(APPS)
 ) -> int:
     """
     引数を読み, アプリを起動して通しを行い, 止める関数
@@ -934,6 +939,8 @@ def main_with(
         通しの関数 (省略で表の通しの run_journey)
     prefix: str
         既定の作業用の場所 (一時ディレクトリ) の名前の頭
+    names: tuple[str, ...]
+        起動するアプリの名前 (APPS の鍵. 既定は 5 つ全て)
 
     Returns
     ----------
@@ -956,7 +963,7 @@ def main_with(
     work.mkdir(parents=True, exist_ok=True)
     print(f"作業用の場所: {work}", flush=True)
     setup = {**build(work), "project": work / "project"}
-    apps = Apps(args.apps.resolve(), work)
+    apps = Apps(args.apps.resolve(), work, names)
     journey = Journey(title)
     try:
         apps.start()
@@ -972,4 +979,4 @@ def main_with(
 
 
 if __name__ == "__main__":
-    sys.exit("25 から 30 の journey.py から使う")
+    sys.exit("25 から 31 の journey.py から使う")

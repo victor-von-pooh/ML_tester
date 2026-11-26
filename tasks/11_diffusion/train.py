@@ -28,8 +28,8 @@ class DiffusionTrainer(Trainer):
         # ノイズの加え方と生成の手順を保存
         self.diffusion = diffusion
 
-        # 検証とベストモデルの判定に EMA の重みを使うかを保存
-        # (EMA は trainer.ema.decay の設定で ML-Found が持つ)
+        # 検証, ベストモデルの判定, final_model.pt に EMA の重みを使うかを保存
+        # (EMA は trainer.ema.decay の設定で ML-Found が保持)
         self.ema_eval = ema_eval
         if ema_eval and self.ema_model is None:
             self.logger.warning(

@@ -183,4 +183,5 @@ ML-Found について気付いたこと. リポジトリをまたいで残って
 
 - 再開すると, 既定では Scheduler の状態が引数 (`T_max` など) ごとチェックポイントから戻るので, config で引数を変えても効かない (警告は出る). `${trainer.epochs}` のように引数がエポック数に従う config で, エポック数を延ばして再開する場合は `trainer.resume_scheduler: config` にする
 - 損失に乱数を含む学習では, 検証用の損失がエポックごとに乱数で揺れ, ベストモデルの判定と Early Stopping が乱数に左右される. `trainer.valid_seed` で検証の乱数を固定できる
-- ML-Found の設定の EMA (`trainer.ema.decay`) は, 検証, ベストモデル, `final_model.pt` を必ず EMA の重みにする. EMA を生成だけに使う場合は `eval_model` を上書きして学習しているモデルを返す. このとき EMA の重みは `final_model.pt` にならないので, 生成や保存には `trainer.ema_model.module` を自分で使う
+- ML-Found の設定の EMA (`trainer.ema.decay`) は, 既定で検証, ベストモデル, `final_model.pt` を EMA の重みにする. EMA を生成だけに使う場合は `eval_model` を上書きして学習しているモデルを返す. このとき EMA の重みは `final_model.pt` にならないので, 生成や保存には `trainer.ema_model.module` を自分で使う
+- 再開元と EMA の有無が違う再開で ML-Found が出す警告 (「再開元のベストモデルは EMA の重みと値のままです」など) は, EMA で検証する既定の形を前提にした文で, `eval_model` を上書きして学習しているモデルで検証する既定の実験 (`ema.eval: false`) では当てはまらない (ベストモデルは再開元のチェックポイントの `separate_best_model` のとおり正しく戻り, 文だけが違う. ML-Found の `training/trainer.py` の `resume_ema`)

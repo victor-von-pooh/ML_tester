@@ -1,6 +1,6 @@
 # 全体の方針
 
-ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom, ML-Inference, ML-Provide, ML-Quest, ML-Pathfinder の 10 のリポジトリが, 最終的に何を目指し, どう組み合わさるかをまとめる.
+ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom, ML-Inference, ML-Provide, ML-Quest, ML-Pathfinder, ML-Studio の 11 のリポジトリが, 最終的に何を目指し, どう組み合わさるかをまとめる.
 これは全体を見渡すためのメモで, 決まりの本体は各リポジトリの文書にある. 各リポジトリは, このメモと ML_tester を前提にせず単独で成り立つようにする.
 
 ## 目指すもの

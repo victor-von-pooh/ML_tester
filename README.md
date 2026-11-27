@@ -1,7 +1,7 @@
 # ML_tester
 機械学習の整理と試しの場.
 
-「機械学習を全て GUI 上で行う」ための 10 のリポジトリ (問題の設定の ML-Quest と ML-Pathfinder, データの分析の ML-EDA と ML-Fathom, モデルの作成の ML-ModelControl と ML-CreateArchitecture, 学習の [ML-Found](https://github.com/victor-von-pooh/ML-Found) と ML-Dashboard, 推論の ML-Inference と ML-Provide) を, 利用者の立場でまとめて使い, いろいろな種類のタスクで機能するかを確かめる. 各タスクのスクリプトを手で動かして結果を見て, 気付いたことを各タスクの README に書く. 結果は ML-Dashboard の画面でも見られる (下の「ML-Dashboard で見る」).
+「機械学習を全て GUI 上で行う」ための 11 のリポジトリ (問題の設定の ML-Quest と ML-Pathfinder, データの分析の ML-EDA と ML-Fathom, モデルの作成の ML-ModelControl と ML-CreateArchitecture, 学習の [ML-Found](https://github.com/victor-von-pooh/ML-Found) と ML-Dashboard, 推論の ML-Inference と ML-Provide, 5 つの段階のアプリを 1 つにまとめる殻の ML-Studio) を, 利用者の立場でまとめて使い, いろいろな種類のタスクで機能するかを確かめる. 各タスクのスクリプトを手で動かして結果を見て, 気付いたことを各タスクの README に書く. 結果は ML-Dashboard の画面でも見られる (下の「ML-Dashboard で見る」).
 
 ML_tester は他のリポジトリの依存ではない. 各リポジトリはこのリポジトリが無くても単独で使え, 手順書, 例, テストも各リポジトリだけで完結する.
 

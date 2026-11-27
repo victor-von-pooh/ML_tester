@@ -1,6 +1,6 @@
 # 全体の方針
 
-ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom, ML-Inference, ML-Provide, ML-Quest, ML-Pathfinder の 10 のリポジトリが, 最終的に何を目指し, どう組み合わさるかをまとめる.
+ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom, ML-Inference, ML-Provide, ML-Quest, ML-Pathfinder, ML-Studio の 11 のリポジトリが, 最終的に何を目指し, どう組み合わさるかをまとめる.
 これは全体を見渡すためのメモで, 決まりの本体は各リポジトリの文書にある. 各リポジトリは, このメモと ML_tester を前提にせず単独で成り立つようにする.
 
 ## 目指すもの
@@ -45,7 +45,7 @@ ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fatho
 4. **全体を束ねるのは「プロジェクト」(目標).**
    将来は, 問題の設定が作るプロジェクト (入力と出力の形, 評価の指標, データ, 学習のスクリプト) を, 他の全ての段階が参照する. 今のプロジェクトは ML-Found のプロジェクトで, 人が作るか, ML-Quest の骨組みから始める. 骨組みから始めると, ML-Quest がプロジェクトの場所を問題の設定に残し, ML-Fathom (データセット) と ML-CreateArchitecture (モデルの定義) はその記録の場所に書く. 学習と準備の確かめ (データセット, モデルの定義, 学習の環境) は ML-Found と ML-Dashboard.
 5. **画面は, 最後に 1 つのアプリにまとめられるようにしておく.**
-   今は別々のアプリでよい. 構成と道具をそろえ (ML-CreateArchitecture は ML-Dashboard にそろえている), 後で 1 つにまとめやすくしておく.
+   5 つの段階の画面のアプリは, それぞれ単独でも動き, 統合の殻の ML-Studio が submodule で持って 1 つのコマンドと 1 つのポートの 1 つのアプリにまとめる. そのため構成と道具をそろえる (ML-CreateArchitecture は ML-Dashboard にそろえている).
 
 ## 約束 (段階の間で受け渡すファイルの形)
 

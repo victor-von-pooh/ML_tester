@@ -4,7 +4,7 @@ ML_tester で作業するときの方針をまとめる.
 
 ## このリポジトリの目的
 
-「機械学習を全て GUI 上で行う」ための 10 のリポジトリを, 利用者の立場でまとめて使い, 整理し, 試す場. 他のリポジトリの依存ではなく, 他のリポジトリはこのリポジトリが無くても単独で成り立つ.
+「機械学習を全て GUI 上で行う」ための 11 のリポジトリを, 利用者の立場でまとめて使い, 整理し, 試す場. 他のリポジトリの依存ではなく, 他のリポジトリはこのリポジトリが無くても単独で成り立つ.
 
 - 各タスク (`tasks/XX_name/`) のスクリプトを手で動かして結果を見る. pytest による自動判定はしない (例外は, 学習しないで済む安全の約束の確かめだけ. 今は 24 の守りのテスト `tasks/24_rl_cartpole/test_guards.py` を CI で動かす)
 - 動かないことが予想されるタスク (LBFGS, GAN など) も実装し, どこでどう詰まったかを各タスクの README の「気付いたこと」に書く
@@ -25,7 +25,7 @@ ML_tester で作業するときの方針をまとめる.
 - [ML-Found/CODING_STYLE.md](ML-Found/CODING_STYLE.md) に従う (日本語の NumPy 形式の docstring, 下線 10 本, コメントは体言止め, `nn.functional` を使わない, 79 文字以内など)
 - モデルはルートの README の「モデルの書き方」に合わせる (部品ごとのクラス, 引数を `self` に保存してから層を定義, など)
 - 他の実装を参考にする場合も全部真似せず, エラーや誤りがあれば適切に直して使う
-- 文書とコードのコメントでは, 「機械学習を全て GUI 上で行う」という目的のために開発しているリポジトリ (今は ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom, ML-Inference, ML-Provide, ML-Quest, ML-Pathfinder, ML_tester) 以外に触れない. ローカルのディレクトリ構成やパスも書かない. 第三者が読んで分からない情報になるため
+- 文書とコードのコメントでは, 「機械学習を全て GUI 上で行う」という目的のために開発しているリポジトリ (今は ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom, ML-Inference, ML-Provide, ML-Quest, ML-Pathfinder, ML_tester, ML-Studio) 以外に触れない. ローカルのディレクトリ構成やパスも書かない. 第三者が読んで分からない情報になるため
 
 ## 文書
 

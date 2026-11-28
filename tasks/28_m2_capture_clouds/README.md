@@ -25,7 +25,7 @@
 
 ## モデル
 
-ML-CreateArchitecture の同梱の例 `point_cloud_predictor` (入力 512 点から 256 点を出す PointNet の形). 入力の点の数は骨組みの config の `data.input_points` (512) と同じなので, 例のまま使う.
+ML-CreateArchitecture の同梱の例 `point_cloud_predictor` (入力 512 点から 256 点を出す PointNet の形). 入力の点の数は骨組みの config の `data.input_points` (既定と実験の config. 今は 512) から読み, 例の入力と違えば画面でノードの欄を書き換えるのと同じく直す (手). 今は同じなので例のまま使う.
 
 ## 学習の設計
 
@@ -40,6 +40,8 @@ ML-CreateArchitecture の同梱の例 `point_cloud_predictor` (入力 512 点か
 - [x] 学習の後に実験の中に推論の一式ができ, 一式の確かめ (`valid/chamfer`) が学習の記録と合う
 - [x] ML-Dashboard で点群の見本を元の座標で見る
 - [x] ML-Provide で実験の一式を一覧から登録でき, 新しい撮影の推論の点群が元の座標にある
+- [x] 推論の結果の行を, 行の件の名前 (撮影のディレクトリ) で正解と引き合わせられる (欠けた件と余った件が無い)
+- [x] ML-Provide が問題の設定の候補を出さない (27 と同じ. 出たら誤り)
 
 ## 期待する結果
 

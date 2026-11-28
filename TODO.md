@@ -8,24 +8,24 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 ## 優先度 高
 
 ### 画面の共通の部品を殻の要求 R12 にそろえる順
-- 何を: 今の節目「5 つの段階のアプリを 1 つのアプリに統合する」の残りのうち, 画面の共通の部品を次の順に進める. 1. ML-Studio の「共通の部品をそろえる」で, 5 つのアプリの「画面の共通の部品を殻にそろえる」の何をと終わりの条件を殻の R12 に合わせて直してもらう (ML-Pathfinder の項目は条件待ちにあるので高に移してもらう) 2. 1 つのアプリ (ML-Pathfinder か ML-Provide) の「画面の共通の部品を殻にそろえる」で先に写して殻に載せた形で通し, 殻の部品の誤りを直す 3. 残りのアプリの「画面の共通の部品を殻にそろえる」(ML-Fathom, ML-CreateArchitecture, ML-Dashboard と, 2 で選ばなかった方) 4. ML-Studio の「共通の部品をそろえる」で殻の CI の `check_parts.py` に `--strict` を付ける. 殻に載せた後の段階をまたぐ通しは殻の e2e (studio と journey) が確かめるので, ML_tester では流さない
+- 何を: 今の節目「5 つの段階のアプリを 1 つのアプリに統合する」の残りのうち, 画面の共通の部品を次の順に進める. 1. ML-Studio の「共通の部品をそろえる」で, 5 つのアプリの「画面の共通の部品を殻にそろえる」の何をと終わりの条件を殻の R12 に合わせて直してもらう (ML-Pathfinder の項目は条件待ちに, ML-CreateArchitecture の項目は中にあるので, 高に移してもらう) 2. 1 つのアプリ (ML-Pathfinder か ML-Provide) の「画面の共通の部品を殻にそろえる」で先に写して殻に載せた形で通し, 殻の部品の誤りを直す 3. 残りのアプリの「画面の共通の部品を殻にそろえる」(ML-Fathom, ML-CreateArchitecture, ML-Dashboard と, 2 で選ばなかった方) 4. ML-Studio の「共通の部品をそろえる」で殻の CI の `check_parts.py` に `--strict` を付け, ML-Studio の docs/DESIGN.md の R12 の確かめ方の文 (差を出すだけで落とさない) を直す. 殻に載せた後の段階をまたぐ通しは殻の e2e (studio と journey) が確かめるので, ML_tester では流さない
 - なぜ: 5 つのアプリが同時に写すと, 殻の部品の誤りを 5 か所で直すことになるため. 各アプリの項目が R12 と食い違ったままだと, 合わせる先がアプリごとに違うため
 - 終わりの条件: ML-Studio の「共通の部品をそろえる」と 5 つのアプリの「画面の共通の部品を殻にそろえる」が済み, 殻の CI の `check_parts.py` が `--strict` で通る
 - つながり: ML-Studio の docs/DESIGN.md の「共通の部品」(R12). TASK_TYPES.md の 6 の節の 42
 
-### ML-ModelControl の新しい版を共通のライブラリの版の表に入れる順
-- 何を: ML-ModelControl の main は返す文が殻の言葉の表にそろっているので, その版を次の順に上げる. 1. ML-CreateArchitecture の「ML-ModelControl が返す文を画面の言葉にそろえる」で submodule をその版に上げる 2. ML-ModelControl を git の依存で直に持つ ML-Provide の lock をその版に上げる (ML-Provide の TODO.md に項目を足す) 3. ML-Studio の「ML-ModelControl が返す文を言葉の表にそろえる」で, 共通のライブラリの版の表と殻の submodule を 1 つの PR で上げる
-- なぜ: 殻の版の確かめ (`scripts/check_versions.py`) は, ML-ModelControl を直に持つアプリの submodule と lock が表の版と同じかを見るので, アプリより先に表を上げると殻の CI が落ちるため
-- 終わりの条件: ML-Studio の docs/DESIGN.md の「共通のライブラリの版」の表の ML-ModelControl が言葉をそろえた版になり, 殻の CI (版の確かめと e2e の studio と journey) が通る
+### 共通のライブラリ (ML-ModelControl, ML-EDA, ML-Quest) の新しい版を版の表に入れる順
+- 何を: 今の節目「5 つの段階のアプリを 1 つのアプリに統合する」の残りのうち, 共通のライブラリの 3 つ (ML-ModelControl, ML-EDA, ML-Quest) の新しい版を, 殻の版の表の 1 つの PR で上げられるように次の順に進める. 1. ML-Quest が `ml-eda` の求めを ML-EDA の新しい版に上げる (今進んでいる骨組みの作業で入る) 2. 3 つを直に持つアプリが submodule と lock を新しい版に上げる (ML-Pathfinder, ML-Fathom, ML-Dashboard, ML-Provide の submodule. ML-CreateArchitecture の ML-ModelControl の submodule と ML-EDA と ML-Quest の lock. ML-Provide の ML-EDA と ML-ModelControl の lock. ML-CreateArchitecture は「ML-ModelControl が返す文を画面の言葉にそろえる」で上げる) 3. ML-Studio の「ML-ModelControl が返す文を言葉の表にそろえる」で, 共通のライブラリの版の表と殻の submodule を 1 つの PR で上げる
+- なぜ: 殻の版の確かめ (`scripts/check_versions.py`) は, 直に持つアプリの submodule と lock が表の版と同じかを見るので, アプリより先に表を上げると殻の CI が落ちるため. 3 つを別々の PR で上げると, 殻の 1 つの環境で版がぶつかる間ができるため
+- 終わりの条件: ML-Studio の docs/DESIGN.md の「共通のライブラリの版」の表の 3 つが新しい版になり, 殻の CI (版の確かめと e2e の studio と journey) が通る
 - つながり: ML-Studio の docs/DESIGN.md の「共通のライブラリの版」. 「画面の共通の部品を殻の要求 R12 にそろえる順」と並べて進めてよい
 
 ## 優先度 中
 
 ### 画面の例の撮り直しの順
-- 何を: 画面の例の画像を撮り直す項目 (ML-Studio の「画面の例の画像を撮り直す」, ML-Pathfinder の「画面の例の画像を撮り直す」, ML-CreateArchitecture の「README の画面の例を今の画面の言葉で撮り直す」, ML-Dashboard の「README と操作ガイドの画面の図を撮り直す」, ML-Provide の「画面の例の画像を撮り直す」) を, 高の 2 つの項目が済んだ後に進める
-- なぜ: 共通の部品と ML-ModelControl の文が変わると画面の見た目と語が変わるので, 先に撮ると撮り直しが 2 度になるため
-- 終わりの条件: 挙げた 5 つの項目が済み, 各リポジトリの画像の部品と語が今の画面と同じになる
-- つながり: 高の「画面の共通の部品を殻の要求 R12 にそろえる順」と「ML-ModelControl の新しい版を共通のライブラリの版の表に入れる順」の後
+- 何を: 今の節目「5 つの段階のアプリを 1 つのアプリに統合する」の残りのうち, 画面の例の画像を撮り直す項目 (ML-Studio の「画面の例の画像を撮り直す」, ML-Pathfinder の「画面の例の画像を撮り直す」, ML-Fathom の「画面の言葉を変えた画面の例を撮り直す」, ML-CreateArchitecture の「README の画面の例を今の画面の言葉で撮り直す」, ML-Dashboard の「README と操作ガイドの画面の図を撮り直す」, ML-Provide の「画面の例の画像を撮り直す」) を, 高の 2 つの項目が済んだ後に進める. ML-Pathfinder の項目は高に, ML-Fathom の項目は低にあるので, 中に移してもらう
+- なぜ: 共通の部品と共通のライブラリの文が変わると画面の見た目と語が変わるので, 先に撮ると撮り直しが 2 度になるため
+- 終わりの条件: 挙げた 6 つの項目が済み, 各リポジトリの画像の部品と語が今の画面と同じになる
+- つながり: 高の「画面の共通の部品を殻の要求 R12 にそろえる順」と「共通のライブラリ (ML-ModelControl, ML-EDA, ML-Quest) の新しい版を版の表に入れる順」の後
 
 ## 優先度 低
 

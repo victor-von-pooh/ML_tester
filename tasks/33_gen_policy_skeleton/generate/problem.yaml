@@ -1,0 +1,51 @@
+format_version: 2
+name: 手書きの数字の画像を作る
+created_at: '2026-11-28T19:44:27+09:00'
+updated_at: '2026-11-28T19:44:27+09:00'
+issue:
+  owner: 字を読む仕組みの試験の担当
+  pain: 試験に使う手書きの数字の画像が足りず, 集めるのに手間がかかる
+  current: 人に頼んで手で書いてもらう
+  kpi:
+    name: 試験の画像を集める手間
+    unit: 時間 / 月
+    better: lower
+    current: 40
+    target: 10
+decomposition:
+- cause: 手で書く人が少ない
+  lever: 本物に似た数字の画像を作って足す
+  ml: true
+- cause: 頼むたびに書き方の説明がいる
+  lever: 書き方の用紙を決めておく
+  ml: false
+action:
+  what: 試験に足す数字の画像
+  who: 試験の担当
+  when: 毎月の初め
+ml:
+  use: true
+  reason: 手書きの字の揺れは規則で書けない
+  parts:
+  - role: generate
+    unit: row
+    output: image
+    target:
+      source: self
+      kind: image
+    method: scratch
+    what: 手書きの数字の画像
+    item: 1 枚の画像
+    baseline: 人が手で書く
+    evaluation:
+      metric: loss
+      link: 作った画像を人が見て, 数字に見える割合で確かめる
+verification:
+  method: trial
+  trial: 1 か月の試験で作った画像を半分混ぜる
+  success: 集める手間が月 10 時間以下
+operation:
+  review: 月に 1 回
+  approver: 試験の責任者
+  stop: 数字に見えない画像が 1 割を超えたら止める
+  remeasure: 月に 1 回, 作った画像を人が見て確かめる

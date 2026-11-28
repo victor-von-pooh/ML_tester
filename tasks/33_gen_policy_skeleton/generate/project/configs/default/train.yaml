@@ -1,0 +1,55 @@
+# ML-Found が使う設定 (ML-Quest が問題から書き出した骨組み)
+# 学習に要る機能 (ML-Found の登録簿の名前). 学習の前に確かめ, 足りなければ
+# 入れ方を示して止まる
+requires: [eda, modelcontrol, inference]
+
+experiment:
+  name: "image_generate"
+  seed: 0
+
+optimizer:
+  name: AdamW
+  params:
+    lr: 0.0002
+
+trainer:
+  epochs: 30
+  grad_clip_norm: 1.0
+  # 問題の「最良を選ぶ指標」(valid/loss は雑音の予測の損失. 検証は
+  # 毎回同じ時刻と雑音で数える. valid/fid は作った画像の FID. どちらも
+  # 小さいほど良い)
+  monitor: valid/loss
+  mode: min
+  # 重みの指数移動平均. 検証, 最良のモデル, final_model.pt はこの重み.
+  # 更新の回数 (エポック数 × 1 エポックのバッチ数) が 1 / (1 - decay) (0.995
+  # なら 200) より十分多くなるようにする (少ないと初めの重みのまま)
+  ema:
+    decay: 0.995
+
+# プロジェクト固有の設定
+data:
+  # ML-EDA の画像のデータセット (プロジェクトのディレクトリから)
+  dataset: "outputs/dataset"
+  batch_size: 32
+
+model:
+  # ML-ModelControl の形のモデルの定義 (モデルの作成・選定の段階で組んで, この
+  # 場所に保存する. 入力は雑音を加えた画像と int64 の時刻の 2 つ)
+  spec: models/model.yaml
+  # spec のファイルが無いうちは train.py の仮のモデルで学習することの目印
+  # (学習・評価の段階の学習の準備が読む. train.py は読まず, 仮のモデルを使うか
+  # は spec のファイルがあるかで決まる)
+  placeholder: true
+  # 仮のモデルの中の幅 (時刻の正弦波の埋め込みの幅にも使うので偶数)
+  width: 32
+
+diffusion:
+  # 線形の雑音の予定 (学習の時刻の数と beta の始まりと終わり). train.py が
+  # 同じ値を推論の一式の ddim に書く
+  train_steps: 1000
+  beta_start: 0.0001
+  beta_end: 0.02
+  # 見本と推論の一式の ddim の繰り返しの回数 (1 から train_steps) と,
+  # 始まりの雑音の乱数の種
+  sample_steps: 50
+  sample_seed: 0

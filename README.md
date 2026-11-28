@@ -18,12 +18,12 @@ cd ML_tester
 python3.13 -m venv .venv    # Python 3.13 で動作確認
 source .venv/bin/activate
 pip install -e "./ML-Found[examples,rl]"    # scikit-learn と, 24 で使う Gymnasium (追加の依存 rl) も入る
-pip install torchvision==0.29.2           # 02, 08 から 11 で使う (torch 2.15.0 と組み合わせて動作確認)
+pip install torchvision==0.29.2           # 02, 08 から 11 と 33 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
-pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@76c6bfc"   # 13, 17, 18, 21 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@660ea3b"   # 14 から 23 と, 27, 28 の合成のデータで使う (all に部分語の tokenizers も入る. 22 と 23 は書き出しの版 2 を使う)
-pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@4a3f153"   # 17 から 21 と 24 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
-pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@ae3d60c"   # 21 で使う (依存の pandas と PyYAML は上で入る)
+pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@76c6bfc"   # 13, 17, 18, 21, 33 で使う
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@660ea3b"   # 14 から 23 と, 27, 28 の合成のデータと, 33 で使う (all に部分語の tokenizers も入る. 22 と 23 は書き出しの版 2 を使う)
+pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@4a3f153"   # 17 から 21 と 24, 33 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
+pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@8695ffb"   # 21 と 33 で使う (依存の pandas と PyYAML は上で入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 pip install pytest                        # 24 の守りのテスト (tasks/24_rl_cartpole/test_guards.py) で使う
 ```
@@ -34,7 +34,7 @@ pip install pytest                        # 24 の守りのテスト (tasks/24_r
 
 1. 上の「導入」で `.venv` を作っておく. 学習に使う Python は, 登録したときにタスクのディレクトリから上に向かって仮想環境を探して決まるので, 先に作ると `.venv` が自動で選ばれる
 2. ML-Dashboard を ML_tester とは別のディレクトリに clone し, その README の「導入と起動」の手順で起動して, 表示されたトークン付きの URL を開く
-3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 22 のプロジェクト (01 から 18 と, 21 の `project/`, 22 から 24. 19, 20, 25 から 31 は学習のスクリプトを持たないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外). そのまま「22 件を追加」で登録する
+3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 22 のプロジェクト (01 から 18 と, 21 の `project/`, 22 から 24. 19, 20, 25 から 31 は学習のスクリプトを持たないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外. 33 の `generate/project/` と `policy/project/` は ML-Dashboard が探す深さ (3 階層) より下なので候補に出ない. 使うならプロジェクトのディレクトリを直に入れて登録する). そのまま「22 件を追加」で登録する
 
 clone した直後は実験が無いので, 各タスクの README の手順で学習するか, 画面から起動すると一覧に出る.
 
@@ -80,6 +80,7 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 29 | `tasks/29_m3_image_classes` | 画像の分類を画面の API だけで通す | 合成した図形の画像 (円と四角. 大きさはそろう) | 25 と同じ通しを画像の分類で (節目「画像と文の分類を画面で通す」の確かめ). 見本「解約の引き止め」の答えを画像の表に合わせ, 畳み込みの同梱の例に画面と同じく入力と出力を当てる. 今のやり方は骨組みが決まりで比べない |
 | 30 | `tasks/30_m3_text_classes` | 文の分類を画面の API だけで通す | 合成した日本語の問い合わせの文 (苦情と質問) | 29 と同じ通しを文の分類で. ML-Fathom の分析が勧める区切り方, LSTM の同梱の例と, 画面が当てる埋め込みの語彙の数 |
 | 31 | `tasks/31_search_photos` | 似た写真を探すを問題の設定から推論まで通す | 合成した種類ごとのディレクトリの写真 (円, 四角, 三角, 縞) | 25 と同じ表で, ML-Pathfinder の見本「似た商品の写真を探す (既製の埋め込み)」から骨組みを書き出し, 骨組みの `bundle.py` で既製の埋め込み (resnet18) の索引と評価 (Recall@K, NDCG@K, 写真を縮めた画素との差) と検索の一式を作り, ML-Provide で問いの写真ごとに上位 K 件と待ち時間を出す (学習しない. 一式づくりはコマンド) |
+| 33 | `tasks/33_gen_policy_skeleton` | 画像の生成と方策を問題の設定の骨組みから通す | MNIST, CartPole | 11 と 24 と同じ課題で, ML-Quest の問題の設定から骨組みを書き出し, 骨組みを書き換えずに学習し, 雑音だけの一式 (件数と種で画像を作る) と方策の一式 (`load_policy` で守り付きで動かす) を ML-Inference で読む |
 
 各タスクのディレクトリは次の構成にする.
 

@@ -27,6 +27,12 @@ COUNT = 1000
 SEED = 7
 PAGE = 500
 
+# 学んだと見なすテスト用の列ごとの近さの平均の上限 (学ばない雑音のままの
+# 表では列ごとの KS 統計量が 1 に近く出るため) と, 推論の表の近さの平均の
+# テスト用の平均との差の上限 (一式が学習の評価と同じ表を作るかの目安)
+LEARNED = 0.25
+AGREE = 0.05
+
 # 受け渡しの雛形と, 推論の一式の種類と版
 EXAMPLE = "diffusion_denoiser"
 BUNDLE = ("noise", 7)
@@ -335,7 +341,7 @@ def make_model(
 
 def train(
     dash: Client, journey: Journey, original: Path, project: Path
-) -> str:
+) -> tuple[str, float]:
     """
     ML-Dashboard で書き出したプロジェクトを一覧から登録し, 環境を作って
     学習し, 列ごとの分布の近さを読む関数
@@ -353,8 +359,8 @@ def train(
 
     Returns
     ----------
-    run_id: str
-        実験の id
+    result: tuple[str, float]
+        実験の id と, テスト用の列ごとの近さの平均
     """
     # 一覧からの登録と, 画面からの環境づくり
     recorded = dash.ok("GET", "/api/problems/projects")["projects"]
@@ -405,18 +411,18 @@ def train(
     samples = [s["name"] for s in results.get("samples") or []]
     journey.add(
         "学習 (骨組みを書き換えない) と列ごとの分布の近さ",
-        "OK" if np.isfinite(mean.get("distance", np.nan))
+        "OK" if mean.get("distance", np.nan) < LEARNED
         and "column_distance_valid" in tables else "誤り",
         f"{time.time() - started_at:.0f} 秒, {run['best']['monitor']} "
         f"{run['best']['value']:.4f}. テスト用の列の平均の近さ "
         f"{mean.get('distance', float('nan')):.4f} (同じ分布の目安 "
         f"{mean.get('train_distance', float('nan')):.4f}), 最も遠い列 "
         f"{worst.get('column')} {worst.get('distance', float('nan')):.4f}. "
-        f"見本 {samples}"
+        f"見本 {samples}. 上限 {LEARNED}"
     )
-    run_id = str(run["id"])
+    result = (str(run["id"]), float(mean.get("distance", np.nan)))
 
-    return run_id
+    return result
 
 
 def read_rows(client: Client, result_id: str, count: int) -> pd.DataFrame:
@@ -455,7 +461,7 @@ def read_rows(client: Client, result_id: str, count: int) -> pd.DataFrame:
 
 def provide(
     client: Client, journey: Journey, project: Path, run_id: str,
-    data: Path
+    data: Path, test_mean: float
 ) -> None:
     """
     ML-Provide で実験を一覧から登録し, 行の数と種で表を作り, 元の表と
@@ -473,6 +479,8 @@ def provide(
         ML-Dashboard の実験の id
     data: Path
         元の表
+    test_mean: float
+        学習の評価のテスト用の列ごとの近さの平均
 
     Returns
     ----------
@@ -526,14 +534,16 @@ def provide(
         for name in columns
     }
     done = int((made["status"] == "ok").sum())
+    mean = float(np.mean(list(distances.values())))
     journey.add(
         "推論 (行の数と種で表を作り, 元の表と比べる)",
         "OK" if result["summary"].get("predicted") == COUNT
-        and done == COUNT and same else "誤り",
+        and done == COUNT and same
+        and abs(mean - test_mean) < AGREE else "誤り",
         f"{result['summary']} (種 {SEED}), 同じ種で作り直して一致 {same}. "
         f"元の表との列ごとの KS 統計量 "
-        f"{json.dumps(distances, ensure_ascii=False)}, 平均 "
-        f"{np.mean(list(distances.values())):.4f}"
+        f"{json.dumps(distances, ensure_ascii=False)}, 平均 {mean:.4f} "
+        f"(テスト用の平均との差 {abs(mean - test_mean):.4f}, 上限 {AGREE})"
     )
 
 
@@ -562,8 +572,10 @@ def run_generate(
     entry = analyze(clients["fathom"], journey, view["name"], view["record"])
     original = Path(entry["path"]).resolve()
     make_model(clients["createarchitecture"], journey, original, project)
-    run_id = train(clients["dashboard"], journey, original, project)
-    provide(clients["provide"], journey, project, run_id, setup["data"])
+    run_id, test_mean = train(clients["dashboard"], journey, original,
+                              project)
+    provide(clients["provide"], journey, project, run_id, setup["data"],
+            test_mean)
 
 
 if __name__ == "__main__":

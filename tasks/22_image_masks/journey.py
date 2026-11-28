@@ -6,26 +6,22 @@
 import importlib.util
 import sys
 from pathlib import Path
+from types import ModuleType
 
-from ml_eda.synthetic import write_image_masks
-
-from make_data import SETTINGS
+from make_data import SETTINGS, write_data
 
 # 部品は 27 (pairs.py と journey.py) と 25 (apps.py)
 TASKS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TASKS / "27_m2_image_masks"))
+sys.path.insert(0, str(TASKS / "25_m1_churn"))
 from pairs import run_pairs_journey
 from apps import main_with
-
-# 推論する新しい画像の数と乱数の種 (学習の組とは別の種)
-NEW_COUNT = 4
-NEW_SEED = 1
 
 # 学習のエポックの数 (None は骨組みの既定の 30)
 EPOCHS = None
 
 
-def load_parts() -> object:
+def load_parts() -> ModuleType:
     """
     27 の journey.py を別の名前の部品として読む関数
 
@@ -35,11 +31,11 @@ def load_parts() -> object:
 
     Returns
     ----------
-    module: object
+    module: ModuleType
         27 の journey.py (adapt_unet, apply_unet_info, check_samples,
         check_outputs, CLASSES を使う)
     """
-    # 同じ名前の journey.py が並ぶので, 場所を指して読む
+    # 同じ名前の journey.py が並ぶので, 場所を指した読み込み
     path = TASKS / "27_m2_image_masks" / "journey.py"
     spec = importlib.util.spec_from_file_location("journey_27", path)
     module = importlib.util.module_from_spec(spec)
@@ -62,15 +58,11 @@ def build(work: Path) -> dict:
     setup: dict
         pairs.run_pairs_journey に渡す設定
     """
-    # make_data.py と同じ設定の組と, 推論する新しい画像 (正解は比べるだけ)
+    # make_data.py と同じ組と, 推論する新しい画像 (正解は比べるだけ)
     parts = load_parts()
-    size = tuple(SETTINGS["size"])
     data = work / "data" / "image_masks"
-    write_image_masks(data, count=SETTINGS["count"], size=size,
-                      seed=SETTINGS["seed"])
     new = work / "data" / "image_masks_new"
-    write_image_masks(new, count=NEW_COUNT, size=size, seed=NEW_SEED)
-    names = sorted(path.name for path in (new / "images").iterdir())
+    names = write_data(data, new)
     setup = {
         "name": "画像の領域を塗る (そろった大きさ)",
         "answers": [

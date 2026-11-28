@@ -2,7 +2,7 @@
 
 ## 目的
 
-画像と領域の対 (入力も正解もファイルの組. ルートの TASK_TYPES.md の相談 16 の「画像と領域の対」) を, 利用者が画面だけで, 問題の設定から始めて書き出し, 骨組みで学習し, 新しい画像を推論するまでの手順を示す. ライブラリの関数を呼ぶコードは書かない. 手で用意するのは元のデータ (`make_data.py`) だけ.
+画像と領域の対 (入力も正解もファイルの組. ルートの TASK_TYPES.md の相談 16 の「画像と領域の対」) を, 利用者が画面だけで, 問題の設定から始めて書き出し, 骨組みで学習し, 新しい画像を推論するまでの手順を示す. ライブラリの関数を呼ぶコードは書かない. 手で用意するのは元のデータと推論する新しい画像 (`make_data.py`) だけ.
 
 - 元のデータは ML-EDA の合成の見本 (`write_image_masks`). 雑音の上に円か四角を 1 つ置いた 32x32 の画像と, その領域 (0 が背景, 1 が円, 2 が四角)
 - 画像の大きさがそろっているので, ML-Fathom の書き出しで中身の手順 (`resize`) はかけない (大きさの混ざる画像は 27 で確かめる)
@@ -17,7 +17,7 @@
 
 ```
 22_image_masks/
-├── make_data.py   # 元のデータ (data/image_masks の images, masks) を ML-EDA の合成の見本で作る
+├── make_data.py   # 元のデータ (data/image_masks) と新しい画像 (data/image_masks_new) を ML-EDA の合成の見本で作る
 ├── journey.py     # 実行方法の画面の操作を API で流して確かめる
 └── README.md
 ```
@@ -31,7 +31,7 @@
 | 元のデータ | `write_image_masks(count=60, size=(32, 32), seed=0)`. 同じ stem の PNG の組 (`images/sample_000.png` と `masks/sample_000.png`). `make_data.py` が `data/image_masks` に作る |
 | 書き出し | ML-Fathom のファイルの組の書き出し. 版 2, `role: predict`, `target.kind: mask`, `target.origin.type: synthetic`, 領域の値の名前 (0 `background`, 1 `circle`, 2 `square`) |
 | 分割 | ML-Fathom の下書きの分割 (1 件ごとに無作為, 検証用とテスト用 15 %, 種 0). 学習用 42, 検証用 9, テスト用 9 |
-| 推論 | 別の種 (1) で同じく作った 4 枚. 正解の領域は推論の結果と比べるだけに使う (`journey.py` が作る) |
+| 推論 | 別の種 (1) で同じく作った 4 組 (`data/image_masks_new`). 書き出しには入れず, 正解の領域は推論の結果と比べるだけに使う |
 
 用意してもらう必要があるデータは無い. ML-EDA はルートの README の「導入」で入れる.
 
@@ -62,12 +62,12 @@ ML-Pathfinder が書き出した骨組みの config のまま (エポックの�
 
 準備は 25 と同じ (5 つのアプリを clone して `make setup`). 画面の操作の手順.
 
-1. 元のデータを作る. ルートのディレクトリで `.venv/bin/python tasks/22_image_masks/make_data.py` (`data/image_masks` に `images/` と `masks/`)
+1. 元のデータを作る. ルートのディレクトリで `.venv/bin/python tasks/22_image_masks/make_data.py` (`data/image_masks` に `images/` と `masks/`, `data/image_masks_new` に新しい組)
 2. ML-Pathfinder: 空の問題の設定を作り, 問いに答える (予測する, 1 件は写真 1 枚, 単位は組 (`pair`), 出力の形は領域 (`region`), 正解の種類は画像の領域 (`mask`), 正解はファイル, 指標は IoU). 元のデータに 1 のディレクトリを入れ, 骨組みを書き出す (書き出し先が問題の設定に記録される)
 3. ML-Fathom: 問題の設定の一覧から 2 の設定を選んで始める. 書き出しの画面 (画像と領域) に入力と正解のディレクトリ (`images`, `masks`) と分割が下書きで入る. 正解の出どころ (種類 `synthetic`, 名前 `ml_eda.synthetic.write_image_masks`, 設定) と領域の値の名前 (0 `background`, 1 `circle`, 2 `square`) を足し, プロジェクトへ書き出す
 4. ML-CreateArchitecture: 問題の設定の一覧から 2 の設定を選ぶ (保存先が決まる). 同梱の例 `unet_segmentation` を開き, 「データセットから入力と出力を作る」を押し, プロジェクトに保存する (`models/model.yaml`)
 5. ML-Dashboard: 書き出したプロジェクトを一覧から登録し, 学習の準備を見て「環境を作る」, 「学習を起動」(config の欄は骨組みのまま). 結果でテスト用の IoU の表と領域の見本を見る
-6. ML-Provide: 実験の一式を一覧から登録し, 新しい画像を推論して出力の配列をダウンロードする
+6. ML-Provide: 実験の一式を一覧から登録し, `data/image_masks_new/images` の画像を推論して出力の配列をダウンロードする
 
 この手順を API で流して確かめるには, ルートのディレクトリで実行する.
 
@@ -80,7 +80,7 @@ ML-Pathfinder が書き出した骨組みの config のまま (エポックの�
 
 ## 結果のメモ
 
-5 つのアプリの main (ML-Pathfinder 387dd26, ML-Fathom b226609, ML-CreateArchitecture ee46a89, ML-Dashboard 1a0cac8, ML-Provide 599afa7) を手元 (CPU, Apple Silicon の Mac) で `journey.py` で動かした値.
+5 つのアプリの main (ML-Pathfinder 387dd26, ML-Fathom b226609, ML-CreateArchitecture ee46a89, ML-Dashboard 1a0cac8, ML-Provide 599afa7) を手元 (CPU, Apple Silicon の Mac) で `journey.py` で動かした値. ML-EDA はルートの README の「導入」で固定した版を使った.
 
 | 段階 | 判定 | 説明 |
 | --- | --- | --- |
@@ -93,9 +93,9 @@ ML-Pathfinder が書き出した骨組みの config のまま (エポックの�
 | ML-CreateArchitecture でプロジェクトに保存 | OK | `models/model.yaml` |
 | ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | |
 | 学習の準備 | OK | データセットとモデルの定義がある. 足りない機能 eda, modelcontrol, inference |
-| 環境を作る (画面から) | OK | 17 秒 |
+| 環境を作る (画面から) | OK | 12 秒 |
 | 学習の起動の config | OK | 骨組みのまま (30 エポック) |
-| 学習 | OK | 23 エポックで Early Stopping. ベストはエポック 13 の valid/iou 0.3000. 21 秒 |
+| 学習 | OK | 23 エポックで Early Stopping. ベストはエポック 13 の valid/iou 0.3000. 15 秒 |
 | テスト用の評価 | OK | IoU は背景 0.987, 円 0.100, 四角 0.575. 平均 (`mean` の行) 0.338 |
 | 学習の後の推論の一式 | OK | 一式で推論した valid/iou 0.3000 が記録と合う |
 | 見本を見る | OK | 領域の見本 6 件. 凡例は `background` (黒), `circle` (`#800000`), `square` (`#008000`) |
@@ -110,4 +110,4 @@ ML-Pathfinder が書き出した骨組みの config のまま (エポックの�
 
 ## 気付いたこと
 
-- ライブラリの関数で書き出して手で学習のスクリプトを書く道では, 領域の値から番号の表, クラスの数, チャンネル数, 正解の出どころの `task.yaml` への写し, IoU の数え方, 見本の書き方を学習のスクリプトに書いた. 画面の道ではその全てを骨組みと ML-Fathom の書き出しが受け持ち, 利用者が打つのは正解の出どころと領域の値の名前だけ
+- 領域の値から番号の表, クラスの数, チャンネル数, 正解の出どころの `task.yaml` への写し, IoU の数え方, 見本の書き方は, 骨組みと ML-Fathom の書き出しが受け持つ. 利用者が打つのは正解の出どころと領域の値の名前だけ

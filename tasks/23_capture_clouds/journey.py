@@ -7,12 +7,14 @@ apps.py)
 import importlib.util
 import sys
 from pathlib import Path
+from types import ModuleType
 
 from make_data import SETTINGS, write_data
 
 # 部品は 28 (journey.py), 27 (pairs.py) と 25 (apps.py)
 TASKS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TASKS / "27_m2_image_masks"))
+sys.path.insert(0, str(TASKS / "25_m1_churn"))
 from pairs import run_pairs_journey
 from apps import main_with
 
@@ -20,7 +22,7 @@ from apps import main_with
 EPOCHS = None
 
 
-def load_parts() -> object:
+def load_parts() -> ModuleType:
     """
     28 の journey.py を別の名前の部品として読む関数
 
@@ -30,10 +32,10 @@ def load_parts() -> object:
 
     Returns
     ----------
-    module: object
+    module: ModuleType
         28 の journey.py (adapt_cloud, check_samples, check_outputs を使う)
     """
-    # 同じ名前の journey.py が並ぶので, 場所を指して読む
+    # 同じ名前の journey.py が並ぶので, 場所を指した読み込み
     path = TASKS / "28_m2_capture_clouds" / "journey.py"
     spec = importlib.util.spec_from_file_location("journey_28", path)
     module = importlib.util.module_from_spec(spec)

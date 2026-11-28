@@ -1,0 +1,155 @@
+format_version: 1
+name: mnist_denoiser
+inputs:
+  noisy:
+    shape:
+    - 2
+    - 1
+    - 28
+    - 28
+  step:
+    shape:
+    - 2
+    dtype: int64
+    fill: arange
+nodes:
+  t_emb:
+    unit: op.SinusoidalEmbedding
+    inputs: step
+    params:
+      embedding_dim: 64
+  t_fc:
+    unit: nn.Linear
+    inputs: t_emb
+    params:
+      in_features: 64
+      out_features: 64
+  t_act:
+    unit: nn.SiLU
+    inputs: t_fc
+  t1_fc:
+    unit: nn.Linear
+    inputs: t_act
+    params:
+      in_features: 64
+      out_features: 32
+  t1_shape:
+    unit: op.Reshape
+    inputs: t1_fc
+    params:
+      shape:
+      - 32
+      - 1
+      - 1
+  t2_fc:
+    unit: nn.Linear
+    inputs: t_act
+    params:
+      in_features: 64
+      out_features: 64
+  t2_shape:
+    unit: op.Reshape
+    inputs: t2_fc
+    params:
+      shape:
+      - 64
+      - 1
+      - 1
+  c1:
+    unit: nn.Conv2d
+    inputs: noisy
+    params:
+      in_channels: 1
+      out_channels: 32
+      kernel_size: 3
+      padding: 1
+  a1:
+    unit: nn.SiLU
+    inputs: c1
+  add1:
+    unit: op.Add
+    inputs:
+      xs:
+      - a1
+      - t1_shape
+  c2:
+    unit: nn.Conv2d
+    inputs: add1
+    params:
+      in_channels: 32
+      out_channels: 32
+      kernel_size: 3
+      padding: 1
+  a2:
+    unit: nn.SiLU
+    inputs: c2
+  down:
+    unit: nn.Conv2d
+    inputs: a2
+    params:
+      in_channels: 32
+      out_channels: 64
+      kernel_size: 3
+      padding: 1
+      stride: 2
+  a3:
+    unit: nn.SiLU
+    inputs: down
+  add2:
+    unit: op.Add
+    inputs:
+      xs:
+      - a3
+      - t2_shape
+  c3:
+    unit: nn.Conv2d
+    inputs: add2
+    params:
+      in_channels: 64
+      out_channels: 64
+      kernel_size: 3
+      padding: 1
+  a4:
+    unit: nn.SiLU
+    inputs: c3
+  up:
+    unit: nn.ConvTranspose2d
+    inputs: a4
+    params:
+      in_channels: 64
+      out_channels: 32
+      kernel_size: 4
+      stride: 2
+      padding: 1
+  a5:
+    unit: nn.SiLU
+    inputs: up
+  skip:
+    unit: op.Concat
+    inputs:
+      xs:
+      - a2
+      - a5
+    params:
+      dim: 1
+  c4:
+    unit: nn.Conv2d
+    inputs: skip
+    params:
+      in_channels: 64
+      out_channels: 32
+      kernel_size: 3
+      padding: 1
+  a6:
+    unit: nn.SiLU
+    inputs: c4
+  head:
+    unit: nn.Conv2d
+    inputs: a6
+    params:
+      in_channels: 32
+      out_channels: 1
+      kernel_size: 3
+      padding: 1
+outputs:
+  noise: head

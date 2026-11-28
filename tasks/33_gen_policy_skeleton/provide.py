@@ -42,6 +42,13 @@ OBSERVATIONS = {
 EXPECTED = {"範囲の中": "ok", "位置が範囲の外": "fallback",
             "数でない値": "fallback"}
 
+# 外れたときの動きで続ける行動 (問題の設定の答えの fallback_action)
+FALLBACK_ACTION = 0
+
+# 学習した方策とみなす報酬の和の下限 (検証のベストと, act で動かした
+# 1 エピソード. CartPole の上限 500 の 95%)
+MIN_REWARD = 475.0
+
 # ML-Provide の act で CartPole を動かすエピソードの乱数の種 (学習の検証と
 # 守り付きの評価, infer.py の種と重ならない値)
 EPISODE_SEED = 40000
@@ -172,9 +179,11 @@ def train(
         tail = dash.ok("GET", f"/api/jobs/{launched['id']}/output")["text"]
         lines = tail.strip().splitlines() or [str(job.get("status"))]
         raise RuntimeError(f"学習が止まりました: {lines[-1]}")
+    best = float(run["best"]["value"])
     journey.add(
-        "学習 (守りを experiment の config で数に)", "OK",
-        f"{run['best']['monitor']} {run['best']['value']:.1f}"
+        "学習 (守りを experiment の config で数に)",
+        "OK" if best >= MIN_REWARD else "誤り",
+        f"{run['best']['monitor']} {best:.1f} (下限 {MIN_REWARD:.0f})"
     )
     run_id = str(run["id"])
 
@@ -220,13 +229,19 @@ def register(
     # 登録の後の一覧の行の, 登録済みの id
     rows = provide.ok("GET", "/api/experiments/policies")["experiments"]
     marked = next((r for r in rows if r["path"] == row["path"]), {})
+    # 一式の守りが, 学習の config で渡した数と同じか
     guards = (view.get("spec") or {}).get("guards") or {}
+    same_guards = all(guards.get(key) == value
+                      for key, value in GUARDS.items())
     journey.add(
         "ML-Provide で方策の実験を一覧から登録",
-        "OK" if marked.get("policy_id") == policy_id else "誤り",
+        "OK" if marked.get("policy_id") == policy_id and same_guards
+        else "誤り",
         f"問題の設定「{row['problem']}」の実験 {row['experiment']}. 守り "
         f"allowed_actions {guards.get('allowed_actions')}, "
-        f"observation_high {guards.get('observation_high')}"
+        f"observation_low {guards.get('observation_low')}, "
+        f"observation_high {guards.get('observation_high')}, 渡した数と"
+        f"同じか {same_guards}"
     )
 
     return policy_id
@@ -259,7 +274,9 @@ def act(
         journey.add(
             f"観測から行動と守りの結果 ({label})",
             "OK" if result["status"] == EXPECTED[label]
-            and result["action"] is not None else "誤り",
+            and result["action"] is not None
+            and (EXPECTED[label] == "ok"
+                 or result["action"] == FALLBACK_ACTION) else "誤り",
             f"action {result['action']}, status {result['status']}, "
             f"reasons {result['reasons']}"
         )
@@ -282,7 +299,8 @@ def act(
     env.close()
     journey.add(
         "act で CartPole の 1 エピソードを動かす",
-        "OK" if statuses.get("ok", 0) > 0 else "誤り",
+        "OK" if statuses.get("ok", 0) > 0 and total >= MIN_REWARD
+        else "誤り",
         f"種 {EPISODE_SEED}, 報酬の和 {total:.0f}, 守りの結果 {statuses}"
     )
 

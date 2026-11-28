@@ -567,8 +567,10 @@ def train(
     keys = ("mae", "elasticity", "profit", "current_profit", "profit_ratio")
     journey.add(
         "学習 (骨組みを書き換えない) と値段の評価",
+        # 値段を上げると売れた数が減る向き (弾力性の平均が負) を学んだこと
         "OK" if set(rows) == {"price_valid", "price_test"}
-        and all(test.get(key) is not None for key in keys) else "誤り",
+        and all(test.get(key) is not None for key in keys)
+        and test["elasticity"] < 0 else "誤り",
         f"{time.time() - started_at:.0f} 秒, {run['best']['monitor']} "
         f"{run['best']['value']:.4f}. テスト用: "
         + ", ".join(f"{key} {rounded(test.get(key))}"
@@ -661,10 +663,11 @@ def provide(
     tool = [r["change"] for r in rows if kinds[r["product_id"]] == "tool"]
     journey.add(
         "推論 (商品ごとに上限の中で利益が最も大きい値段を選ぶ)",
+        # 道具 (真の弾力性 -1.2) の真の最良は上限まで上げること. 候補に 0
+        # があり見込みの利益は今の値段を下回らないので, 利益の比べは補助
         "OK" if prices["total"] == PRODUCTS and len(rows) == PRODUCTS
-        and inside and totals.get("total") is not None
-        and totals.get("current_total") is not None
-        and totals["total"] >= totals["current_total"] and measured
+        and inside and len(tool) == PRODUCTS // 2
+        and all(change == MAX_CHANGE for change in tool) and measured
         else "誤り",
         f"{summary['predicted']} 行を推論, 商品 {prices['total']}, 上限の中 "
         f"{inside}, 変える商品 {totals.get('changed')} (上限で抑えた "

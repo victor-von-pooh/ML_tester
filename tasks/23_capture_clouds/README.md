@@ -37,7 +37,7 @@
 
 ## モデル
 
-ML-CreateArchitecture の同梱の例 `point_cloud_predictor`. 「データセットから入力と出力を作る」が入力 `[4, 512, 3]` と正解の点の数 2000 を返す. 点群の出す点の数は画面が当てない決まりで, 例の入力 512 点が骨組みの `data.input_points` と同じなので, 例のまま使う.
+ML-CreateArchitecture の同梱の例 `point_cloud_predictor`. 「データセットから入力と出力を作る」が入力 `[4, 512, 3]` と正解の点の数 2000 を返す. 点群の出す点の数は画面が当てない決まりで, 例の入力 512 点が骨組みの `data.input_points` と同じなので, 点の数は例のまま使う. 入力の名前は, 画面が例の `observed` からデータセットの項目の名前 `capture` に変える.
 
 ## 学習の設計
 
@@ -89,7 +89,7 @@ ML-Pathfinder が書き出した骨組みの config のまま (エポックの�
 | ML-Fathom で問題の設定を一覧から始める | OK | 入力と正解のディレクトリ (`captures`, `clouds`) と分割 (random, 検証用とテスト用 15 %, 種 0) が下書きで入る |
 | ML-Fathom でプロジェクトへ書き出す | OK | 版 2, 学習用 28, 検証用 6, テスト用 6. 注意 無し. `target.origin` は `synthetic`, `ml_eda.synthetic.write_shape_captures`, 設定 (count 40, views 8, size 24x32, points 2000, seed 0) |
 | ML-CreateArchitecture で問題の設定を一覧から選ぶ | OK | 保存先が問題の設定の記録から決まる |
-| ML-CreateArchitecture (同梱の例, 入力と出力) | OK | 入力 `[4, 512, 3]` と正解の点の数 2000. 例のまま |
+| ML-CreateArchitecture (同梱の例, 入力と出力) | OK | 入力 `[4, 512, 3]` と正解の点の数 2000. 画面が当てる: 入力 observed の名前を capture にしました |
 | ML-CreateArchitecture でプロジェクトに保存 | OK | `models/model.yaml` |
 | ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | |
 | 学習の準備 | OK | 足りない機能 eda, modelcontrol, inference |
@@ -112,4 +112,4 @@ ML-Pathfinder が書き出した骨組みの config のまま (エポックの�
 ## 気付いたこと
 
 - 深度から点に戻す式 (カメラの軸, 深度の測り方, 画素の中心), Chamfer 距離, 見本の元の座標に戻す値の決まり (`shift` の向き) は, 骨組みと ML-Fathom の書き出しが受け持つ. 利用者が打つのは正解の出どころと点群の単位だけ
-- 「データセットから入力と出力を作る」の値を例に当てる所は, 28 の `journey.py` と同じく写していない (`apply_info` を渡さない). 学習はモデルを位置で呼ぶので, 例の入力の名前 (`observed`) がデータセットの項目の名前 (`capture`) と違っても通る. 画面では入力の名前が `capture` に変わる
+- 「データセットから入力と出力を作る」の値を例に当てる所は, 28 の `journey.py` と同じく 27 の `apply_unet_info` を使う. 画面と同じく例の入力の名前 (`observed`) をデータセットの項目の名前 (`capture`) に変え, 保存したモデルの定義も `capture` になる

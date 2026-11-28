@@ -1,7 +1,7 @@
 """
 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture,
 ML-Dashboard, ML-Provide) を作業用の置き場で起動し, 画面と同じ API で
-問題の設定から推論までを通す部品 (25 から 31 で使う)
+問題の設定から推論までを通す部品 (25 から 32 で使う)
 """
 import argparse
 import http.client
@@ -979,4 +979,4 @@ def main_with(
 
 
 if __name__ == "__main__":
-    sys.exit("25 から 31 の journey.py から使う")
+    sys.exit("25 から 32 の journey.py から使う")

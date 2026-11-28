@@ -632,7 +632,8 @@ def provide(
         else "誤り",
         f"{read} 行の記録のうち発注を決める日の {summary['predicted']} 行 (商品 "
         f"{len(products)}) を推論, 水準 τ = {totals.get('level')} の分位点"
-        f"から在庫を引く {derived}, 分位点が水準 τ のもの {picked}, 発注の数の和 {totals.get('total')} (上限 "
+        f"から在庫を引く {derived}, 分位点が水準 τ のもの {picked}, 発注の"
+        f"数の和 {totals.get('total')} (上限 "
         f"{orders['max_order']} で切った商品 {totals.get('capped')}, 大きい"
         f"順 {ordered}, 上限の中の整数 {within}, 最も多い "
         f"{top.get('product_id')} の {top.get('order')} 個. 分位点 "

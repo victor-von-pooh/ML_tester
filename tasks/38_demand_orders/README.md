@@ -70,7 +70,7 @@ ML-CreateArchitecture の `POST /api/dataset/inputs` が答えない場合は, �
 
 ## 結果のメモ
 
-手元の Mac で, 5 つのアプリの main (ML-Pathfinder 17b542e, ML-Fathom 29f20f1, ML-CreateArchitecture fe9859d, ML-Dashboard 7c086d0, ML-Provide 5b2f4ea) を使い, 骨組みを書き出す ML-Pathfinder の ML-Quest だけを a5a6dd8 にして動かした値.
+手元の Mac で, 5 つのアプリの main (ML-Pathfinder 17b542e, ML-Fathom 29f20f1, ML-CreateArchitecture fe9859d, ML-Dashboard 7c086d0, ML-Provide 5b2f4ea) を使って動かした値. 作業用の環境で, ML-Pathfinder が見る ML-Quest を a5a6dd8 に差し替えた (各アプリの submodule の ML-Quest が a5a6dd8 以降に上がれば, 手元の main のままで同じ).
 
 | 段階 | 判定 | 説明 |
 | --- | --- | --- |

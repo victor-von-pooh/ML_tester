@@ -34,10 +34,9 @@ SCALES = [0.8, 0.9, 1.0, 1.1, 1.2]
 # 得)
 ELASTICITY = {"food": -3.0, "tool": -1.2}
 
-# 推論で値段を下げる食品の数の下限. 真の弾力性 -3.0 からは食品の 10 商品の
-# 全てで 1 割下げるのが最も良い. 学習が足りず食品の値段への敏感さを小さく
-# 学ぶと 1 つも下げないので, その向きを学んだしるしとして半数を線にする
-FOOD_LOWERED = 5
+# 選んだ値段の真の利益の増分 (今の値段に対する) が, 候補の中で真に最も
+# 良い値段の増分に対して占める割合の下限
+GAIN_SHARE = 0.9
 
 # 骨組みの雛形と推論の一式の版
 EXAMPLE = "tabular_price"
@@ -691,6 +690,8 @@ def provide(
     kinds = dict(zip(*products(0)[["product_id", "category"]].T.values))
     food = [r["change"] for r in rows if kinds[r["product_id"]] == "food"]
     tool = [r["change"] for r in rows if kinds[r["product_id"]] == "tool"]
+    # 食品の値段を下げる数 (説明に出すだけ. 真には全てで下げるのが最も
+    # 良いが, でたらめに選んでも半数以上を下げることはよくある)
     lowered = sum(change < 0 for change in food)
     # 選んだ値段と, 候補の中で真に最も良い値段の, 今の値段に対する真の
     # 利益の比
@@ -700,15 +701,30 @@ def provide(
         max(true_profit({product: c}) - current for c in CANDIDATES)
         for product in kinds
     ) / current + 1
+    # 学習の段のテスト用の選んだ値段 (実験の price_choices.csv) の真の
+    # 利益の比
+    path = Path(row["path"])
+    choices = next(
+        (d / "price_choices.csv" for d in (path, *path.parents[:2])
+         if (d / "price_choices.csv").is_file()), None
+    )
+    tested = None
+    if choices is not None:
+        frame = pd.read_csv(choices)
+        frame = frame[frame["split"] == "test"]
+        tested = true_profit(
+            dict(zip(frame["product_id"], frame["change"]))
+        ) / current
     journey.add(
         "推論 (商品ごとに上限の中で利益が最も大きい値段を選ぶ)",
-        # 道具 (真の弾力性 -1.2) の真の最良は上限まで上げること, 食品
-        # (-3.0) は下げること. 候補に 0 があり見込みの利益は今の値段を
-        # 下回らないので, 利益の比べは補助
+        # 道具 (真の弾力性 -1.2) の真の最良は上限まで上げること. 選んだ
+        # 値段の真の利益が今の値段より大きく, 増分が候補の中の最良の 9 割
+        # 以上であること. 候補に 0 があり見込みの利益は今の値段を下回らない
+        # ので, 見込みの利益の比べは補助
         "OK" if prices["total"] == PRODUCTS and len(rows) == PRODUCTS
         and inside and len(tool) == PRODUCTS // 2
         and all(change == MAX_CHANGE for change in tool)
-        and len(food) == PRODUCTS // 2 and lowered >= FOOD_LOWERED
+        and ratio > 1 and ratio - 1 >= GAIN_SHARE * (best - 1)
         and measured else "誤り",
         f"{summary['predicted']} 行を推論, 商品 {prices['total']}, 上限の中 "
         f"{inside}, 変える商品 {totals.get('changed')} (上限で抑えた "
@@ -716,7 +732,9 @@ def provide(
         f"{ {k: len(v) for k, v in sorted(chosen.items())} }, 食品の割合 "
         f"{sorted(set(food))} (下げる {lowered} / {len(food)}), 道具の割合 "
         f"{sorted(set(tool))}. 真の利益の比 {ratio:.3f} (候補の中で真に最も"
-        f"良い値段なら {best:.3f}). 見込みの利益 "
+        f"良い値段なら {best:.3f}, 増分の割合 "
+        f"{(ratio - 1) / (best - 1):.3f}). テスト用の選んだ値段の真の利益の"
+        f"比 {'無し' if tested is None else f'{tested:.3f}'}. 見込みの利益 "
         f"{rounded(totals.get('total'))} (今の値段 "
         f"{rounded(totals.get('current_total'))}). 弾力性の平均 "
         f"{rounded((summary.get('elasticity') or {}).get('mean'))}. 今の値段"

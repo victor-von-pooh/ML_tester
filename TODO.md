@@ -11,6 +11,8 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 
 ## 優先度 低
 
+## 条件待ち
+
 ### 04 を流し直して Scheduler の引数の記録を確かめる
 - 何を: 04 の段階 2 (`python tasks/04_text_cls/train_hf.py`. 動作確認なら `--experiment configs/experiment/examples/hf_smoke.yaml`) を今の ML-Found で流し, 自分で作って渡した transformers の `get_linear_schedule_with_warmup` の引数 (`num_warmup_steps`, `num_training_steps`) が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる. 04 の「気付いたこと」の Scheduler の記録の文 (`train.log` の `Scheduler: LambdaLR` だけになる) を今の挙動に直し, 段階 1 と段階 2 の「結果のメモ」を流し直した値にする
 - 待っているもの: 利用者に用意してもらう `data/arxiv/arXiv.csv` (04 の README の「データ」)

@@ -11,11 +11,13 @@ import numpy as np
 
 from ml_eda.synthetic import write_shape_captures
 
-# 部品は 27 の pairs.py (その中で 25 の apps.py)
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]
-                       / "27_m2_image_masks"))
-from pairs import Client, load_npy, run_pairs_journey, short
+# 部品は 27 の pairs.py と 25 の apps.py
+TASKS = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(TASKS / "25_m1_churn"))
+sys.path.insert(0, str(TASKS / "27_m2_image_masks"))
 from apps import main_with
+from pairs import (Client, load_npy, match_rows, run_pairs_journey, short,
+                   yaml_of)
 
 # 形の数, 1 つの撮影の枚数, 画像の (高さ, 幅), 正解の点群の点の数
 SHAPES = 40
@@ -101,29 +103,71 @@ def read_ply(path: Path) -> np.ndarray:
     return points
 
 
+def input_points(dataset: Path) -> int:
+    """
+    骨組みの config (既定と実験) の data.input_points を読む関数
+
+    Parameters
+    ----------
+    dataset: Path
+        書き出したデータセット (プロジェクトの中)
+
+    Returns
+    ----------
+    points: int
+        学習で入力に渡す点の数
+
+    Raises
+    ----------
+    ValueError
+        config が見つからない場合と, input_points が無い場合
+    """
+    # データセットから上へたどってプロジェクトの configs を探し, 実験の
+    # config の値があれば既定より先に使う
+    project = next(
+        (place for place in dataset.resolve().parents
+         if (place / "configs" / "default" / "train.yaml").is_file()), None
+    )
+    if project is None:
+        raise ValueError(f"{dataset} の上に骨組みの config が無い")
+    found = None
+    for name in ("default", "experiment"):
+        path = project / "configs" / name / "train.yaml"
+        data = (yaml_of(path) if path.is_file() else {}).get("data") or {}
+        if data.get("input_points") is not None:
+            found = data["input_points"]
+    if found is None:
+        raise ValueError("骨組みの config に data.input_points が無い")
+    points = int(found)
+
+    return points
+
+
 def adapt_cloud(spec: dict, dataset: Path) -> tuple[dict, list[str]]:
     """
-    同梱の点群の例を骨組みに合わせる関数 (入力の点の数は骨組みの config
-    の input_points 512 と同じなので, 直す所は無い)
+    同梱の点群の例の入力の点の数を, 骨組みの config の data.input_points
+    に合わせる関数 (画面でノードの欄を書き換えるのと同じ)
 
     Parameters
     ----------
     spec: dict
         例の定義
     dataset: Path
-        書き出したデータセット (使わない)
+        書き出したデータセット (骨組みの config を探す起点)
 
     Returns
     ----------
     result: tuple[dict, list[str]]
-        定義と, 直した所の説明 (無し)
+        定義と, 直した所の説明
     """
-    # 骨組みの既定 (input_points 512) と例の入力の形を比べる
+    # 骨組みの input_points と例の入力の形を比べる
+    points = input_points(dataset)
     changes = []
     name, entry = next(iter(spec["inputs"].items()))
-    if entry["shape"][1] != 512:
-        changes.append(f"入力 {name} の点の数 {entry['shape'][1]} → 512")
-        entry["shape"][1] = 512
+    if entry["shape"][1] != points:
+        changes.append(f"入力 {name} の点の数 {entry['shape'][1]} → "
+                       f"{points} (骨組みの data.input_points)")
+        entry["shape"][1] = points
     result = (spec, changes)
 
     return result
@@ -180,7 +224,7 @@ def check_outputs(
     result: dict[str, Any]
         推論の結果
     rows: Any
-        結果の行
+        結果の行 (GET /api/results/{id}/rows の応答)
     setup: dict
         通しの設定 (truth は新しい形の正解の点群のディレクトリ)
 
@@ -189,22 +233,24 @@ def check_outputs(
     outcome: tuple[str, str]
         判定と説明
     """
-    # 行の順は撮影の名前の順 (推論するディレクトリの並び)
-    count = int(result.get("count") or len(setup["new_names"]))
+    # 行を件の名前 (撮影のディレクトリ) で正解と引き合わせる
+    matched, unmatched = match_rows(rows, setup["new_names"])
     gaps, centers, shapes = [], [], set()
-    for row in range(count):
+    for row, name in matched:
         cloud = load_npy(client, result["id"], row)
         shapes.add(tuple(cloud.shape))
-        truth = read_ply(setup["truth"] / f"{setup['new_names'][row]}.ply")
+        truth = read_ply(setup["truth"] / f"{name}.ply")
         gaps.append(float(np.linalg.norm(
             cloud.mean(axis=0) - truth.mean(axis=0)
         )))
         centers.append(float(np.linalg.norm(truth.mean(axis=0))))
-    near = all(gap < CENTER_TOLERANCE for gap in gaps)
-    note = (f"{count} 件. 形 {sorted(shapes)}, 正解の重心とのずれ "
-            f"{[round(gap, 3) for gap in gaps]} m (正解の重心の原点からの距離 "
-            f"{[round(c, 2) for c in centers]} m. 上限 {CENTER_TOLERANCE} m)."
-            " 文: "
+    near = (bool(matched) and not unmatched
+            and all(gap < CENTER_TOLERANCE for gap in gaps))
+    note = (f"{len(matched)} 件 (件の名前で正解と引き合わせ). 食い違い "
+            f"{'; '.join(unmatched) or '無し'}. 形 {sorted(shapes)}, 正解の"
+            f"重心とのずれ {[round(gap, 3) for gap in gaps]} m (正解の重心の"
+            f"原点からの距離 {[round(c, 2) for c in centers]} m. 上限 "
+            f"{CENTER_TOLERANCE} m). 文: "
             f"{short(result.get('sentences'), 120)}")
     outcome = ("OK" if near else "誤り", note)
 

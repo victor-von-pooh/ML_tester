@@ -599,12 +599,16 @@ def provide(
         f"問題の設定「{row['problem']}」の実験 {row['experiment']}. "
         f"一式の確かめ: {short(checked, 200)}"
     )
+    # ファイルの組の受け持ちは意思決定が無く, 候補に出さない決まり.
+    # 候補が出たら決まりとの食い違い
     state = client.ok("GET", f"/api/bundles/{bid}/problem")
+    hint = state.get("hint")
     journey.add(
         "問題の設定をつなぐ (候補)",
-        "OK",
-        "候補 " + ("あり" if state.get("hint") else "無し")
-        + " (ファイルの組の受け持ちは意思決定が無く, 候補に出さない決まり)"
+        "誤り" if hint else "OK",
+        (f"候補 {hint} (プロジェクトの問題の設定から: "
+         f"{bool(state.get('hint_project'))}). " if hint else "候補 無し. ")
+        + "ファイルの組の受け持ちは意思決定が無く, 候補に出さない決まり"
     )
     result = client.ok(
         "POST", f"/api/bundles/{bid}/predict", {"source": str(setup["new"])}
@@ -701,3 +705,48 @@ def load_npy(client: Client, result_id: str, row: int) -> np.ndarray:
     array = np.load(io.BytesIO(data), allow_pickle=False)
 
     return array
+
+
+def match_rows(
+    rows: dict[str, Any], names: list[str]
+) -> tuple[list[tuple[int, str]], list[str]]:
+    """
+    推論の結果の行を, 行の件の名前 (path の列) で正解の名前と引き合わせる
+    関数 (行の並びを決めつけないため)
+
+    Parameters
+    ----------
+    rows: dict[str, Any]
+        GET /api/results/{id}/rows の応答
+    names: list[str]
+        正解のある件の名前
+
+    Returns
+    ----------
+    result: tuple[list[tuple[int, str]], list[str]]
+        (行の位置, 件の名前) の並びと, 引き合わせられなかった所の説明
+    """
+    # 名前は path の最後の部分. 推論しなかった行, 正解の無い行, 行の無い
+    # 正解, 同じ名前の行を食い違いとして数える
+    matched: list[tuple[int, str]] = []
+    problems: list[str] = []
+    seen: set[str] = set()
+    for row in rows.get("rows") or []:
+        name = Path(str(row.get("path") or "")).name
+        if row.get("status") != "ok":
+            problems.append(f"推論しなかった行 {name} ({row.get('reason')})")
+        elif name not in names:
+            problems.append(f"正解の無い行 {name or '(名前無し)'}")
+        elif name in seen:
+            problems.append(f"同じ名前の行 {name}")
+        else:
+            seen.add(name)
+            matched.append((int(row["index"]), name))
+    missing = [name for name in names if name not in seen]
+    if missing:
+        problems.append(f"行の無い正解 {missing}")
+    if int(rows.get("total") or 0) > len(rows.get("rows") or []):
+        problems.append(f"行の一部しか読めていない (全 {rows.get('total')})")
+    result = (matched, problems)
+
+    return result

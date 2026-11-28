@@ -1,0 +1,90 @@
+# ML-Found が使う設定 (ML-Quest が問題から書き出した骨組み)
+# 学習に要る機能 (ML-Found の登録簿の名前). 学習の前に確かめ, 足りなければ
+# 入れ方を示して止まる
+requires: [rl, modelcontrol]
+
+experiment:
+  name: "CartPole-v1_policy"
+  seed: 0
+  device: cpu
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.01
+
+trainer:
+  epochs: 20
+  # 問題の「最良を選ぶ指標」. 強化学習の valid/reward は評価の
+  # エピソードの報酬の和の平均 (大きいほど良い. max), valid/loss はその
+  # 符号を反転した値 (小さいほど報酬が大きい. min)
+  monitor: valid/reward
+  mode: max
+  # 評価の報酬が上限で並んだ場合は, 学習のエピソードの報酬が大きい方
+  monitor_tiebreak: train/reward
+  monitor_tiebreak_mode: max
+
+# プロジェクト固有の設定
+env:
+  # Gymnasium の環境の登録名 (問題の答え). null なら env.py の
+  # ProjectEnv
+  id: "CartPole-v1"
+  # 検証 (評価のエピソード) の乱数の種と, 1 エピソードの歩数の上限 (null
+  # なら環境の上限)
+  valid_seed: 10000
+  max_episode_steps: null
+
+# 学習の方法 (auto は番号で選ぶ行動なら reinforce, 連続の行動なら
+# actor_critic)
+algorithm: auto
+
+rollout:
+  # 1 エポックのエピソード数と, 1 回の更新のエピソード数
+  episodes: 20
+  batch_episodes: 5
+  gamma: 0.99
+  temperature: 1.0
+  epsilon: 0.0
+
+evaluation:
+  # 学習中の検証のエピソード数
+  episodes: 10
+  # 書き出した方策を守り付きで動かすエピソード数と乱数の種
+  guarded_episodes: 10
+  guarded_seed: 20000
+
+loss:
+  entropy_coef: 0.01
+  # actor_critic だけで使う係数
+  value_coef: 0.5
+  gae_lambda: 0.95
+
+model:
+  # 方策の頭 (観測から行動のスコアか平均) の ML-ModelControl の形のモデルの
+  # 定義 (モデルの作成・選定の段階で組む). 無ければ train.py が観測と行動の
+  # 空間から既定の定義を書く. 方策の一式に写す
+  spec: models/policy.yaml
+  # 価値の関数と既定の定義の隠れ層の次元数 (定義を書いた後に変えても方策
+  # の頭の大きさは変わらない. 価値の関数だけ)
+  hidden_dim: 64
+
+# 安全の違反を知らせる info の名前 (問題の答え. 無ければ cost)
+safety_key: "cost"
+
+# 書き出す方策の守り (policy/). 範囲は 設備の責任者 が決めて承認する. 問題の
+# 設定の答えは文なので, 観測と行動の空間 (要素の並び) に合わせて数の並び
+# にする (null は制限なし)
+guards:
+  # 行動の上限 (問題): 左右に押すだけ
+  # TODO: 連続の行動は action_low と action_high, 番号で選ぶ行動は allowed_actions
+  action_low: null
+  action_high: null
+  allowed_actions: null
+  # 止める条件 (問題): 台車が中心から 2.4 を出たら
+  # TODO: 観測の要素ごとの範囲
+  observation_low: null
+  observation_high: null
+  # 外れたときの動き (stop, handover, action. 問題の答え) と, action
+  # の場合の行動 (番号で選ぶ行動なら要る)
+  fallback: action
+  fallback_action: 0

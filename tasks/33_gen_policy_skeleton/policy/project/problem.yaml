@@ -1,0 +1,60 @@
+format_version: 2
+name: 台車の棒を立て続ける
+created_at: '2026-11-28T19:44:27+09:00'
+updated_at: '2026-11-28T19:44:27+09:00'
+issue:
+  owner: 台車の設備の担当
+  pain: 台車の上の棒を立て続けるのに, 人が付きっきりで押す
+  current: 人が棒の傾きを見て左右に押す
+  kpi:
+    name: 人が押す時間
+    unit: 時間 / 日
+    better: lower
+    current: 8
+    target: 1
+decomposition:
+- cause: 押す向きを人が決める
+  lever: 押す向きを方策が決める
+  ml: true
+- cause: 押す人が 1 人で交代できない
+  lever: 交代の順を決めておく
+  ml: false
+action:
+  what: 台車を押す向き
+  who: 方策
+  when: 各歩の観測を見た時点
+ml:
+  use: true
+  reason: 棒の動きに合わせて押す向きを続けて選ぶ
+  parts:
+  - role: effect
+    unit: row
+    output: effect
+    target:
+      source: feedback
+    method: scratch
+    what: 押す向きを選ぶ方策
+    item: 1 歩
+    autonomous: true
+    collect: simulator
+    simulator: other
+    env_id: CartPole-v1
+    baseline: 人が押す
+    evaluation:
+      metric: reward
+      link: 報酬 (棒が立っていた歩数) が大きいほど人が押す時間が減る
+    policy:
+      action_limits: 左右に押すだけ
+      stop: 台車が中心から 2.4 を出たら
+      fallback: action
+      fallback_action: '0'
+      approver: 設備の責任者
+verification:
+  method: trial
+  trial: シミュレータで守りを当てて確かめる
+  success: 守り付きの評価で報酬の平均が 195 以上
+operation:
+  review: 週に 1 回
+  approver: 設備の責任者
+  stop: 止める条件に当たった歩が 1 日に 1 回でも出たら止める
+  remeasure: 週に 1 回, シミュレータで報酬を数え直す

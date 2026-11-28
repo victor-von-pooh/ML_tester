@@ -1,0 +1,35 @@
+format_version: 1
+name: policy
+description: 観測から行動ごとのスコアか連続の行動の平均
+inputs:
+  observation:
+    shape:
+    - 1
+    - 4
+nodes:
+  fc1:
+    unit: nn.Linear
+    params:
+      in_features: 4
+      out_features: 64
+    inputs: observation
+  act1:
+    unit: nn.Tanh
+    inputs: fc1
+  fc2:
+    unit: nn.Linear
+    params:
+      in_features: 64
+      out_features: 64
+    inputs: act1
+  act2:
+    unit: nn.Tanh
+    inputs: fc2
+  head:
+    unit: nn.Linear
+    params:
+      in_features: 64
+      out_features: 2
+    inputs: act2
+outputs:
+  action: head

@@ -10,6 +10,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import adjusted_rand_score
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "25_m1_churn"))
 from apps import (  # noqa: E402
@@ -28,9 +29,15 @@ STABILITY = "sample"
 COLUMNS = ["spend", "visits", "region"]
 ID_COLUMN = "customer_id"
 
-# 骨組みの雛形と, 推論の一式の種類
+# 骨組みの雛形と, 推論の一式の種類と版
 EXAMPLE = "contrastive_encoder"
 KIND = "group"
+VERSION = 16
+
+# 学習した群と作った群の一致 (調整ランド指数) の下限と, 種類の列 region
+# との一致の上限 (理由は README の「期待する結果」)
+MADE_ARI_MIN = 0.6
+REGION_ARI_MAX = 0.5
 
 # 問題の設定の受け持ちの場所 (ML-Quest の PART)
 PART = "ml.parts.0"
@@ -79,7 +86,7 @@ GROUP_ANSWERS: list[tuple[str, Any]] = [
 
 def make_customers(
     path: Path, seed: int = 0, customers: int = CUSTOMERS
-) -> None:
+) -> pd.DataFrame:
     """
     使い方の違う 3 つの群のある, 合成の顧客の記録を書く関数
 
@@ -94,7 +101,9 @@ def make_customers(
 
     Returns
     ----------
-    None
+    made: pd.DataFrame
+        行の id, 作った群 (made), 地域 (region) の表 (書く CSV には作った
+        群を入れない)
     """
     # 群ごとに違う, 使う額, 来店の回数, 多い地域 (群の境は少し重なる)
     rng = np.random.default_rng(seed)
@@ -104,10 +113,14 @@ def make_customers(
     regions = np.array(["north", "south", "west"])
     weights = np.array([[0.6, 0.2, 0.2], [0.2, 0.6, 0.2], [0.2, 0.2, 0.6]])
     region = [regions[rng.choice(3, p=weights[s])] for s in segment]
+    ids = [f"K{seed}{i:05d}" for i in range(customers)]
     pd.DataFrame({
-        ID_COLUMN: [f"K{seed}{i:05d}" for i in range(customers)],
-        "spend": spend.round(), "visits": visits, "region": region
+        ID_COLUMN: ids, "spend": spend.round(), "visits": visits,
+        "region": region
     }).to_csv(path, index=False)
+    made = pd.DataFrame({ID_COLUMN: ids, "made": segment, "region": region})
+
+    return made
 
 
 def build(work: Path) -> dict:
@@ -127,10 +140,11 @@ def build(work: Path) -> dict:
     # 元の記録と, 推論で群に割り当てる別の乱数の種の新しい顧客
     (work / "data").mkdir(exist_ok=True)
     data = work / "data" / "customers.csv"
-    make_customers(data)
+    made = make_customers(data)
     trial = work / "data" / "customers_new.csv"
-    make_customers(trial, seed=1, customers=TRIAL_CUSTOMERS)
-    setup = {"data": data, "trial": trial, "work": work}
+    trial_made = make_customers(trial, seed=1, customers=TRIAL_CUSTOMERS)
+    setup = {"data": data, "trial": trial, "work": work, "made": made,
+             "trial_made": trial_made}
 
     return setup
 
@@ -202,6 +216,60 @@ def shares(groups: list[dict[str, Any]]) -> str:
     )
 
     return text
+
+
+def agreement(
+    made: pd.DataFrame, assigned: pd.DataFrame
+) -> dict[str, float]:
+    """
+    割り当てた群と, 作った群と地域の一致 (調整ランド指数) を返す関数
+
+    Parameters
+    ----------
+    made: pd.DataFrame
+        make_customers の表 (行の id, made, region)
+    assigned: pd.DataFrame
+        行の id と群 (group) の表
+
+    Returns
+    ----------
+    scores: dict[str, float]
+        made (作った群との一致), region (地域との一致), rows (突き合わせた
+        行の数)
+    """
+    # 行の id での突き合わせ (割り当てない行は除く)
+    joined = made.merge(assigned.dropna(subset=["group"]), on=ID_COLUMN)
+    scores = {
+        "made": float(adjusted_rand_score(joined["made"], joined["group"])),
+        "region": float(adjusted_rand_score(joined["region"],
+                                            joined["group"])),
+        "rows": len(joined)
+    }
+
+    return scores
+
+
+def judged(scores: dict[str, float], rows: int) -> bool:
+    """
+    群の一致が判定の線を満たすかを返す関数
+
+    Parameters
+    ----------
+    scores: dict[str, float]
+        agreement の結果
+    rows: int
+        突き合わせるはずの行の数
+
+    Returns
+    ----------
+    ok: bool
+        全ての行を突き合わせ, 作った群との一致が下限以上で, 地域との一致が
+        上限未満なら True
+    """
+    ok = (scores["rows"] == rows and scores["made"] >= MADE_ARI_MIN
+          and scores["region"] < REGION_ARI_MAX)
+
+    return ok
 
 
 def set_problem(
@@ -426,7 +494,8 @@ def make_model(
 
 
 def train(
-    dash: Client, journey: Journey, original: Path, project: Path
+    dash: Client, journey: Journey, original: Path, project: Path,
+    made: pd.DataFrame
 ) -> str:
     """
     ML-Dashboard で書き出したプロジェクトを一覧から登録し, 環境を作って
@@ -442,6 +511,8 @@ def train(
         元の問題の設定 (problem.yaml)
     project: Path
         書き出したプロジェクト
+    made: pd.DataFrame
+        学習の顧客の作った群と地域 (make_customers)
 
     Returns
     ----------
@@ -492,12 +563,23 @@ def train(
     stability = (tables.get("group_stability") or [{}])[0]
     groups = tables.get("group_summary") or []
     best = run.get("best") or {}
+
+    # 実験の中の行ごとの群の割り当てと, 作った群と地域との一致
+    files = sorted((project / "outputs").glob("*/*/*/group_assignments.csv"))
+    assigned = pd.read_csv(files[-1]) if files else pd.DataFrame(
+        columns=[ID_COLUMN, "group"]
+    )
+    scores = agreement(made, assigned)
     journey.add(
         "学習 (骨組みを書き換えない) と群の安定性, 群の要約",
-        "OK" if stability and len(groups) == GROUPS + 1 else "誤り",
+        "OK" if stability and len(groups) == GROUPS + 1
+        and judged(scores, len(made)) else "誤り",
         f"{time.time() - started_at:.0f} 秒, {best.get('monitor')} "
         f"{rounded(best.get('value'))} (エポック {best.get('epoch')}). "
-        f"群の安定性 {rounded(stability)}. 群の要約 {shares(groups)}"
+        f"群の安定性 {rounded(stability)}. 群の要約 {shares(groups)}. "
+        f"作った群との一致 {rounded(scores['made'])} (下限 {MADE_ARI_MIN}),"
+        f" 地域との一致 {rounded(scores['region'])} (上限 "
+        f"{REGION_ARI_MAX}), 行 {scores['rows']}"
     )
     run_id = str(run["id"])
 
@@ -506,7 +588,7 @@ def train(
 
 def provide(
     client: Client, journey: Journey, project: Path, run_id: str,
-    trial: Path
+    trial: Path, made: pd.DataFrame
 ) -> None:
     """
     ML-Provide で実験を一覧から登録し, 新しい顧客を群に割り当てて群の
@@ -524,6 +606,8 @@ def provide(
         ML-Dashboard の実験の id
     trial: Path
         新しい顧客の表
+    made: pd.DataFrame
+        新しい顧客の作った群と地域 (make_customers)
 
     Returns
     ----------
@@ -551,7 +635,7 @@ def provide(
            (description.get("output") or {}).get("form"))
     journey.add(
         "ML-Provide で実験を一覧から登録",
-        "OK" if got[0] == KIND and got[2] == "cluster"
+        "OK" if got == (KIND, VERSION, "cluster")
         and group.get("columns") == COLUMNS else "誤り",
         f"種類, 版, 出力の形 {got}. 群を作る列 {group.get('columns')}"
     )
@@ -575,16 +659,37 @@ def provide(
         "GET", f"/api/results/{result['id']}/rows?group=0&limit=5"
     )
     representatives = summary.get("representatives") or []
+
+    # 全ての行の群 (読める行の上限ごと) と, 作った群と地域との一致
+    rows: list[dict[str, Any]] = []
+    while len(rows) < TRIAL_CUSTOMERS:
+        page = client.ok(
+            "GET", f"/api/results/{result['id']}/rows?offset={len(rows)}"
+            f"&limit=500"
+        )
+        rows += page["rows"]
+        if not page["rows"]:
+            break
+    assigned = pd.DataFrame(
+        {ID_COLUMN: [r.get(ID_COLUMN) for r in rows],
+         "group": [r.get("group") for r in rows]}
+    )
+    scores = agreement(made, assigned)
     journey.add(
         "推論 (新しい顧客を群に割り当て, 群の要約を出す)",
         "OK" if summary.get("predicted") == TRIAL_CUSTOMERS
         and summary.get("k") == GROUPS and len(groups) == GROUPS + 1
-        and {r["group"] for r in first["rows"]} <= {0}
-        and len(representatives) == GROUPS else "誤り",
+        and first["total"] > 0 and first["rows"]
+        and {r["group"] for r in first["rows"]} == {0}
+        and len(representatives) == GROUPS
+        and all(item["rows"] for item in representatives)
+        and judged(scores, TRIAL_CUSTOMERS) else "誤り",
         f"{summary.get('rows')} 行のうち {summary.get('predicted')} 行を "
         f"{summary.get('k')} 個の群に割り当て. 群の要約 {shares(groups)}. "
         f"群 0 の行 {first['total']} 件, 代表の行 "
-        f"{[len(r['rows']) for r in representatives]} 件. "
+        f"{[len(r['rows']) for r in representatives]} 件. 作った群との"
+        f"一致 {rounded(scores['made'])}, 地域との一致 "
+        f"{rounded(scores['region'])}, 行 {scores['rows']}. "
         + " ".join(result["sentences"])
     )
     # 群の要約の行の表示 (README の表に写す)
@@ -619,8 +724,10 @@ def run_group(
     original = Path(entry["path"]).resolve()
     make_model(clients["createarchitecture"], journey, original, project,
                entry["summary"])
-    run_id = train(clients["dashboard"], journey, original, project)
-    provide(clients["provide"], journey, project, run_id, setup["trial"])
+    run_id = train(clients["dashboard"], journey, original, project,
+                   setup["made"])
+    provide(clients["provide"], journey, project, run_id, setup["trial"],
+            setup["trial_made"])
 
 
 if __name__ == "__main__":

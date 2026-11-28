@@ -41,7 +41,7 @@ ML-Pathfinder が書き出した骨組み (`project/train.py`) を書き換え�
 | 問題の設定を一覧から始め, 書き出しの下書きに正解の出どころ, 領域の値の名前, 中身の手順を足してプロジェクトへ書き出す. 開き直して中身の手順が残るか | ML-Fathom | `GET /api/problems`, `POST /api/problems/start`, `GET /api/problems/pairs`, `POST /api/problems/pairs/export` |
 | 問題の設定を一覧から選ぶ (選べなければプロジェクトのディレクトリを打つ), 同梱の例を開き, データセットから入力と出力を作る (作れなければ手で直す), プロジェクトに保存 | ML-CreateArchitecture | `GET /api/problems`, `POST /api/project/target`, `GET /api/examples/{name}`, `POST /api/dataset/inputs`, `PUT /api/project/model` |
 | 書き出したプロジェクトを一覧から登録, 学習の準備, 環境を作る, 学習 (config の欄), 結果, ログ, 見本 | ML-Dashboard | `GET /api/problems/projects`, `POST /api/projects`, `GET /api/projects/{id}/readiness`, `POST /api/projects/{id}/environment`, `POST /api/projects/{id}/jobs`, `GET <実験>/results`, `GET <実験>/log` |
-| 実験の一式を一覧から登録 (一式の確かめ), 問題の設定の候補, 新しい画像の推論, 出力の配列のダウンロード | ML-Provide | `GET /api/experiments`, `POST /api/bundles`, `GET /api/bundles/{id}`, `GET /api/bundles/{id}/problem`, `POST /api/bundles/{id}/predict`, `GET /api/results/{id}/artifacts/{行}/file` |
+| 実験の一式を一覧から登録 (一式の確かめ), 問題の設定の候補, 新しい画像の推論, 出力の配列のダウンロード | ML-Provide | `GET /api/experiments`, `POST /api/bundles`, `GET /api/bundles/{id}`, `GET /api/bundles/{id}/problem`, `POST /api/bundles/{id}/predict`, `GET /api/results/{id}/rows`, `GET /api/results/{id}/artifacts/{行}/file` |
 
 起動と停止, 時間の上限は 25 と同じ.
 
@@ -58,6 +58,8 @@ ML-Pathfinder が書き出した骨組み (`project/train.py`) を書き換え�
 - [x] ML-Dashboard で領域の見本を凡例付きで見る
 - [x] ML-Provide で実験の一式を一覧から登録でき, 新しい画像の推論の出力が領域の値 (0, 1, 2) だけを持つ
 - [x] 推論の出力が元の画像の大きさになる
+- [x] 推論の結果の行を, 行の件の名前 (`path` の列) で正解と引き合わせられる (並びを決めつけない. 欠けた件と余った件は誤り)
+- [x] ML-Provide が問題の設定の候補を出さない (受け持ちが列の予測でないので候補に出ない ML-Provide の決まり. 出たら誤り)
 
 ## 期待する結果
 

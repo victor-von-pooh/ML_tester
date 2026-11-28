@@ -8,10 +8,10 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 ## 優先度 高
 
 ### 効果を見積もるの通しで ML-CreateArchitecture の段階を画面だけで通す
-- 何を: 32 (効果を見積もるの通し) の ML-CreateArchitecture の段階で, データセットの入力 (`POST /api/dataset/inputs`) が答え, 雛形の幅が画面の値だけで決まるかを, T-learner と S-learner の両方で流し直して確かめ, 32 の「結果のメモ」と「確かめること」を直す. 今は ML-Fathom が parquet で書き出した表を, pyarrow の無い ML-CreateArchitecture が読めずに 500 を返し, 列の数を手で写している (32 の「気付いたこと」の 1). 直すのは ML-CreateArchitecture で, 持ち主の TODO.md に項目を足してから, ここではその項目を名前で指す (追加の依存 `project` の ML-EDA が parquet を読めず, 読めないときの例外が 500 になる. 値段を変える判断と時間をまたぐ量の判断の入力も同じ読み方をする)
-- なぜ: 効果を見積もるの通しで, 問題の設定から推論までのうちこの段階だけが画面だけで通らず, データの分析とモデルの作成の間の食い違いのため
-- 終わりの条件: 32 で ML-CreateArchitecture の段階が 2 つの決め方とも OK になり, 手の段階と誤りの段階が 0
-- つながり: 32
+- 何を: ML-CreateArchitecture の parquet の読み込みの直しが入った後に 32 を流し直し, ML-CreateArchitecture の段を T-learner と S-learner の両方で手と誤り 0 で通し, 32 の「結果のメモ」と「確かめること」を直す
+- なぜ: 32 は ML-CreateArchitecture の段だけが画面だけで通らない. ML-Fathom は表を parquet で書き出すが, ML-CreateArchitecture の追加の依存 `project` の ML-EDA は parquet を読めず, 読めないときの例外が 500 になる (データセットの入力 `POST /api/dataset/inputs`). 今は列の数を手で写して続けている (32 の「気付いたこと」の「ML-CreateArchitecture のデータセットの入力が 500」). データの分析とモデルの作成の間の食い違い
+- 終わりの条件: 32 で ML-CreateArchitecture の段が 2 つの決め方とも OK になり, 手の段階と誤りの段階が 0
+- つながり: ML-CreateArchitecture の parquet で書き出したデータセットの読み込み
 
 ## 優先度 中
 

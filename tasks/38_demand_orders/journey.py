@@ -35,6 +35,9 @@ EXAMPLE = "tabular_demand"
 LEVELS = [0.1, 0.25, 0.5, 0.75, 0.9]
 BUNDLE = ("demand", 14)
 
+# テスト用の需要の評価の行の数 (12 商品の 7 行ずつ)
+TEST_ROWS = 84
+
 # 問題の設定の受け持ちの場所 (ML-Quest の PART)
 PART = "ml.parts.0"
 
@@ -506,8 +509,12 @@ def train(
     keys = ("mae", "pinball_loss", "order_cost", "baseline_cost")
     journey.add(
         "学習 (骨組みを書き換えない) と需要の評価",
+        # テスト用は時間の順の最後の 7 日の商品ごとの 1 行. 水準 τ の分位点
+        # での発注の損が, 前の期間と同じ数の発注の損より小さいこと
         "OK" if all(test.get(key) is not None for key in keys)
-        and "demand_valid" in rows else "誤り",
+        and "demand_valid" in rows and test.get("rows") == TEST_ROWS
+        and test.get("products") == PRODUCTS
+        and test["order_cost"] < test["baseline_cost"] else "誤り",
         f"{time.time() - started_at:.0f} 秒, {run['best']['monitor']} "
         f"{run['best']['value']:.4f}. テスト用 ({test.get('rows')} 行, 商品 "
         f"{test.get('products')}): mae {rounded(test.get('mae'))}, 分位点の"
@@ -608,17 +615,25 @@ def provide(
             min(max(np.ceil(r["quantile"] - r["on_hand"]), 0), MAX_ORDER)
         } for r in orders["rows"]
     )
+    # 発注に使う分位点は, 学ぶ水準のうち水準 τ の分位点
+    tau = LEVELS.index(SHORTAGE / (SHORTAGE + HOLDING))
+    picked = all(
+        np.isclose(r["quantile"], r["quantiles"][tau])
+        for r in orders["rows"]
+    )
     read = len(pd.read_csv(trial))
     journey.add(
         "推論 (商品ごとに上限の中で発注の数を決める)",
         "OK" if summary["predicted"] == PRODUCTS
         and orders["total"] == len(products) == PRODUCTS and within
-        and derived and ordered and sum(counts) == totals.get("total")
+        and derived and picked and ordered
+        and sum(counts) == totals.get("total")
         and totals.get("level") == SHORTAGE / (SHORTAGE + HOLDING)
         else "誤り",
         f"{read} 行の記録のうち発注を決める日の {summary['predicted']} 行 (商品 "
         f"{len(products)}) を推論, 水準 τ = {totals.get('level')} の分位点"
-        f"から在庫を引く {derived}, 発注の数の和 {totals.get('total')} (上限 "
+        f"から在庫を引く {derived}, 分位点が水準 τ のもの {picked}, 発注の"
+        f"数の和 {totals.get('total')} (上限 "
         f"{orders['max_order']} で切った商品 {totals.get('capped')}, 大きい"
         f"順 {ordered}, 上限の中の整数 {within}, 最も多い "
         f"{top.get('product_id')} の {top.get('order')} 個. 分位点 "

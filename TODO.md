@@ -17,14 +17,6 @@ ML_tester は整理と試しの場なので, ここには 2 つを置く. 1 つ�
 
 ## 優先度 低
 
-### 時間をまたぐ量の判断の雛形のモデルで発注の損を前の期間より小さくする
-- 何を: ML-Quest の時間をまたぐ量の判断の骨組みが, ML-CreateArchitecture で保存した雛形 `tabular_demand` の定義から組んだモデルにも需要の尺度を合わせた後に, 38 を流し直す
-- なぜ: 38 は問題の設定から推論まで画面で通るが, 雛形のモデルの初めの分位点が 0 の近くから始まり, 骨組みの既定の 30 エポックでは学習が足りず, テスト用の発注の損が前の期間と同じ数の発注より大きいため (300 エポックでは小さい)
-- 終わりの条件: 38 で, 骨組みの既定のまま, テスト用の発注の損が前の期間と同じ数を発注したときの損より小さい
-- つながり: 38
-
-## 条件待ち
-
 ### 04 を流し直して Scheduler の引数の記録を確かめる
 - 何を: 04 の段階 2 (`python tasks/04_text_cls/train_hf.py`. 動作確認なら `--experiment configs/experiment/examples/hf_smoke.yaml`) を今の ML-Found で流し, 自分で作って渡した transformers の `get_linear_schedule_with_warmup` の引数 (`num_warmup_steps`, `num_training_steps`) が `run.json` の `optimizers` の `scheduler_params` に残ることを確かめる. 04 の「気付いたこと」の Scheduler の記録の文 (`train.log` の `Scheduler: LambdaLR` だけになる) を今の挙動に直し, 段階 1 と段階 2 の「結果のメモ」を流し直した値にする
 - 待っているもの: 利用者に用意してもらう `data/arxiv/arXiv.csv` (04 の README の「データ」)

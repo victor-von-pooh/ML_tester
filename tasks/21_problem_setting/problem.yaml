@@ -1,7 +1,7 @@
-format_version: 1
+format_version: 2
 name: 総菜の作る量
-created_at: '2026-11-17T22:04:47+09:00'
-updated_at: '2026-11-17T22:04:47+09:00'
+created_at: '2026-11-28T18:23:26+09:00'
+updated_at: '2026-11-28T18:23:26+09:00'
 issue:
   owner: 店長
   pain: 総菜の廃棄が多く, 夕方には品切れも出る
@@ -19,20 +19,41 @@ decomposition:
 - cause: 夕方の値引きが遅い
   lever: 値引きの時刻を決めておく
   ml: false
+action:
+  what: 品ごとの作る量
+  who: 店長
+  when: 前の日の 17 時
+  decision:
+    type: quantity
+    under_cost: 200
+    over_cost: 150
+  basis: 欠品は粗利 200 円, 廃棄は原価 150 円
 ml:
   use: true
   reason: 品と日による売れ方の違いが大きく, 前の週と同じでは追えない
-  predict: 翌日の品ごとの売れる数
-  row: 店, 品, 日ごとの 1 行
-  task: forecasting
-  target: sales
-  time_column: date
-  series_by:
-  - store
-  - item
-  available_lag: 2
-  horizon: 1
-  baseline: 前の週の同じ曜日と同じ数
+  parts:
+  - role: predict
+    unit: row
+    output: value
+    target:
+      source: column
+      kind: column
+      column: sales
+    method: scratch
+    what: 翌日の品ごとの売れる数
+    item: 店, 品, 日ごとの 1 行
+    task: forecasting
+    time_column: date
+    series_by:
+    - store
+    - item
+    available_lag: 2
+    horizon: 1
+    baseline: 前の週の同じ曜日と同じ数
+    consumer: rule
+    evaluation:
+      metric: mae
+      link: 誤差が小さいほど作る量の外れが減り, 廃棄と欠品の損が減る
 information:
   columns:
   - date
@@ -49,18 +70,6 @@ information:
   - promo
   unknown:
   - customers
-action:
-  who: 店長
-  when: 前の日の 17 時
-  what: 品ごとの作る量
-  decision:
-    type: quantity
-    under_cost: 200
-    over_cost: 150
-  basis: 欠品は粗利 200 円, 廃棄は原価 150 円
-evaluation:
-  metric: mae
-  link: 誤差が小さいほど作る量の外れが減り, 廃棄と欠品の損が減る
 verification:
   method: both
   backtest: 過去 3 か月で, 今のやり方と損を比べる

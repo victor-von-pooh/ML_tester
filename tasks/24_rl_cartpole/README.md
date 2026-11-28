@@ -6,7 +6,7 @@
 
 1. **学習**: `RolloutLoader` (環境とのやり取りをバッチにする loader), `EvaluationLoader` (別の種の評価のエピソード), `ReinforceStep` (REINFORCE) を今までの `Trainer` に渡して学習する. 監視する指標は評価のエピソードの報酬の和の平均 `valid/reward` で, `mode: max`
 2. **守りと一緒に書き出す**: `make_guards` で守り (選んでよい行動 `allowed_actions`, 止める条件として台車の位置と棒の角度の範囲, 外れたときの動き `fallback`) を作り, `export_policy` で実験のディレクトリの `policy/` に書き出す
-3. **読み直して守り付きで動かす**: `load_policy` で新しいモデルに読み直し, ML-Found の `evaluate_policy` でシミュレータのエピソードを動かす. 1 歩ごとに `act` が返す行動と守りの結果 (`status`. `ok`, `clipped`, `fallback`, `stop`, `handover`) を数え, `stop` と `handover` は行動を返さないので, そこでエピソードを終える
+3. **読み直して守り付きで動かす**: `load_policy` で新しいモデルに読み直し, ML-Found の `evaluate_policy` でシミュレータのエピソードを動かす. 1 歩ごとに `act` が返す行動と守りの結果 (`status`. `ok`, `clipped`, `fallback`, `stop`, `handover`) を数え, `stop` と `handover` は行動を返さないので, そこでエピソードを終える. あわせて, 同じ一式を推論の段階の ML-Inference の公開の `load_policy` でも読み, 止める条件の内と外の観測で ML-Found の方策と同じ行動と守りの結果を返すかを比べる (ML-Inference はこの比べだけに使う. ルートの README の「導入」で入れる)
 4. **守りの練習**: 止める条件を狭めた別の一式 (`drills/narrow_stop/` と `drills/narrow_fallback/`) も書き出して同じく動かし, 守りが働くこと (止まる, 決めた行動で続ける) を数で確かめる. 練習の一式は使うためのものではない
 5. **守る指標の表**: `evaluate_policy` のエピソードごとの行に守りの名前を足し, `save_evaluation(..., guard=True)` で `evaluations/guarded_episodes.json` に書く
 6. **守りのテスト**: 範囲の外の観測で止まること (`status: stop`, 行動なし) を `test_guards.py` で確かめる. このリポジトリは学習を pytest で判定しないが, 守りは安全の約束なので, 学習しないで済むこの確かめだけは CI で動かす
@@ -62,6 +62,7 @@
 - [x] `RolloutLoader`, `EvaluationLoader`, `ReinforceStep` を `Trainer` に渡して学習でき, `trainer.monitor: valid/reward`, `mode: max` でベストモデルを選ぶ
 - [x] `make_guards` で選んでよい行動, 観測の範囲, 外れたときの動きを持つ守りを作り, `export_policy` で `policy/` (`policy.json` と `policy.pt`) に書き出せる
 - [x] `load_policy` で新しいモデルに読み直し, `act` で守りを当てた行動と `status` を得られる
+- [x] 書き出した一式を ML-Inference の公開の `load_policy` でも読め, 止める条件の内と外の観測と数でない値を含む観測 200 件で, ML-Found の `load_policy(...).act` と同じ行動, `status`, 理由 (`reasons`) を返す
 - [x] `evaluate_policy` で守り付きのエピソードを動かし, エピソードごとの結果の数 (ok, clipped, fallback, stop, handover) と終えた理由 (`end`) を守る指標の表 (`guard: true`) に書ける
 - [x] 範囲の外の観測 (位置 2.5, -2.01, 角度 0.19, -0.5, nan) で `status: stop` と行動なし, 範囲の中で `ok` (`test_guards.py`)
 - [x] Gymnasium が無いと, config の `requires: [rl]` により出力先を作る前に入れ方を示して止まる (`test_guards.py` で Gymnasium を隠して確かめる)
@@ -105,30 +106,32 @@ Gymnasium 1.4.0, PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 
 | 実験 | 学習したエポック | ベストのエポック | 検証の報酬の和 (ベスト) |
 | --- | --- | --- | --- |
-| 1 (`train.yaml`) | 20 | 20 | 500.0 |
+| 1 (`train.yaml`) | 20 | 19 | 500.0 |
 | 2 (quick) | 3 | 3 | 63.6 |
 
 守り付きの評価 (10 エピソード). 歩数は環境を進めた数の合計. 結果の数は `act` を呼んだ判断ごと (止めた判断を含む).
 
 | 実験 | 一式 | 報酬の和の平均 | 歩数 | 止めたエピソード | ok | fallback | stop | clipped, handover |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `policy` | 500.0 | 5000 | 0 | 5000 | 0 | 0 | 0 |
-| 1 | `narrow_stop` | 312.2 | 3122 | 6 | 3122 | 0 | 6 | 0 |
-| 1 | `narrow_fallback` | 335.6 | 3356 | 0 | 3290 | 66 | 0 | 0 |
+| 1 | `policy` | 429.9 | 4299 | 7 | 4299 | 0 | 7 | 0 |
+| 1 | `narrow_stop` | 173.1 | 1731 | 9 | 1731 | 0 | 9 | 0 |
+| 1 | `narrow_fallback` | 195.5 | 1955 | 0 | 1864 | 91 | 0 | 0 |
 | 2 | `policy` | 70.1 | 701 | 10 | 701 | 0 | 10 | 0 |
 | 2 | `narrow_stop` | 24.8 | 248 | 10 | 248 | 0 | 10 | 0 |
 | 2 | `narrow_fallback` | 32.9 | 329 | 0 | 249 | 80 | 0 | 0 |
 
-- 検証の報酬の和は, エポック 6 で 500 に届いた後に下がり, 13 以降はまた 500 前後になる. 報酬が 500 で並ぶエポック (6, 13, 14, 15, 19, 20) から, `trainer.monitor_tiebreak: train/reward` で学習のエピソードの報酬が最も大きいエポック 20 (497.55) をベストに選ぶ. 検証の `valid/entropy` (方策のエントロピー) も記録され, 報酬が 500 で並んでも動く
-- 本番の候補の守り (位置 2.0, 角度 0.18) は, 学習した方策では 1 度も働かず, 学習の足りない方策 (2) では 10 エピソード全てを止める条件で止める. 環境が終わる範囲 (0.2094) より内側に置いたので, 環境が終わる前に止まる
-- 練習の `narrow_stop` では 10 エピソードのうち 6 で止め, `narrow_fallback` では止めずに 66 歩で決めた行動 0 にする. 位置が 0.3 を超えて決めた行動 0 (左) を続けると棒が倒れ, 10 エピソードのうち 6 で環境が終わる (`evaluations/guarded_episodes.json` の `end` が `terminated`. 残り 4 は 500 歩の `truncated`). 外れたときの動きを `action` にするのは, その行動が安全と分かっている場合だけ (人が決める)
+- 検証の報酬の和は, エポック 6 で 500 に届いた後に下がり, 15 以降は 450 から 500 になる. 報酬が 500 で並ぶエポック (6, 17, 19) から, `trainer.monitor_tiebreak: train/reward` で学習のエピソードの報酬が最も大きいエポック 19 (371.9) をベストに選ぶ. 検証の `valid/entropy` (方策のエントロピー) も記録され, 報酬が 500 で並んでも動く
+- 本番の候補の守り (位置 2.0, 角度 0.18) は, 学習した方策 (1) でも 10 エピソードのうち 7 で 305 から 473 歩目に止める条件に当たって止め (残り 3 は 500 歩の `truncated`), 学習の足りない方策 (2) では 10 エピソード全てを止める. 検証の 10 エピソード (シードが別) では 500 歩を続けたが, 守り付きの評価のエピソードでは長く続けるうちに止める条件の内側を外れる. 環境が終わる範囲 (角度 0.2094, 位置 2.4) より内側に置いたので, 環境が終わる前に止まる
+- 練習の `narrow_stop` では 10 エピソードのうち 9 で止め, `narrow_fallback` では止めずに 91 歩で決めた行動 0 にする. 位置が 0.3 を超えて決めた行動 0 (左) を続けると棒が倒れ, 10 エピソードのうち 9 で環境が終わる (`evaluations/guarded_episodes.json` の `end` が `terminated`. 残り 1 は 500 歩の `truncated`). 外れたときの動きを `action` にするのは, その行動が安全と分かっている場合だけ (人が決める)
 - `evaluations/guarded_episodes.json` は 1 行が 1 つの守りの 1 エピソード (`name`, `guards` と `evaluate_policy` の列 `episode`, `seed`, `reward`, `length`, `end`, 守りの結果ごとの数) の 30 行
+- ML-Inference の `load_policy` で読んだ方策は, 3 つの一式とも 200 件全ての観測で ML-Found の方策と同じ行動, `status`, 理由を返す (`train.log` の「ML-Inference の load_policy との比べ」. 本番の候補の一式では `ok` 78 件と `stop` 122 件, 練習の 2 つでは `ok` 3 件と, `stop` か `fallback` が 197 件). 観測は止める条件の内と外にまたがる幅から乱数の種 `evaluation.guarded_seed` で選んだ 199 件と, 位置が nan の 1 件
 - `test_guards.py` の 8 つのテストが通る (1 秒ほど)
 
 ## 気付いたこと
 
 ### ML-Found
 
+- **学習した方策でも本番の候補の守りで止まる**: 1 のベストの方策 (エポック 19) は, 検証の 10 エピソードでは 500 歩を続けるが, 守り付きの評価の 10 エピソードのうち 7 で止める条件 (位置 2.0, 角度 0.18) に当たって止まる. 乱数を固定しているので同じ版では毎回同じ値になるが, 学習の道筋はエポック 6 の後から ML-Found の版によって変わり, 報酬が 500 で並ぶエポックと, `monitor_tiebreak` で選ぶエポックも変わる. REINFORCE の 20 エポックでは, 検証の報酬が 500 に届いても, 長く続けると台車が流れる方策が選ばれることがある. 本番の候補の守りが働かないことを確かめるには, 検証のエピソードを増やすか, 学習のエポックを増やす
 - **`policy.json` の `model_class` が `model.PolicyNet`**: スクリプトの隣の `model.py` から読み込んだので, モジュールの名前は `model` になる. 読む側が組み立て方を探す手がかりとしては弱いので, ML-Found の例と同じく `metadata` の `model` にクラスと引数 (`class`, `args`) を書いた
 - `save_evaluation` の `split` は文字なら何でもよいので `simulator` とした. 環境で評価した表の分割の名前の決まりは無い
 - `config` の `requires` を確かめるのは `start_experiment` なので, その前の `load_project_config` はコマンドの引数を読む. pytest から `main()` を呼ぶと pytest の引数を読んで止まるので, `test_guards.py` は `sys.argv` をスクリプトだけにして呼ぶ

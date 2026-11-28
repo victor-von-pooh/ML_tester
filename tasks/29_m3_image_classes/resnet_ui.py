@@ -31,10 +31,11 @@ WEIGHTS = "IMAGENET1K_V1"
 # 推論する画像の大きさ (前処理の resize と切り出しを通るように大きめ)
 SIZE = 256
 
-# 画面のビルドと配信と, ブラウザの操作を待つ秒数の上限
+# 画面のビルドと配信と, ブラウザの操作を待つ秒数の上限 (ブラウザの操作は
+# resnet_ui.mjs の登録と推論の待ちの合計 1200 秒より長く)
 BUILD_TIMEOUT = 300
 SERVE_TIMEOUT = 60
-BROWSER_TIMEOUT = 900
+BROWSER_TIMEOUT = 1500
 
 
 def draw_images(root: Path) -> list[str]:
@@ -213,14 +214,19 @@ def run_ui(apps: Apps, journey: Journey, setup: dict[str, Any]) -> None:
         base = f"http://127.0.0.1:{port}"
         wait_http(base + "/", SERVE_TIMEOUT)
         journey.add("画面を作って配信", "OK",
-                    "ML-Provide の main の画面 (vite build と preview)")
+                    "ML-Provide の画面 (vite build と preview)")
         browse(apps, journey, setup, frontend, base)
     finally:
-        # 起動に失敗して終わっていれば止めない
-        if preview.poll() is None:
+        # pnpm の子の vite まで止める. 待っても残れば強制の終わり
+        try:
             signal_group(preview, signal.SIGTERM)
-            preview.wait(timeout=20)
-        log.close()
+            try:
+                preview.wait(timeout=20)
+            except subprocess.TimeoutExpired:
+                signal_group(preview, signal.SIGKILL)
+                preview.wait()
+        finally:
+            log.close()
 
 
 def browse(
@@ -255,19 +261,33 @@ def browse(
         "count": len(setup["names"]), "result": str(setup["result"]),
         "shots": str(apps.work / "shots")
     }
+    # 前の結果を読まないように消してから, 別のプロセスのまとまりで動かす
+    # (時間切れのときにブラウザまで止める)
     script = Path(__file__).resolve().parent / "resnet_ui.mjs"
-    done = subprocess.run(
-        ["node", str(script), json.dumps(task)], timeout=BROWSER_TIMEOUT,
-        capture_output=True, text=True
-    )
-    (apps.work / "logs" / "browser.log").write_text(
-        done.stdout + done.stderr, encoding="utf-8"
-    )
+    setup["result"].unlink(missing_ok=True)
+    with (apps.work / "logs" / "browser.log").open("w") as log:
+        process = subprocess.Popen(
+            ["node", str(script), json.dumps(task)], stdout=log,
+            stderr=subprocess.STDOUT, start_new_session=True
+        )
+        try:
+            code = process.wait(timeout=BROWSER_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            signal_group(process, signal.SIGKILL)
+            process.wait()
+            raise RuntimeError(
+                f"ブラウザの操作が {BROWSER_TIMEOUT} 秒で終わりません"
+            )
+    if not setup["result"].exists():
+        raise RuntimeError("ブラウザの操作の結果がありません (logs/"
+                           "browser.log を見る)")
+
+    # 画面の操作の段階 (止まった段階は resnet_ui.mjs が誤りとして書く)
     result = json.loads(setup["result"].read_text(encoding="utf-8"))
     for step in result["steps"]:
         journey.add(step["step"], step["status"], step["note"])
-    if done.returncode != 0:
-        raise RuntimeError(f"ブラウザの操作が止まりました: {result.get('error')}")
+    if code != 0:
+        return
 
     # 画面に出た種類の名前を, ImageNet の種類と直の予測に引き合わせる
     categories = set(ResNet18_Weights[WEIGHTS].meta["categories"])

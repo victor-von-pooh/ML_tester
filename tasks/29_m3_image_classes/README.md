@@ -13,9 +13,9 @@
 
 ```
 29_m3_image_classes/
-├── classes.py   # 同梱の例に画面と同じく入力と出力を当てる部品 (30 も使う)
-├── journey.py   # 合成の画像を作り, 画像の分類で通す
-├── resnet_ui.py # 本物の ResNet18 の一式を画面から登録して推論する通し (画面の配信と引き合わせ)
+├── classes.py    # 同梱の例に画面と同じく入力と出力を当てる部品 (30 も使う)
+├── journey.py    # 合成の画像を作り, 画像の分類で通す
+├── resnet_ui.py  # 本物の ResNet18 の一式を画面から登録して推論する通し (画面の配信と引き合わせ)
 ├── resnet_ui.mjs # resnet_ui.py が動かすブラウザの操作 (ML-Provide の画面の Playwright を使う)
 └── README.md
 ```
@@ -73,7 +73,7 @@ ML-Pathfinder が書き出した骨組み (`project/train.py`) を書き換え�
 .venv/bin/python tasks/29_m3_image_classes/journey.py --work <作業用の場所> --apps <アプリの親のディレクトリ>
 ```
 
-`resnet_ui.py` は ML-Provide だけを起動し (25 の `apps.py`), ML-Provide の画面を作業用の場所の `dist` に作って (`vite build`. clone の中の配信の場所は変えない) `vite preview` で配信し, `node` で `resnet_ui.mjs` を動かしてブラウザを操作する. ML-Provide の `make setup` (画面の依存の `pnpm install`) と, Playwright のブラウザ (ML-Provide の `frontend` で `pnpm exec playwright install chromium`) が要る. 重みは PyTorch の置き場に無ければ初めにネットワークから取りに行く. 画面の写し (下見, 一式の画面, 推論の結果) は作業用の場所の `shots` に, ブラウザの操作の記録は `logs/browser.log` に書く.
+`resnet_ui.py` は ML-Provide だけを起動し (25 の `apps.py`), ML-Provide の画面を作業用の場所の `dist` に作って (`vite build`. clone の中の配信の場所は変えない) `vite preview` で配信し, `node` で `resnet_ui.mjs` を動かしてブラウザを操作する. ML-Provide の `make setup` (画面の依存の `pnpm install`) と, Playwright のブラウザ (ML-Provide の `frontend` で `pnpm exec playwright install chromium`) が要る. 重みは PyTorch の置き場に無ければ初めにネットワークから取りに行く. 画面の写し (下見, 一式の画面, 推論の結果) は作業用の場所の `shots` に, ブラウザの操作の記録は `logs/browser.log` に, 画面の配信の記録は `logs/preview.log` に書く.
 
 ```bash
 .venv/bin/python tasks/29_m3_image_classes/resnet_ui.py
@@ -109,7 +109,7 @@ CI の「通しを測る」で, 5 つのアプリの main を使って動かし�
 
 | 段階 | 判定 | 説明 |
 | --- | --- | --- |
-| 画面を作って配信 | OK | ML-Provide の main の画面 (`vite build` と `vite preview`) |
+| 画面を作って配信 | OK | ML-Provide の画面 (`vite build` と `vite preview`) |
 | 画面を開く (トークンの URL) | OK | 一式の一覧に「既製のモデルから作る」 |
 | 既製のモデルの下見 | OK | 種類 1,000 (tench, goldfish, great white shark ほか), 重みの版 `IMAGENET1K_V1`, 前処理は短い辺を 256 |
 | 作って登録 (一式の画面) | OK | 出どころ torchvision の resnet18 (重み `IMAGENET1K_V1`). 重みは出どころから読んで置き場にある |

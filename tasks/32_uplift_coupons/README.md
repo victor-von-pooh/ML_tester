@@ -106,7 +106,7 @@ ML-CreateArchitecture の `POST /api/dataset/inputs` が答えない場合は, �
 
 ## 気付いたこと
 
-- **ML-CreateArchitecture のデータセットの入力は parquet の表を読む**: ML-Fathom (ML-EDA を `ml-eda[all]` で入れる) は表を parquet で書き出す. ML-CreateArchitecture の追加の依存 `project` は ML-EDA を `ml-eda[parquet]` で入れるので pyarrow があり, `POST /api/dataset/inputs` は効果の見積もりの処置の列と行の id の列を読むために表まで読める (`dataset_uplift` から `dataset_section`). `PUT /api/project/model` もデータセットで決まる形の最後の大きさを確かめ, 注意は出ない. 表を読む部品が欠けた環境では, 欠けた部品の名前付きの 501 になる. 表を読むのは効果の見積もり, 値段を変える判断, 時間をまたぐ量の判断の説明の項目 (`uplift`, `price`, `demand`) だけで, 表の分類 (25) の入力は表を読まない
+- **ML-CreateArchitecture のデータセットの入力は parquet の表を読む**: ML-Fathom (ML-EDA を `ml-eda[all]` で入れる) は表を parquet で書き出す. ML-CreateArchitecture の追加の依存 `project` は ML-EDA を `ml-eda[parquet]` で入れるので pyarrow があり, `POST /api/dataset/inputs` は効果の見積もりの処置の列と行の id の列を読むために表まで読める (`dataset_uplift` から `dataset_section`). `PUT /api/project/model` もデータセットで決まる形の最後の大きさを確かめ, 注意は出ない. 表を読む部品が欠けた環境では, データセットの入力は欠けた部品の名前付きの 501 になり, 保存はその文を注意で返す (保存はできる). 表を読むのは効果の見積もり, 値段を変える判断, 時間をまたぐ量の判断の説明の項目 (`uplift`, `price`, `demand`) だけで, 表の分類 (25) の入力は表を読まない
 - 効果の一式は ML-Provide で問題の設定を使わない (配る数の上限は ML-Quest が骨組みの config に写し, 骨組みが一式に写す). 一式の画面に問題の設定の欄が出ないので, 学習の後に配る数の上限を変えるには, 推論で配る判断 (`decision` の `budget`) を渡すか, 問題の設定を直して骨組みを書き出し直す
 - 効果を見積もるには見本が無いので, 見本「解約の引き止め」から作って課題と受け持ちを答え直す (ML-Pathfinder の効果の見積もりのテストと同じ作り方). 答え直す問いは, 表を入れる前の 30 と後の 10
 - ML-Fathom の介入の記録の要約 (`POST /api/sources/{id}/uplift`) は, 問題の設定から開いたレシピの処置, 結果, 結果の種類, 行の id の列をそのまま渡せる. 配った後に決まる列 `used` を気付きに出し, 雛形のレシピが同じ列を落とす (問題の設定の受け渡しの除く列)

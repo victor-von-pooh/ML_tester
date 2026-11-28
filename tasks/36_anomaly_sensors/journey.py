@@ -29,6 +29,9 @@ LABELED_RATE = 0.3
 # 人が確かめる件数の上限 (評価の上位 K 件も同じ)
 CAPACITY = 20
 
+# 度合いが当たったと見なす, 異常の割合 (でたらめな度合いの値) に対する倍率
+LIFT = 5
+
 # 度合いの決め方, 骨組みの雛形
 SCORE = "autoencoder"
 EXAMPLE = "tabular_autoencoder"
@@ -401,7 +404,8 @@ def make_model(
     })
     journey.add(
         "ML-CreateArchitecture (雛形を列の数に書き換え, 保存)",
-        status if not saved.get("notes") or code != 200 else "誤り",
+        # 入力が読めず手で写した場合も, 保存の注意があれば誤り
+        status if not saved.get("notes") else "誤り",
         f"{note}. 列 {columns}, 入力 {spec['inputs']['x']['shape']}, "
         f"出力 {sorted(spec['outputs'])}, 注意 "
         f"{saved.get('notes') or []}"
@@ -478,10 +482,10 @@ def train(
     best = run.get("best") or {}
     journey.add(
         "学習 (骨組みを書き換えない) と度合いの評価",
-        # PR-AUC が異常の割合 (でたらめな度合いの PR-AUC) を超えること
+        # PR-AUC が異常の割合 (でたらめな度合いの PR-AUC) の LIFT 倍以上
         "OK" if test.get("precision_at_k") is not None
         and test.get("rows") and test.get("average_precision", 0)
-        > test.get("anomalies", 0) / test["rows"] else "誤り",
+        >= LIFT * test.get("anomalies", 0) / test["rows"] else "誤り",
         f"{time.time() - started_at:.0f} 秒, {best.get('monitor')} "
         f"{rounded(best.get('value'))}. テスト用 ({test.get('rows')} 行, "
         f"異常 {test.get('anomalies')} 行): 上位 {CAPACITY} 件の"
@@ -561,8 +565,9 @@ def provide(
         "OK" if queue["problem"] is None and queue["capacity"] == CAPACITY
         and len(queue["rows"]) == CAPACITY and ordered
         and all(r["key"] for r in queue["rows"])
-        # 回した行の異常の割合が, 試しの記録の全体の異常の割合を超えること
-        and hits / CAPACITY > float(truth.mean()) else "誤り",
+        # 回した行の異常の割合が, 試しの記録の全体の異常の割合の LIFT 倍
+        # 以上
+        and hits / CAPACITY >= LIFT * float(truth.mean()) else "誤り",
         f"{result['summary'].get('predicted')} 行を推論, 回した "
         f"{len(queue['rows'])} 行 (上限 {queue['capacity']}, 度合いの高い"
         f"順 {ordered}, 行の id の列 {queue['id']}). 回した行のうち正解が"

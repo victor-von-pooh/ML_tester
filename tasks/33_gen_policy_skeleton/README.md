@@ -6,6 +6,7 @@
 
 - **画像の生成** (`generate/`): 課題は「試験に使う手書きの数字の画像が足りない」(架空). 受け持ちは作るで, 正解の種類と出力の形が画像 (条件の無い画像の生成). データは 11 と同じ MNIST の手書きの数字. 骨組みが拡散のモデルを学び, 学習の後に ML-Inference の雑音だけの一式 (版 5) を作る. 推論の段階で件数と種を渡して画像を作る
 - **方策** (`policy/`): 課題は「台車の上の棒を立て続けるのに, 人が付きっきりで押す」(架空). 受け持ちは効果を見積もるで方策, 環境は 24 と同じ Gymnasium の `CartPole-v1`. 骨組みが方策を学んで守りと一緒に方策の一式を書き出す. 推論の段階で ML-Inference の `load_policy` でモデルを渡さずに読み, 守りを当てたまま環境で動かす
+- **方策を画面で通す** (`provide.py`): 方策の問題の設定を ML-Pathfinder に取り込んで骨組みを書き出し, ML-Dashboard で骨組みを書き換えずに学習し, ML-Provide の方策の実験の一覧から一式を登録して, 観測から行動と守りの結果を出すまでを, 3 つの画面のアプリの API だけで通す (25 から 32 と同じ形. 段階ごとに OK, 手, 誤りを表にする)
 
 **道具の外にあるもの**: 方策の一式は観測から行動と守りの結果を返すだけで, 実機は動かさない. 方策を使ってよいかと守りの範囲は人が決めて承認する (ここで渡した範囲は確かめのための例).
 
@@ -16,6 +17,7 @@
 ├── setup_problem.py    # 2 つの問題の設定を確かめ, それぞれの problem.yaml と骨組み (project/) を書き出す
 ├── prepare.py          # MNIST の一部を PNG にし, レシピの雛形で generate/project/ にデータセットを書き出し, 雑音を当てるモデルの定義を置く
 ├── infer.py            # 2 つの一式を ML-Inference で読む (雑音だけの一式で画像を作る, load_policy で CartPole を守り付きで動かす)
+├── provide.py          # 方策の問題の設定から, ML-Provide の一覧からの登録と観測からの行動までを画面の API で通す
 ├── generate/
 │   ├── problem.yaml    # 画像の生成の問題の設定 (setup_problem.py が書く)
 │   └── project/        # ML-Quest が書き出した骨組み (README.md, problem.yaml, configs, train.py) と, prepare.py が置く models/model.yaml
@@ -51,12 +53,16 @@
 - [x] 推論の段階 (ML-Inference の `load_bundle` と `predict`) で, 雑音だけの一式から件数と種で画像ができ, 骨組みの見本と同じ画像になる
 - [x] 方策の骨組みを書き換えずに学習でき, 守りと一緒に方策の一式ができる
 - [x] 推論の段階 (ML-Inference の `load_policy`) で, モデルを渡さずに方策の一式を読み, 守りを当てたまま環境で動かせる
+- [x] 方策の問題の設定を ML-Pathfinder に取り込んで骨組みを書き出し, ML-Dashboard で一覧から登録して, 守りを experiment の config で数にして骨組みを書き換えずに学習できる
+- [x] 学習した一式が ML-Provide の方策の実験の一覧 (`GET /api/experiments/policies`) に出て, 一覧から登録でき, 登録の後の行が登録した id を持つ
+- [x] ML-Provide の `act` で, 守りの範囲の中の観測から行動と `ok`, 範囲の外と数でない値の観測から外れたときの動きの行動 0 と `fallback` と理由が出て, `act` で CartPole の 1 エピソードを動かせる
 
 ## 期待する結果
 
 - `setup_problem.py` の確かめは 2 つとも 0 件 (「確かめ: 0 件」と出る)
 - 画像の生成: `train.log` の最後に「推論の一式 (雑音だけ): inference/」が出る. `infer.py` の結果が全て `ok` で, 骨組みの見本との差が 2.5 / 255 以下 (見本は PNG に丸めた値. 超えると終了番号 1 で止まる)
 - 方策: `train.log` の最後に守り付きの評価が出て, 実験の中に `policy/` ができる. `infer.py` で余った重みが無く, 守りの結果が全て `ok` で, 報酬の和が出る (余った重みがあるか, ok でない歩があると終了番号 1 で止まる)
+- `provide.py`: 段階ごとの表の誤りの段階が 0 (1 つでもあれば終了番号 1). 作業用の場所の `journey.json` に同じ表を書く
 
 ## 実行方法
 
@@ -79,6 +85,16 @@ python tasks/33_gen_policy_skeleton/infer.py
 ```
 
 - `infer.py` は, それぞれの骨組みの `outputs/` の中で最も新しい実験の一式を読む
+
+方策を画面で通す (3 つのアプリを clone して `make setup` したディレクトリの親を `--apps` で渡す. 既定はこのリポジトリと同じ並び. 作業用の場所は `--work` で, 既定は一時ディレクトリ):
+
+```bash
+python tasks/33_gen_policy_skeleton/provide.py   # ML-Pathfinder, ML-Dashboard, ML-Provide を 25 の apps.py で起動して通す (1 分ほど)
+```
+
+- `provide.py` は `policy/problem.yaml` を取り込むので, 先に `setup_problem.py` を動かす. 骨組みは作業用の場所の `project/` に書き出し, このディレクトリの `policy/project/` は使わない
+- 守りの数 (選んでよい行動 0 と 1, 台車の位置が -2.4 から 2.4) は, 画面の config の編集と同じく ML-Dashboard の学習の依頼の experiment の config で渡す (上の実験 2 と同じ数. `diff.yaml` に残る)
+- `act` で動かすエピソードの環境は手元の Gymnasium で, ML-Provide は観測から行動と守りの結果を返すだけ
 - `setup_problem.py` は, 答えが前の `problem.yaml` と同じなら時刻を含めて前のものを使う (実行のたびに差分を出さない)
 - `generate/project/train.py` と `policy/project/train.py` が, データセットや定義が足りないときに「README の『次にすること』」と案内するのは, それぞれの骨組みの `project/README.md` のこと
 
@@ -106,6 +122,21 @@ PyTorch 2.15.0, Gymnasium 1.4.0, Apple Silicon の Mac での値 (画像の生�
 - 検証の報酬の和はエポック 3 から上限の 500 に届き, ベストは同じ値が並んだときの学習のエピソードの報酬 (`monitor_tiebreak`) でエポック 7. 学習時間は 18 秒ほど. 方策の頭は, 骨組みが観測と行動の空間から書いて git に入れた既定の定義 `policy/project/models/policy.yaml` で組み立てる (2 つの実験で同じ)
 - `infer.py` が `load_policy` で読んだ一式は, 2 つとも余った重みが無い. 2 の位置の範囲 (2.4) は CartPole がエピソードを終える位置と同じなので, 守りの結果は全て `ok` で, 守りが働く場面は無い (守りが働くことの確かめは 24 の練習の一式)
 
+- 方策を画面で通す (`provide.py`): 誤りの段階 0, 手の段階 0
+
+| 段階 | 判定 | 結果 |
+| --- | --- | --- |
+| 問題の設定を取り込む (ML-Pathfinder) | OK | 「台車の棒を立て続ける」, 直すところ 0 件 |
+| 骨組みの書き出し | OK | 6 つのファイル. 場所を問題の設定に記録 |
+| ML-Dashboard で一覧から登録 | OK | 問題の設定が記録したプロジェクト |
+| 環境を作る | OK | 足りない機能なし (全てがそろったかは False. 下の「気付いたこと」) |
+| 学習 (守りを experiment の config で数に) | OK | ベストのエポック 7, `valid/reward` 500.0, 守り付きの評価 平均 500.0, ok 5000 |
+| ML-Provide で方策の実験を一覧から登録 | OK | 行が登録した id を持つ. 一式の守りは選んでよい行動 0 と 1, 台車の位置の上限 2.4 |
+| 観測から行動と守りの結果 (範囲の中 `[0, 0, 0.02, 0]`) | OK | 行動 1, `ok` |
+| 同 (位置が範囲の外 `[3, 0, 0, 0]`) | OK | 行動 0, `fallback`, 理由「観測の要素 0 が範囲の外 (3)」 |
+| 同 (位置が nan) | OK | 行動 0, `fallback`, 理由「観測に有限でない値がある (float32 での丸めも含む)」 |
+| `act` で CartPole の 1 エピソード (種 40000) | OK | 報酬の和 500, `ok` 500 |
+
 ## 気付いたこと
 
 ### ML-Quest
@@ -114,6 +145,14 @@ PyTorch 2.15.0, Gymnasium 1.4.0, Apple Silicon の Mac での値 (画像の生�
 - **画像の生成の `task.yaml` に正解の出どころとデータセットが入らない**: 骨組みの `train.py` は `write_task` に受け持ち, 出力の形, 作るもの, 作り方だけを渡す. そのため `task.yaml` の `target` は種類が null で出どころが `unknown`, `dataset` は場所が null になり, `train.log` に「正解の出どころは分からない. 指標が何との一致かを確かめる」と出る. 問題の設定の答えは `target.source: self` (データそのもの) と `target.kind: image` で, データセットは config の `data.dataset` から読んでいる. 方策の骨組みは出どころ (`environment`) を渡している
 - **方策の守りの文が数にならない**: 問題の設定の守り (「左右に押すだけ」「台車が中心から 2.4 を出たら」) は文なので, 骨組みの config の `guards` は数が空 (`null`) のまま書き出され, 既定のままの学習では方策の一式の `guards_set` が false (範囲の守りが入らない) になる. 骨組みの README の「次にすること」の 2 と config の印 (TODO) がそれを案内する. 骨組みを書き換えずに守りを入れるには, コマンドの上書きで数を渡す (実験 2). 上書きは `diff.yaml` に残る
 - **外れたときの動きの選択肢の例が CartPole に合わない**: 選択肢の名前は「決めた行動にする (例: 動かさない)」. ただし CartPole の行動は「左に押す (0)」と「右に押す (1)」だけで, 動かさない行動は無い. 決めた行動 0 は左に押すことで, 例の文のとおりにはならない
+
+### ML-Dashboard
+
+- **方策の骨組みは最初の学習の前に「全てがそろった」にならない**: 方策の骨組みの config の `model.spec` (`models/policy.yaml`) は, 骨組みの `train.py` が最初の学習で観測と行動の空間から書く. そのため書き出した直後のプロジェクトでは, 環境を作り終えても学習の準備 (`GET /api/projects/{id}/readiness`) の `ready` が False (モデルの定義 False) のままで, 画面の準備のカードに「学習を始める準備ができています」が出ない. 学習の依頼はそのまま通り, 学習の後に定義ができる. 異常の検知の骨組みのように config に `model.placeholder: true` を書けば, 定義が無くても準備ができたと数える
+
+### ML-Provide
+
+- 骨組みの学習の方策の一式は, 方策の実験の一覧 (`GET /api/experiments/policies`) に問題の設定の名前と実験の場所で出て, 一覧から登録できる. 登録した一式は `act` で観測から行動, 守りの結果, 理由を返す. 守りの数は学習の時の experiment の config の値が一式に入る
 
 ### ML-Inference
 

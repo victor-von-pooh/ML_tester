@@ -10,6 +10,7 @@
 4. **守りの練習**: 止める条件を狭めた別の一式 (`drills/narrow_stop/` と `drills/narrow_fallback/`) も書き出して同じく動かし, 守りが働くこと (止まる, 決めた行動で続ける) を数で確かめる. 練習の一式は使うためのものではない
 5. **守る指標の表**: `evaluate_policy` のエピソードごとの行に守りの名前を足し, `save_evaluation(..., guard=True)` で `evaluations/guarded_episodes.json` に書く
 6. **守りのテスト**: 範囲の外の観測で止まること (`status: stop`, 行動なし) を `test_guards.py` で確かめる. このリポジトリは学習を pytest で判定しないが, 守りは安全の約束なので, 学習しないで済むこの確かめだけは CI で動かす
+7. **記録した経験からの見積もり**: 学習した方策を ε-greedy (ε 0.2. ε の確率で選んでよい行動から一様に選ぶ) にして `evaluate_policy` に渡し, 行動を選んだ確率 `action_prob` 付きの軌跡を `save_trajectory` で `trajectories/epsilon_greedy.csv` に書く (`off_policy.py`). 軌跡を ML-Fathom の画面の API で登録して要約を読み, ML-Found の `estimate_policy_value` で, ε の違う方策の良さを環境で動かさずに見積もり, 同じ方策を環境で動かした値と比べる
 
 **道具の外にあるもの**: 書き出した方策は, 観測から行動と守りの結果を返すだけで, 環境や機械には触れない. **実機 (ハードウェア) での実行は道具の外**で, ML-Found も推論の段階も実機を動かさない. **方策を使ってよいか (配備) と守りの範囲 (止める条件の値, 外れたときの動き) は人が決めて承認する**. ここで config に書いた範囲は確かめのための例で, 承認を経た値ではない (相談 7 の原則の当てはめ).
 
@@ -26,7 +27,8 @@
 ├── model.py                        # PolicyNet (観測から行動ごとのスコア. 隠れ層 1 つ)
 ├── train.py                        # 学習, 守りと一緒に書き出し, 読み直して守り付きで動かす
 ├── test_guards.py                  # 範囲の外の観測で止まる, Gymnasium が無いと入れ方を示して止まる (pytest)
-└── outputs/                        # cartpole/<日付>/<時刻>/ (実験. policy/, drills/, evaluations/ を含む. git の管理外)
+├── off_policy.py                   # ε-greedy の軌跡を書き, ML-Fathom で分析し, 方策の良さを見積もる
+└── outputs/                        # cartpole/<日付>/<時刻>/ (実験. policy/, drills/, evaluations/, off_policy.py の trajectories/ と fathom/ を含む. git の管理外)
 ```
 
 ## データ
@@ -67,6 +69,9 @@
 - [x] 範囲の外の観測 (位置 2.5, -2.01, 角度 0.19, -0.5, nan) で `status: stop` と行動なし, 範囲の中で `ok` (`test_guards.py`)
 - [x] Gymnasium が無いと, config の `requires: [rl]` により出力先を作る前に入れ方を示して止まる (`test_guards.py` で Gymnasium を隠して確かめる)
 - [x] `task.yaml` を書ける (受け持ちは `effect`, 出力の形は `action`, 正解の種類は `reward`, 正解の出どころは `environment`)
+- [x] 確率で行動を選ぶ方策 (`act` が `action_prob` を返す) を `evaluate_policy` に渡し, `action_prob` 付きの軌跡を `save_trajectory` で書ける
+- [x] 書いた軌跡を ML-Fathom の画面の API で登録でき (読み込みの候補の先頭が `trajectory`), 要約のエピソード, 歩数, 報酬の和が記録と同じで, 行動を選んだ確率の要約と守りの結果が出る
+- [x] `estimate_policy_value` で, 記録と同じ ε の方策は記録した方策の平均と同じ値, ε の違う方策は見積もりと有効なサンプルの数が出て, ε 0 (最もスコアの高い行動だけ) は重みが全て 0 で決まらないと知らせる
 
 ## 期待する結果
 
@@ -74,6 +79,7 @@
 - 練習の一式では止める条件が狭いので, `narrow_stop` はいくつかのエピソードを途中で止め (`stop`), `narrow_fallback` は止めずに行動 0 で続ける (`fallback`)
 - 2 では学習が足りず棒が傾くので, 本番の候補の守りでも止まるエピソードが出る
 - 実験のディレクトリに `policy/`, `drills/narrow_stop/`, `drills/narrow_fallback/`, `evaluations/guarded_episodes.json`, `task.yaml` ができる
+- 4 で `trajectories/epsilon_greedy.csv` (と説明の `.json`), `evaluations/off_policy.json` (ε ごとの見積もりと環境で動かした値) と, 段階ごとの判定の `evaluations/off_policy_journey.json` ができ, 誤りの段階が 0 (1 つでもあれば終了番号 1). 記録と ε が遠い方策ほど有効なサンプルの数が減り, 見積もりは当てにならないと知らせる
 
 ## 実行方法
 
@@ -96,9 +102,12 @@
 python tasks/24_rl_cartpole/train.py                                                          # 1. 学習 (20 エポック)
 python tasks/24_rl_cartpole/train.py --experiment configs/experiment/examples/quick.yaml      # 2. 動作の確認 (3 エポック)
 python -m pytest tasks/24_rl_cartpole                                                         # 3. 守りのテスト
+python tasks/24_rl_cartpole/off_policy.py                                                     # 4. 記録した経験からの見積もり (1 の後)
 ```
 
-CPU で, 1 は 10 秒ほど, 2 は 3 秒ほど, 3 は 1 秒ほど (Python の起動を含む). 3 には pytest が要る (ルートの README の「導入」で入れる).
+CPU で, 1 は 10 秒ほど, 2 は 3 秒ほど, 3 は 1 秒ほど, 4 は 20 秒ほど (Python と ML-Fathom の起動を含む). 3 には pytest が要る (ルートの README の「導入」で入れる).
+
+4 は `outputs/` の中で最も新しい実験の `policy/` を読む (`--run` で実験を選べる). ML-Fathom の画面のアプリを, 25 の `apps.py` で実験の中の `fathom/` を置き場にして起動し, 終えたら止める. ML-Fathom を clone して `make setup` したディレクトリの親を `--apps` で渡す (既定はこのリポジトリと同じ並び).
 
 ## 結果のメモ
 
@@ -127,6 +136,21 @@ Gymnasium 1.4.0, PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 - ML-Inference の `load_policy` で読んだ方策は, 3 つの一式とも 200 件全ての観測で ML-Found の方策と同じ行動, `status`, 理由を返す (`train.log` の「ML-Inference の load_policy との比べ」. 本番の候補の一式では `ok` 78 件と `stop` 122 件, 練習の 2 つでは `ok` 3 件と, `stop` か `fallback` が 197 件). 観測は止める条件の内と外にまたがる幅から乱数の種 `evaluation.guarded_seed` で選んだ 199 件と, 位置が nan の 1 件
 - `test_guards.py` の 8 つのテストが通る (1 秒ほど)
 
+記録した経験からの見積もり (4. 1 の実験の方策). 記録は ε 0.2 の 100 エピソード (種 40000 から) で, 歩数 39,330, 報酬の和の平均 393.3, 終わり方は 500 歩の打ち切り 27 と守りの止め 73. 環境で動かした値は同じ ε の方策の 100 エピソード (種 50000 から) の報酬の和の平均. 割引率は 1.
+
+| 見積もる ε | 見積もり (重み付き) | 歩ごとの見積もり | 環境で動かした値 | 有効なサンプルの数 | 当てにならない (`low_ess`) |
+| --- | --- | --- | --- | --- | --- |
+| 0.2 (記録と同じ) | 393.3 | 393.3 | 387.1 | 100.0 | いいえ |
+| 0.19 | 397.6 | 400.8 | 382.4 | 89.5 | いいえ |
+| 0.15 | 395.2 | 446.8 | 411.5 | 6.3 | はい |
+| 0.1 | 375.8 | 439.7 | 404.8 | 1.3 | はい |
+| 0 | 決まらない | 60.5 | 461.8 | 0.0 | いいえ (決まらない場合) |
+
+- ML-Fathom は軌跡の表を読み込みの候補の先頭 `trajectory` で登録し, 要約のエピソード (100), 歩数 (39,330), 報酬の和の平均 (393.3) が `evaluate_policy` の行と同じ. 行動を選んだ確率は, 欠けが守りで止めた 73 行, 範囲の外が 0, 最小 0.1, 最大 0.9 (ε 0.2 と行動 2 つから決まる 2 つの値). 守りの結果は `ok` 39,330 と `stop` 73
+- 記録と同じ ε 0.2 では重みが全て 1 で, 見積もりは記録した方策の平均 393.3 と一致する. ε 0.19 では有効なサンプルの数 89.5 で, 環境で動かした値との差は 15 ほど (環境で動かした値も 100 エピソードの平均で, ε 0.2 の記録と環境の値の差 6 ほどと同じ程度のぶれを含む)
+- ε 0.15 から有効なサンプルの数がエピソードの 1 割を下回り, `low_ess` で当てにならないと知らせる. ε 0.1 では最も大きい重みが全体の 87% を占める. 1 エピソードが 400 歩ほどと長いので, 1 歩の確率の比 (0.95 / 0.9 か 0.05 / 0.1) がエピソードの長さだけ掛かり, ε の小さな違いでも重みが大きくばらつく
+- ε 0 は, 記録した方策が ε で替えた歩 (3,954 歩) を含む 100 エピソード全ての重みが 0 になり, 重み付きの見積もりは決まらない (`value` が None で, 「見積もる方策に近い方策で記録してください」と知らせる)
+
 ## 気付いたこと
 
 ### ML-Found
@@ -135,3 +159,11 @@ Gymnasium 1.4.0, PyTorch 2.15.0, CPU (Apple Silicon の Mac) での値.
 - **`policy.json` の `model_class` が `model.PolicyNet`**: スクリプトの隣の `model.py` から読み込んだので, モジュールの名前は `model` になる. 読む側が組み立て方を探す手がかりとしては弱いので, ML-Found の例と同じく `metadata` の `model` にクラスと引数 (`class`, `args`) を書いた
 - `save_evaluation` の `split` は文字なら何でもよいので `simulator` とした. 環境で評価した表の分割の名前の決まりは無い
 - `config` の `requires` を確かめるのは `start_experiment` なので, その前の `load_project_config` はコマンドの引数を読む. pytest から `main()` を呼ぶと pytest の引数を読んで止まるので, `test_guards.py` は `sys.argv` をスクリプトだけにして呼ぶ
+- **ε-greedy の方策は `act` を包んで作る**: `evaluate_policy` は `act` が返す `action_prob` を軌跡に書くだけなので, 確率で選ぶ方策は利用者が書く. `off_policy.py` は守りを当てた方策の `act` の行動を ε の確率で選んでよい行動から替え, 選んだ確率を添える. 守りが働いた判断 (`ok` でない) は替えない. 守りの範囲の確かめは観測だけで決まるので, 行動を替えても守りの結果は変わらない
+- **最もスコアの高い行動だけの方策は見積もれない**: 重み付きの見積もりは, 見積もる方策が選ばない行動を記録した方策がとったエピソードの重みを 0 にする. ε 0 の方策では全てのエピソードの重みが 0 で `value` が None になり, `low_ess` も False (決まらない場合の決まり) になる. 歩ごとの見積もり (`per_decision`) は 60.5 と値を返すが, 環境で動かした値 461.8 から遠い. `value` が None のときは `per_decision` を使わない
+- **長いエピソードでは見積もりの幅が狭い**: エピソードごとの重みは歩ごとの確率の比の積なので, 400 歩ほどのエピソードでは ε 0.2 から 0.15 に変えるだけで有効なサンプルの数が 100 から 6.3 に減る. 見積もりを当てにできるのは記録した方策にごく近い方策 (ここでは ε 0.19) だけ
+
+### ML-Fathom と ML-EDA
+
+- 軌跡の表は読み込みの候補の先頭に `trajectory` が出て, 登録と要約 (`GET /api/sources/{id}/trajectory`) が画面の API だけで通る. 要約の数は `evaluate_policy` の行と一致する
+- **守りが働いた理由が観測の値ごとに分かれる**: 守りの要約の「働いた理由ごとの行の数」は理由の文をそのまま数える. ML-Found の理由の文は範囲の外の値を含む (「観測の要素 0 が範囲の外 (-2.00754)」) ので, 止めた 73 行が 72 種類の理由になり, どの要素で止めたかの集計にならない

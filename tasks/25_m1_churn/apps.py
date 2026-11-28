@@ -1,7 +1,8 @@
 """
 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture,
 ML-Dashboard, ML-Provide) を作業用の置き場で起動し, 画面と同じ API で
-問題の設定から推論までを通す部品 (25 から 32 で使う)
+問題の設定から推論までを通す部品 (22, 23 と 25 から 39 の journey.py と,
+24 の off_policy.py, 29 の resnet_ui.py, 33 の provide.py で使う)
 """
 import argparse
 import http.client
@@ -979,4 +980,4 @@ def main_with(
 
 
 if __name__ == "__main__":
-    sys.exit("25 から 32 の journey.py から使う")
+    sys.exit("各タスクの journey.py などから使う (docstring を参照)")

@@ -21,12 +21,14 @@ pip install -e "./ML-Found[examples,rl]"    # scikit-learn と, 24 で使う Gym
 pip install torchvision==0.29.2           # 02, 08 から 11 と 33 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@76c6bfc"   # 13, 17, 18, 21, 33 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@660ea3b"   # 14 から 23 と, 27, 28 の合成のデータと, 33 で使う (all に部分語の tokenizers も入る. 22 と 23 は書き出しの版 2 を使う)
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@660ea3b"   # 14 から 18 と, 22, 23, 27, 28 の合成のデータと, 33 で使う (all に部分語の tokenizers も入る)
 pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@4a3f153"   # 17 から 21 と 24, 33 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
 pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@8695ffb"   # 21 と 33 で使う (依存の pandas と PyYAML は上で入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 pip install pytest                        # 24 の守りのテスト (tasks/24_rl_cartpole/test_guards.py) で使う
 ```
+
+22, 23, 25 から 39 の画面のアプリの通し (`journey.py`) と, 24 の `off_policy.py`, 29 の `resnet_ui.py`, 33 の `provide.py` は, 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard, ML-Provide) を ML_tester と同じ並びに clone し, 各アプリの README の手順で `make setup` しておく (アプリの親のディレクトリは `--apps` で変えられる). 39 は scikit-learn (上の ML-Found の `examples` で入る) で本物の表 (California Housing) を取りに行く. 29 の `resnet_ui.py` は, さらに node と pnpm, ML-Provide の画面の依存 (`make setup` の `pnpm install`) と Playwright のブラウザ (ML-Provide の `frontend` で `pnpm exec playwright install chromium`) が要る
 
 ## ML-Dashboard で見る
 
@@ -34,7 +36,7 @@ pip install pytest                        # 24 の守りのテスト (tasks/24_r
 
 1. 上の「導入」で `.venv` を作っておく. 学習に使う Python は, 登録したときにタスクのディレクトリから上に向かって仮想環境を探して決まるので, 先に作ると `.venv` が自動で選ばれる
 2. ML-Dashboard を ML_tester とは別のディレクトリに clone し, その README の「導入と起動」の手順で起動して, 表示されたトークン付きの URL を開く
-3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 22 のプロジェクト (01 から 18 と, 21 の `project/`, 22 から 24. 19, 20, 25 から 32 は学習のスクリプトを持たないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外. 33 の `generate/project/` と `policy/project/` は ML-Dashboard が探す深さ (3 階層) より下なので候補に出ない. 使うならプロジェクトのディレクトリを直に入れて登録する). そのまま「22 件を追加」で登録する
+3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 20 のプロジェクト (01 から 18 と, 21 の `project/`, 24. 19, 20, 22, 23, 25 から 39 は学習のスクリプトを持たないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外. 33 の `generate/project/` と `policy/project/` は ML-Dashboard が探す深さ (3 階層) より下なので候補に出ない. 使うならプロジェクトのディレクトリを直に入れて登録する). そのまま「20 件を追加」で登録する
 
 clone した直後は実験が無いので, 各タスクの README の手順で学習するか, 画面から起動すると一覧に出る.
 
@@ -70,18 +72,24 @@ clone した直後は実験が無いので, 各タスクの README の手順で�
 | 19 | `tasks/19_inference` | 学習したモデルで推論し, 結論を出す | 17 と 18 のデータ | 17 と 18 の学習の結果から ML-Inference で推論の一式を作り, 学習のときのテスト用の評価と同じ値になるかを確かめる. 結論 (保留, 値の帯, 店ごと) と ML-Provide の画面 (推論の段階) |
 | 20 | `tasks/20_decision` | 予測から意思決定へ | 17 と 18 のデータ | 18 の売上の予測から置く量 (損の比と予測の外れ方), 17 のレビューから人が確かめるもの (損の比のしきい値, 人手の上限) を決め, 予測どおりと今のやり方と過去のデータで比べる (ML-Inference の意思決定) |
 | 21 | `tasks/21_problem_setting` | 問題の設定から推論まで | 合成した総菜の売れた数 | ML-Quest の問題の設定から骨組みを書き出し, 受け渡しの値でデータセットとモデルの定義を置いて学習し, 問題の設定の損得と比べる相手と成功の基準でたどり直す (5 つの段階の通し) |
-| 22 | `tasks/22_image_masks` | 画像と領域の対の学習 (書き出しの版 2) | ML-EDA の合成の見本の画像と領域 | `export_image_masks` で版 2 に書き出し (正解の出どころ synthetic), `load_items` を torch の Dataset に包んで領域の分割を学習, IoU (データの分析と学習の交点) |
-| 23 | `tasks/23_capture_clouds` | 多視点の撮影から点群を作る (書き出しの版 2) | ML-EDA の合成の見本の撮影と正確な点群 | `export_capture_clouds` の正規化, `load_items` の撮影の深度から点に戻して点群を予測, Chamfer 距離を `trainer.valid_every_n_epochs` で数エポックおきに測ってベストを選ぶ, 新しい撮影に `normalize_capture` |
-| 24 | `tasks/24_rl_cartpole` | CartPole の方策の強化学習と守り | Gymnasium の CartPole (シミュレータ) | `ml_found.rl` の `RolloutLoader` と `ReinforceStep` で学習 (`valid/reward`, max), 守り (選んでよい行動, 止める条件, 外れたときの動き) と一緒に書き出し, 読み直して守り付きで動かし結果の数を守る指標の表に. 実機での実行は道具の外で, 配備と守りの範囲は人が承認する |
+| 22 | `tasks/22_image_masks` | 画像と領域の対を画面だけで通す | ML-EDA の合成の見本の画像と領域 (大きさはそろう) | 問題の設定から推論まで画面のアプリの API だけで, ライブラリの関数を呼ぶコードを書かずに通す. ML-Fathom の書き出しの画面で正解の出どころ (`synthetic`) を入れ, U-Net の同梱の例を骨組みを書き換えずに学習し, 新しい画像の領域を ML-Provide で推論 (大きさの混ざる画像は 27) |
+| 23 | `tasks/23_capture_clouds` | 多視点の撮影から点群を画面だけで通す | ML-EDA の合成の見本の撮影と正確な点群 | 22 と同じ通しを撮影と点群で. 書き出しの物の中心の平行移動, 骨組みの config のまま Chamfer 距離を `trainer.valid_every_n_epochs` で数エポックおきに測る, 推論の点群が元の座標に戻るか (原点から離して置いた形は 28) |
+| 24 | `tasks/24_rl_cartpole` | CartPole の方策の強化学習と守り | Gymnasium の CartPole (シミュレータ) | `ml_found.rl` の `RolloutLoader` と `ReinforceStep` で学習 (`valid/reward`, max), 守り (選んでよい行動, 止める条件, 外れたときの動き) と一緒に書き出し, 読み直して守り付きで動かし結果の数を守る指標の表に. 実機での実行は道具の外で, 配備と守りの範囲は人が承認する. `off_policy.py` で ε-greedy の軌跡を ML-Fathom の画面の API で分析し, 別の方策の良さを環境で動かさずに見積もる |
 | 25 | `tasks/25_m1_churn` | 表の分類を画面の API だけで通す | 合成した会員の表 (今のやり方で連絡したかの列) | 5 つの画面のアプリを作業用の置き場で起動し, 問題の設定から推論までを画面と同じ API で通して, 段階ごとに画面だけでできたか (OK), 手で写すか打つか (手), 誤りかを表にする (節目「表の予測を画面だけで通す」の確かめ). 今のやり方は列 |
 | 26 | `tasks/26_m1_sozai` | 時系列の予測を画面の API だけで通す | 合成した 2 店 × 3 品の売れた数 | 25 と同じ通しを時系列の予測で. 今のやり方は k 期前 (前の週の同じ曜日) の決まりで, 骨組みの評価と推論のたどり直しが同じ決まりから作る |
 | 27 | `tasks/27_m2_image_masks` | 画像と領域を画面の API だけで通す | 合成した大きさの混ざる画像と領域 | 25 と同じ通しを画像の領域で (節目「点群と領域を画面で通す」の確かめ). ファイルの組の書き出しで大きさをそろえる中身の手順, U-Net の同梱の例, 推論の領域の値 |
 | 28 | `tasks/28_m2_capture_clouds` | 多視点の撮影から点群を画面の API だけで通す | 合成した形の多視点の撮影と正確な点群 | 27 と同じ通しを撮影と点群で. 点群の同梱の例, 推論の点群が元の座標に戻るか |
-| 29 | `tasks/29_m3_image_classes` | 画像の分類を画面の API だけで通す | 合成した図形の画像 (円と四角. 大きさはそろう) | 25 と同じ通しを画像の分類で (節目「画像と文の分類を画面で通す」の確かめ). 見本「解約の引き止め」の答えを画像の表に合わせ, 畳み込みの同梱の例に画面と同じく入力と出力を当てる. 今のやり方は骨組みが決まりで比べない |
+| 29 | `tasks/29_m3_image_classes` | 画像の分類を画面の API だけで通す | 合成した図形の画像 (円と四角. 大きさはそろう) | 25 と同じ通しを画像の分類で (節目「画像と文の分類を画面で通す」の確かめ). 見本「解約の引き止め」の答えを画像の表に合わせ, 畳み込みの同梱の例に画面と同じく入力と出力を当てる. 今のやり方は骨組みが決まりで比べない. `resnet_ui.py` で本物の ResNet18 の一式を ML-Provide の画面 (ブラウザ) から登録して推論し, 種類の名前を torchvision で直に読んだ予測と引き合わせる |
 | 30 | `tasks/30_m3_text_classes` | 文の分類を画面の API だけで通す | 合成した日本語の問い合わせの文 (苦情と質問) | 29 と同じ通しを文の分類で. ML-Fathom の分析が勧める区切り方, LSTM の同梱の例と, 画面が当てる埋め込みの語彙の数 |
 | 31 | `tasks/31_search_photos` | 似た写真を探すを問題の設定から推論まで通す | 合成した種類ごとのディレクトリの写真 (円, 四角, 三角, 縞) | 25 と同じ表で, ML-Pathfinder の見本「似た商品の写真を探す (既製の埋め込み)」から骨組みを書き出し, 骨組みの `bundle.py` で既製の埋め込み (resnet18) の索引と評価 (Recall@K, NDCG@K, 写真を縮めた画素との差) と検索の一式を作り, ML-Provide で問いの写真ごとに上位 K 件と待ち時間を出す (学習しない. 一式づくりはコマンド) |
 | 32 | `tasks/32_uplift_coupons` | 効果を見積もるを問題の設定から推論まで通す | 合成した無作為にクーポンを配った記録 (配った後に決まる列を持つ) | 25 と同じ通しを効果の見積もりで, 効果の決め方 2 つ (T-learner と S-learner) を 1 回ずつ. ML-Fathom の介入の記録の要約, 効果の雛形 (`tabular_uplift`, `tabular_uplift_s`) の幅の書き換え, Qini の係数と上位 K 割の効果の差, ML-Provide で効果の上位から配る数の上限まで配り, 試しの記録で効果を数え直す |
-| 33 | `tasks/33_gen_policy_skeleton` | 画像の生成と方策を問題の設定の骨組みから通す | MNIST, CartPole | 11 と 24 と同じ課題で, ML-Quest の問題の設定から骨組みを書き出し, 骨組みを書き換えずに学習し, 雑音だけの一式 (件数と種で画像を作る) と方策の一式 (`load_policy` で守り付きで動かす) を ML-Inference で読む |
+| 33 | `tasks/33_gen_policy_skeleton` | 画像の生成と方策を問題の設定の骨組みから通す | MNIST, CartPole | 11 と 24 と同じ課題で, ML-Quest の問題の設定から骨組みを書き出し, 骨組みを書き換えずに学習し, 雑音だけの一式 (件数と種で画像を作る) と方策の一式 (`load_policy` で守り付きで動かす) を ML-Inference で読む. `provide.py` で方策の問題の設定から ML-Provide の方策の実験の一覧からの登録と観測からの行動までを画面の API で通す |
+| 34 | `tasks/34_rank_items` | 推薦を問題の設定から推論まで通す | 合成した会員が品物を買った記録 | 25 と同じ通しを並べるで. 反応の記録から一から学び, テスト用の Recall@K と NDCG を人気順と比べ, ML-Provide で会員ごとに上位 K 件を出す |
+| 35 | `tasks/35_group_customers` | 群分けを問題の設定から推論まで通す | 合成した顧客の記録 | 25 と同じ通しをまとめるで. ML-Fathom の群の要約, 対照学習の雛形の幅, 学習の群の安定性, ML-Provide の群の要約 |
+| 36 | `tasks/36_anomaly_sensors` | 異常の検知を問題の設定から推論まで通す | 合成した機械の計測の表 (異常の正解は一部だけ) | 25 と同じ通しを異常の検知で. 自己符号化器の再構成の誤差を度合いにし, PR-AUC, ML-Provide で度合いの上位から人が確かめる件数の上限まで回し, 人の確認を記録する |
+| 37 | `tasks/37_price_change` | 値段を変える判断を問題の設定から推論まで通す | 合成した試しに値段を変えた売れ行きの記録 | 25 と同じ通しを値段の判断で. 値段を入力に入れて売れた数を予測し, ML-Provide で値段の候補から変える幅の上限の中で利益が最も大きい値段を商品ごとに選ぶ |
+| 38 | `tasks/38_demand_orders` | 時間をまたぐ量の判断を問題の設定から推論まで通す | 合成した商品ごとの日ごとの売れた数 | 25 と同じ通しを発注で. 先の 7 日の需要を分位点で予測し, 品切れの損と売れ残りの損の比から決まる分位点で, ML-Provide で商品ごとに発注の数を決める |
+| 39 | `tasks/39_table_generate` | 本物の表で表を作るを問題の設定から推論まで通す | California Housing | 25 と同じ通しを表の生成で. 列ごとの分布の近さで学習を選び, ML-Provide で作った行の近さをテスト用と比べる |
 
 各タスクのディレクトリは次の構成にする.
 

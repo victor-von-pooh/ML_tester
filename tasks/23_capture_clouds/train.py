@@ -7,9 +7,10 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from ml_eda import ItemSplit, capture_shift, load_items, normalize_capture
-from ml_eda.items import read_capture  # 1 つの撮影を配列で読む (公開外)
-from ml_eda.media import read_cloud  # 1 つの点群を読む (公開外)
+from ml_eda import (
+    ItemSplit, capture_shift, load_items, normalize_capture, read_capture,
+    read_cloud
+)
 from ml_found import (
     Experiment, Trainer, describe_origin, load_project_config, load_samples,
     original_coordinates, save_evaluation, save_sample, start_experiment,
@@ -199,12 +200,21 @@ def backproject(
     Raises
     ----------
     ValueError
-        カメラの軸が OpenGL でない場合, 深度が無い場合, 点が無い場合
+        カメラの軸が OpenGL でない場合, 深度の測り方が z でも ray でもない
+        場合, 深度が無い場合, 点が無い場合
     """
     # 扱うカメラの軸は OpenGL (+X 右, +Y 上, -Z 前) だけ
-    axes = str(capture["convention"].get("camera_axes", "OpenGL"))
+    convention = capture["convention"]
+    axes = str(convention.get("camera_axes", "OpenGL"))
     if not axes.startswith("OpenGL"):
         raise ValueError(f"カメラの軸が OpenGL ではありません: {axes}")
+
+    # 深度の測り方 (z は前の軸に沿った距離, ray は光線に沿った距離) と
+    # 画素の中心 (撮影の座標の決まりから)
+    kind = convention.get("depth", "z")
+    if kind not in ("z", "ray"):
+        raise ValueError(f"深度の測り方が z でも ray でもありません: {kind}")
+    center = float(convention.get("pixel_center", 0.5))
     if capture["depth"] is None:
         raise ValueError("深度の無い枚があります")
     intr = capture["intrinsics"]
@@ -215,12 +225,16 @@ def backproject(
         rows, columns = np.nonzero(depth > 0)
         value = depth[rows, columns].astype(np.float64)
 
-        # 画素の中心を通る光線. 深度はカメラの前 (-Z) の向きの距離
-        camera = np.stack([
-            (columns + 0.5 - intr["cx"]) / intr["fl_x"] * value,
-            -(rows + 0.5 - intr["cy"]) / intr["fl_y"] * value,
-            -value,
+        # 画素の中心を通る光線 (前の軸に沿った距離 1 の点) と, 光線に沿った
+        # 距離から前の軸に沿った距離への換算
+        ray = np.stack([
+            (columns + center - intr["cx"]) / intr["fl_x"],
+            -(rows + center - intr["cy"]) / intr["fl_y"],
+            -np.ones(len(rows)),
         ], axis=1)
+        if kind == "ray":
+            value = value / np.linalg.norm(ray, axis=1)
+        camera = ray * value[:, None]
         clouds.append(camera @ pose[:3, :3].T + pose[:3, 3])
     merged = np.concatenate(clouds) if clouds else np.zeros((0, 3))
     if len(merged) == 0:

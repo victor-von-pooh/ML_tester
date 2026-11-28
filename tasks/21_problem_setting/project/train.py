@@ -1,11 +1,12 @@
 """
 問題の設定 (problem.yaml) から ML-Quest が書き出した学習のスクリプト
 
-骨組みなので, 印 (TODO) の所を書き足す
+骨組みなので, 問題に合わせて書き足す
 """
 from pathlib import Path
 import shutil
 import sys
+from typing import Optional
 
 import torch
 from torch import nn
@@ -16,7 +17,7 @@ from ml_found import (
     Experiment, Trainer, load_project_config, start_experiment
 )
 from ml_inference import make_bundle
-from ml_modelcontrol import build_model
+from ml_modelcontrol import build_model, validate
 
 # このプロジェクトのディレクトリ (ML-Found のプロジェクト)
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -25,7 +26,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 PROBLEM_NAME = "総菜の作る量"
 PREDICT = "翌日の品ごとの売れる数"
 
-# 推論の一式の意思決定と結論の既定値 (問題の設定の損得と制約から)
+# 推論の一式の意思決定と結論の既定値 (問題の損得と制約から)
 DECISION = {"type": "quantity", "under_cost": 200, "over_cost": 150}
 CONCLUSION = {"group_by": "store"}
 
@@ -101,7 +102,72 @@ def evaluate_test(
     value = error.abs().mean()
     experiment.logger.info(f"テスト用の平均絶対誤差: {value.item():,.4f}")
 
-    # TODO: 比べる相手 (前の週の同じ曜日と同じ数) の値も記録する
+# 比べる相手 (前の週の同じ曜日と同じ数): 問題に今のやり方をデータで書いていない (今のやり方をデータで書く問い,
+# action.current)ので, 今のやり方とは比べない. 答えて骨組みを書き出し直すと, 検証用とテスト用で今のやり方と比べた評価の表
+# (evaluations/baseline_<分割>.json) を書く
+
+
+def spec_errors(spec: Path) -> list[str]:
+    """
+    ML-ModelControl の定義の誤りを, 実験の出力先を作る前に確かめる関数
+
+    Parameters
+    ----------
+    spec: Path
+        config の model.spec の, プロジェクトの定義
+
+    Returns
+    ----------
+    errors: list[str]
+        誤りの文 (無ければ空. 外部の重みのファイルが読めるかは, 組み立てる
+        ときに分かる)
+    """
+    # 読めない定義も誤りとして返る (例外にならない)
+    errors = [issue["message"] for issue in validate(spec)
+              if issue["severity"] == "error"]
+
+    return errors
+
+
+def model_file(
+    spec: Path, experiment: Experiment
+) -> tuple[Path, Optional[Path]]:
+    """
+    モデルを組み立てる ML-ModelControl の定義のファイルと, 定義の中の相対
+    の参照 (外部の重みなど) の起点を返す関数
+
+    Parameters
+    ----------
+    spec: Path
+        config の model.spec の, プロジェクトの定義
+    experiment: Experiment
+        実験 (ML-Found が実験に写した定義の場所 model_spec_path と, 写した
+        元の定義 model_spec_source)
+
+    Returns
+    ----------
+    path: Path
+        ML-Found が実験に写した定義 (学習を始めたときの定義で, source.yaml
+        の sha256 と同じ中身). 写せなければプロジェクトの定義
+    base_dir: Optional[Path]
+        相対の参照の起点 (写しなら元の定義のディレクトリ. プロジェクトの
+        定義なら None で, 定義のディレクトリ)
+    """
+    # 写しの相対の参照は元の定義の場所から (写しの隣には重みが無い)
+    if experiment.model_spec_path is not None:
+        path = Path(experiment.model_spec_path)
+        base_dir = Path(experiment.model_spec_source).parent
+        return path, base_dir
+
+    # 写しが無ければ理由を知らせて, プロジェクトの定義
+    experiment.logger.warning(
+        "モデルの定義を実験に写せなかったので, 学習のプロジェクトの定義から"
+        "組み立てます (理由は source.yaml の model_spec の status)"
+    )
+    path = spec
+    base_dir = None
+
+    return path, base_dir
 
 
 def main() -> None:
@@ -123,10 +189,20 @@ def main() -> None:
         print(f"{path} がありません. README の「次にすること」の 1 で, "
               "データセットを書き出してください")
         sys.exit(1)
+    if not cfg.model.spec:
+        print("config の model.spec に定義の場所を書いてください (既定は "
+              "models/model.yaml)")
+        sys.exit(1)
     spec = PROJECT_DIR / cfg.model.spec
     if not spec.is_file():
         print(f"{spec} がありません. README の「次にすること」の 2 で, "
               "モデルの定義を置いてください")
+        sys.exit(1)
+    errors = spec_errors(spec)
+    if errors:
+        print(f"{spec} の定義に誤りがあります. README の「次にすること」の "
+              "2 で直してください")
+        print("\n".join(f"- {message}" for message in errors))
         sys.exit(1)
     dataset = load_dataset(path)
     if "valid" not in dataset.frames:
@@ -147,9 +223,10 @@ def main() -> None:
         batch_size=cfg.data.batch_size
     )
 
-    # モデルの定義からの組み立てと学習
-    model = build_model(spec, seed=cfg.experiment.seed)
+    # 実験に写したモデルの定義からの組み立てと学習
     experiment = start_experiment(cfg, diff, str(PROJECT_DIR))
+    spec, base_dir = model_file(spec, experiment)
+    model = build_model(spec, seed=cfg.experiment.seed, base_dir=base_dir)
     experiment.logger.info(
         f"問題: {PROBLEM_NAME}. 予測すること: {PREDICT}. 学習に使う列 "
         f"{len(dataset.features)}: {dataset.features}"
@@ -157,10 +234,10 @@ def main() -> None:
     trainer = Trainer(model, experiment, Step(scale))
     trainer.fit(train_loader, valid_loader)
 
-    # 実験だけで見直せるように, 問題の設定とモデルの定義の写し
+    # 実験だけで見直せるように, 問題の設定の写し (元の問題の場所
+    # origin も残る. モデルの定義は ML-Found が start_experiment で写す)
     run_dir = Path(experiment.run_dir)
     shutil.copy(PROJECT_DIR / "problem.yaml", run_dir / "problem.yaml")
-    shutil.copy(spec, run_dir / "model_spec.yaml")
 
     # 結果の表示とテスト用の評価
     best_epoch = trainer.checkpoint.best_epoch

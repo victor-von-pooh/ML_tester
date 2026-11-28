@@ -1,6 +1,10 @@
-# ML-Found が使う設定 (ML-Quest が問題の設定から書き出した骨組み)
+# ML-Found が使う設定 (ML-Quest が問題から書き出した骨組み)
+# 学習に要る機能 (ML-Found の登録簿の名前). 学習の前に確かめ, 足りなければ
+# 入れ方を示して止まる
+requires: [eda, modelcontrol, inference]
+
 experiment:
-  name: sales_forecasting
+  name: "sales_forecasting"
   seed: 0
 
 optimizer:
@@ -10,7 +14,7 @@ optimizer:
 
 trainer:
   epochs: 50
-  # 問題の設定の「学習で見る指標」
+  # 問題の「学習で見る指標」
   monitor: valid/mae
   mode: min
   early_stopping:
@@ -19,10 +23,10 @@ trainer:
 
 # プロジェクト固有の設定
 data:
-  # ML-EDA (ML-Fathom) で書き出すデータセット (プロジェクトのディレクトリから)
+  # データの分析の段階 (ML-EDA) で書き出すデータセット (プロジェクトのディレクトリから)
   dataset: outputs/dataset
   batch_size: 64
 
 model:
-  # ML-ModelControl の形のモデルの定義 (ML-CreateArchitecture で組む)
+  # ML-ModelControl の形のモデルの定義 (モデルの作成・選定の段階で組む)
   spec: models/model.yaml

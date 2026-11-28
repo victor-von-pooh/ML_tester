@@ -1,7 +1,10 @@
+from importlib.util import find_spec
 import json
 from pathlib import Path
 import sys
 from typing import Any
+
+import numpy as np
 
 from ml_found import (
     Experiment, MissingRequirementError, Trainer, load_project_config,
@@ -17,6 +20,14 @@ STATUSES = ("ok", "clipped", "fallback", "stop", "handover")
 
 # 行動を返さずにエピソードを終える守りの結果
 STOP_STATUSES = ("stop", "handover")
+
+# 推論の段階との比べで, 同じかを見る act の返り値の欄
+COMPARE_KEYS = ("action", "status", "reasons")
+
+# 推論の段階との比べに使う観測の数と, 観測を選ぶ幅 (台車の位置, 速度,
+# 棒の角度, 角速度. 止める条件の内と外の両方が入る幅)
+COMPARE_COUNT = 200
+COMPARE_SCALE = (3.0, 3.0, 0.3, 3.0)
 
 
 def build_guards(env: Any, setting: Any) -> dict:
@@ -108,6 +119,57 @@ def summarize(rows: list[dict]) -> dict:
     return summary
 
 
+def compare_inference(
+    place: Path, policy: Any, model_args: dict, seed: int
+) -> dict:
+    """
+    書き出した一式を ML-Inference の load_policy で読み, ML-Found の
+    load_policy と同じ行動と守りの結果を返すかを比べる関数
+
+    Parameters
+    ----------
+    place: Path
+        方策の一式のディレクトリ
+    policy: Any
+        ML-Found の load_policy で読んだ方策
+    model_args: dict
+        PolicyNet の引数 (ML-Inference でも同じ組み立てのモデルを渡す)
+    seed: int
+        観測を選ぶ乱数の種
+
+    Returns
+    ----------
+    result: dict
+        same (行動, 守りの結果, 理由が全て同じ観測の数), total (観測の数),
+        守りの結果ごとの数 (ML-Found の方策の値)
+    """
+    # 推論の段階のライブラリ (24 ではこの比べだけに使う)
+    from ml_inference import load_policy as inference_load_policy
+
+    # 推論の段階での一式の読み込み
+    inference = inference_load_policy(place, PolicyNet(**model_args))
+
+    # 止める条件の内と外の観測と, 数でない値を含む観測
+    rng = np.random.default_rng(seed)
+    scale = np.asarray(COMPARE_SCALE)
+    observations = list(
+        rng.uniform(-scale, scale, (COMPARE_COUNT - 1, len(scale)))
+    )
+    observations.append(np.array([np.nan, 0.0, 0.0, 0.0]))
+    result = {"same": 0, "total": len(observations)}
+    result.update({status: 0 for status in STATUSES})
+    for observation in observations:
+        expected = policy.act(observation)
+        actual = inference.act(observation)
+        if all(
+            expected.get(key) == actual.get(key) for key in COMPARE_KEYS
+        ):
+            result["same"] += 1
+        result[expected["status"]] += 1
+
+    return result
+
+
 def evaluate_guards(
     model: Any, env: Any, cfg: Any, experiment: Experiment,
     model_args: dict, best_epoch: int
@@ -167,6 +229,25 @@ def evaluate_guards(
             policy, env, episodes=cfg.evaluation.guarded_episodes,
             seed=cfg.evaluation.guarded_seed
         )
+        # ML-Inference が入っていなければ比べを飛ばす所 (学習の結果は残す)
+        if find_spec("ml_inference") is None:
+            text = (
+                f"ML-Inference の load_policy との比べ {name}: ML-Inference が"
+                "入っていないので飛ばしました (ルートの README の「導入」)"
+            )
+        else:
+            compared = compare_inference(
+                place, policy, model_args, cfg.evaluation.guarded_seed
+            )
+            text = (
+                f"ML-Inference の load_policy との比べ {name}: 行動と守りの"
+                f"結果と理由が同じ観測 {compared['same']}/{compared['total']}"
+                " (" + ", ".join(
+                    f"{status} {compared[status]}" for status in STATUSES
+                ) + ")"
+            )
+        experiment.logger.info(text)
+        print(text)
         text_guards = describe_guards(guards)
         rows.extend(
             {"name": name, "guards": text_guards, **row} for row in episodes

@@ -12,12 +12,12 @@ ML_tester で作業するときの方針をまとめる.
 - 機能をここに集約しない (機能は各リポジトリに足す). 手順書, 例, テストは各リポジトリだけで完結させる
 - 構成
     - `ML-Found/`: 学習の基盤 (submodule). 他のライブラリはルートの README の「導入」で版を固定して入れる
-    - `tasks/XX_name/`: 1 タスク 1 ディレクトリ. 学習するタスクは ML-Found のプロジェクトのディレクトリ (`configs/default/train.yaml`, `configs/experiment/train.yaml` と `examples/`, `model.py` か `models/` のモデルの定義, `train.py`, `README.md`. `outputs/` は git の管理外). 19 と 20 は学習しない (推論と意思決定のスクリプトだけ). 21 は `project/` が ML-Found のプロジェクト. 33 は `generate/project/` と `policy/project/` が ML-Found のプロジェクト. 25 から 32 は画面のアプリの API で問題の設定から推論までを通すスクリプトだけ (プロジェクトは作業用の場所に書き出す)
+    - `tasks/XX_name/`: 1 タスク 1 ディレクトリ. 学習するタスクは ML-Found のプロジェクトのディレクトリ (`configs/default/train.yaml`, `configs/experiment/train.yaml` と `examples/`, `model.py` か `models/` のモデルの定義, `train.py`, `README.md`. `outputs/` は git の管理外). 19 と 20 は学習しない (推論と意思決定のスクリプトだけ). 21 は `project/` が ML-Found のプロジェクト. 33 は `generate/project/` と `policy/project/` が ML-Found のプロジェクト. 22, 23, 25 から 32 と 34 から 39 は画面のアプリの API で問題の設定から推論までを通すスクリプト (`journey.py`) と補助のモジュールだけ (プロジェクトは作業用の場所に書き出す). 画面のアプリの起動と段階の記録は 25 の `apps.py` を使う. 24 の `off_policy.py`, 29 の `resnet_ui.py`, 33 の `provide.py` も同じく `apps.py` で画面のアプリを起動する
     - `data/`: 外部から取得したデータ (git の管理外). 利用者に用意してもらうデータは各タスクの README に条件を書く
 - 環境
     - 仮想環境は `.venv` (Python 3.13). 他の版の `python3` で動かさない
     - 実行はリポジトリのルートから `.venv/bin/python tasks/XX_name/train.py`
-    - 25 から 32 の画面の通しは, 手元で動かせなければ CI の「通しを測る」(`.github/workflows/journeys.yml`. 手で起動する. 5 つのアプリの main を使う) で動かしてよい. 結果は成果物と記録から各タスクの「結果のメモ」に手で写す (自動の判定にはしない)
+    - 22, 23, 25 から 32 と 34 から 39 の画面の通し (`journey.py`) は, 手元で動かせなければ CI の「通しを測る」(`.github/workflows/journeys.yml`. 手で起動する. 5 つのアプリの main を使う) で動かしてよい. 結果は成果物と記録から各タスクの「結果のメモ」に手で写す (自動の判定にはしない)
     - 商用利用できるライセンスのライブラリなら, 必要に応じて入れてよい (scikit-learn, torchvision, PyG, qiskit, matplotlib, transformers など). 入れたものはルートの README の「導入」に書く
 
 ## コードの書き方

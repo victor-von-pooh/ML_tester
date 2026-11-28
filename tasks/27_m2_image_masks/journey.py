@@ -239,7 +239,8 @@ def check_samples(
 
 
 def check_outputs(
-    client: Client, result: dict[str, Any], rows: Any, setup: dict
+    client: Client, result: dict[str, Any], rows: dict[str, Any],
+    setup: dict
 ) -> tuple[str, str]:
     """
     推論した領域の値と形を, 新しい件の正解と比べる関数
@@ -250,7 +251,7 @@ def check_outputs(
         ML-Provide の客
     result: dict[str, Any]
         推論の結果
-    rows: Any
+    rows: dict[str, Any]
         結果の行 (GET /api/results/{id}/rows の応答)
     setup: dict
         通しの設定 (truth は新しい件の正解の領域のディレクトリ)
@@ -260,9 +261,8 @@ def check_outputs(
     outcome: tuple[str, str]
         判定と説明
     """
-    # 行を件の名前で正解と引き合わせ, 配列を読み, 値が領域の値の中か, 形
-    # が元の画像と同じかを見る. 正解は出力の大きさに最も近い画素で縮めて
-    # 比べる
+    # 件の名前での正解との引き合わせ, 領域の値の範囲と元の画像との形の
+    # 確かめ (正解は出力の大きさに最も近い画素で縮めて比べ)
     matched, unmatched = match_rows(rows, setup["new_names"])
     allowed = {int(k) for k in CLASSES}
     other, bad, agree = [], [], []

@@ -122,8 +122,8 @@ def input_points(dataset: Path) -> int:
     ValueError
         config が見つからない場合と, input_points が無い場合
     """
-    # データセットから上へたどってプロジェクトの configs を探し, 実験の
-    # config の値があれば既定より先に使う
+    # データセットから上へたどったプロジェクトの configs. 実験の config
+    # の値が既定より先
     project = next(
         (place for place in dataset.resolve().parents
          if (place / "configs" / "default" / "train.yaml").is_file()), None
@@ -133,8 +133,8 @@ def input_points(dataset: Path) -> int:
     found = None
     for name in ("default", "experiment"):
         path = project / "configs" / name / "train.yaml"
-        data = (yaml_of(path) if path.is_file() else {}).get("data") or {}
-        if data.get("input_points") is not None:
+        data = yaml_of(path).get("data")
+        if isinstance(data, dict) and data.get("input_points") is not None:
             found = data["input_points"]
     if found is None:
         raise ValueError("骨組みの config に data.input_points が無い")
@@ -211,7 +211,8 @@ def check_samples(
 
 
 def check_outputs(
-    client: Client, result: dict[str, Any], rows: Any, setup: dict
+    client: Client, result: dict[str, Any], rows: dict[str, Any],
+    setup: dict
 ) -> tuple[str, str]:
     """
     推論した点群が元の座標 (撮影の世界の座標) にあるかを, 新しい形の正解
@@ -223,7 +224,7 @@ def check_outputs(
         ML-Provide の客
     result: dict[str, Any]
         推論の結果
-    rows: Any
+    rows: dict[str, Any]
         結果の行 (GET /api/results/{id}/rows の応答)
     setup: dict
         通しの設定 (truth は新しい形の正解の点群のディレクトリ)
@@ -233,7 +234,7 @@ def check_outputs(
     outcome: tuple[str, str]
         判定と説明
     """
-    # 行を件の名前 (撮影のディレクトリ) で正解と引き合わせる
+    # 件の名前 (撮影のディレクトリ) での正解との引き合わせ
     matched, unmatched = match_rows(rows, setup["new_names"])
     gaps, centers, shapes = [], [], set()
     for row, name in matched:

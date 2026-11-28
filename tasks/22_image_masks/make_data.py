@@ -5,7 +5,7 @@ from ml_eda.synthetic import write_image_masks
 # 書き出す先 (リポジトリの data, git の管理外)
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "image_masks"
 
-# 見本の作り方 (prepare.py が正解の出どころの設定に写す)
+# 見本の作り方 (journey.py が正解の出どころの設定に写す)
 SETTINGS = {"count": 60, "size": [32, 32], "seed": 0}
 
 

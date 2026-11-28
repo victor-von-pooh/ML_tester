@@ -59,28 +59,28 @@ ML-CreateArchitecture の同梱の例 `point_cloud_predictor` (入力 512 点か
 
 ## 結果のメモ
 
-5 つのアプリの main (ML-Pathfinder abc819d, ML-Fathom a4efc5c, ML-CreateArchitecture 9e40f28, ML-Dashboard e87b15f, ML-Provide 073ebfe) を, CI の「通しを測る」(上の「実行方法」) で動かした値.
+5 つのアプリの main (ML-Pathfinder 17b542e, ML-Fathom 29f20f1, ML-CreateArchitecture fe9859d, ML-Dashboard 7c086d0, ML-Provide 5b2f4ea) を, 上の「実行方法」で動かした値. 説明は `journey.py` が書く文 (パスと長い値は略す).
 
 | 段階 | 判定 | 説明 |
 | --- | --- | --- |
-| 問題の設定 (受け持ち, 正解の種類, 元のデータ) | OK | 元の `captures/` と `clouds/` を持つディレクトリを入れる. 確かめに「データが 40 件と少なく」と出る |
-| 骨組みの書き出し (場所を問題の設定に記録) | OK | データセットとモデルの定義の場所が記録される |
-| ML-Fathom で問題の設定を一覧から始める | OK | 書き出しの画面 (撮影と点群) に移り, 入力と正解のディレクトリ (`captures`, `clouds`) と分割が下書きで入る |
-| ML-Fathom でプロジェクトへ書き出す | OK | 版 2, 学習用 28, 検証用 6, テスト用 6. 注意 1 件 (合成の撮影に深度の測り方と画素の中心の欄が無いので `depth: z`, `pixel_center: 0.5` とした) |
-| ML-CreateArchitecture で問題の設定を一覧から選ぶ | OK | 27 と同じ |
-| ML-CreateArchitecture (同梱の例, 入力と出力) | OK | 「データセットから入力と出力を作る」が入力 `[4, 512, 3]` と出す点の数 2000 を返す. 点群の出す点の数は画面が当てない決まりで, 例の入力 512 点が骨組みの既定と同じなので直す所が無い |
-| ML-CreateArchitecture でプロジェクトに保存 | OK | `models/model.yaml` |
-| ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | |
-| 学習の準備 | OK | 足りない機能 eda, modelcontrol, inference |
-| 環境を作る (画面から) | OK | 8 秒 |
-| 学習の起動の config | OK | 骨組みのまま (30 エポック) |
-| 学習 | OK | 30 エポック. ベストの valid/chamfer 0.0234 (m) |
-| テスト用の評価 | OK | テスト用の Chamfer 距離 0.0263 (m) |
-| 学習の後の推論の一式 | OK | 一式で推論した valid/chamfer が記録と合う |
-| 見本を見る | OK | 点群の見本 9 件. 元の座標あり |
-| ML-Provide で実験の一式を一覧から登録 | OK | 一式の確かめ (valid の chamfer) が記録と合う |
-| 問題の設定をつなぐ (候補) | OK | 27 と同じく候補に出さない |
-| 新しい件の推論と出力 | OK | 2 件, 256 点ずつ. 推論の点群の重心と正解の重心のずれは 0.006 m と 0.007 m (正解の重心は原点から 1.46 m と 1.33 m). 正規化の平行移動を戻した元の座標にある |
+| 問題の設定 (受け持ち, 正解の種類, 元のデータ) | OK | 元のディレクトリを入れる. 確かめ: データが 40 件と少なく, 機械学習で学べることは限られます. 今のやり方やルールで足りないかも考えてください |
+| 骨組みの書き出し (場所を問題の設定に記録) | OK | 記録: データセット outputs/dataset, モデルの定義 models/model.yaml |
+| ML-Fathom で問題の設定を一覧から始める | OK | 書き出しの画面 (capture_clouds) に移り, 入力と正解のディレクトリ (captures, clouds) と分割 {'method': 'random', 'valid': 0.15, 'test': 0.15, 'seed': 0} が下書きで入る |
+| ML-Fathom でプロジェクトへ書き出す (書き出しの設定を書き戻す) | OK | 版 2, 分割 {'train': 28, 'valid': 6, 'test': 6}, 中身の手順 無し, 注意 無し |
+| ML-CreateArchitecture で問題の設定を一覧から選ぶ | OK | 保存先が問題の設定の記録から決まる |
+| ML-CreateArchitecture (同梱の例 point_cloud_predictor, 入力と出力) | OK | データセットから入力と出力: 入力 capture `[4, 512, 3]` (略). 画面が当てる: 入力 observed の名前を capture にしました |
+| ML-CreateArchitecture でプロジェクトに保存 | OK | 保存先 models/model.yaml |
+| ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | 問題の設定「撮影から形の点群を作る」が記録したプロジェクト |
+| 学習の準備 (データセット, モデルの定義, 環境) | OK | データセット True, モデルの定義 models/model.yaml (exists True), 足りない機能 ['eda', 'modelcontrol', 'inference'] |
+| 環境を作る (画面から) | OK | succeeded, 16 秒, 足りない [] |
+| 学習の起動の config (エポックの数, モデルの定義) | OK | エポックの数 30 (骨組みのまま) |
+| 学習 | OK | valid/chamfer 0.0234 (30 エポックまで, 18 秒) |
+| テスト用の評価 (ML-Dashboard の結果) | OK | {'test_chamfer': [{'answer': 'model', 'chamfer': 0.0263}]} |
+| 学習の後の推論の一式 (ML-Dashboard のログ) | OK | 推論の一式: valid の chamfer 0.0234 (記録 0.023434067144989967, 合う: True) |
+| 見本を見る (ML-Dashboard の結果) | OK | 点群の見本 9 件, 元の座標 あり |
+| ML-Provide で実験の一式を一覧から登録 (一式の確かめ) | OK | 問題の設定「撮影から形の点群を作る」の実験 point_cloud_predict/(日時). 一式の確かめ: valid の chamfer が記録と合う (matches True) |
+| 問題の設定をつなぐ (候補) | OK | 候補 無し. 受け持ちが列の予測でないので候補に出さない決まり |
+| 新しい件の推論と出力 | OK | 2 件 (件の名前で正解と引き合わせ). 食い違い 無し. 形 [(256, 3)], 正解の重心とのずれ [0.006, 0.006] m (正解の重心の原点からの距離 [1.46, 1.33] m. 上限 0.1 m). 文: ['2 件のうち 2 件を推論'] |
 
 手の段階 0, 誤りの段階 0.
 

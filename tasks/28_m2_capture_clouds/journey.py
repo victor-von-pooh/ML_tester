@@ -3,6 +3,7 @@
 アプリの API だけで通し, 段階ごとに画面だけでできたか (OK), 手で写すか
 打つか (手), 誤りかを表にする (点群と領域を画面で通す節目の確かめ)
 """
+import importlib.util
 import sys
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,15 @@ sys.path.insert(0, str(TASKS / "27_m2_image_masks"))
 from apps import main_with
 from pairs import (Client, load_npy, match_rows, run_pairs_journey, short,
                    yaml_of)
+
+# 「データセットから入力と出力を作る」の値を例に当てる所は 27 の journey.py
+# (同じ名前の journey.py が並ぶので, 場所を指した読み込み)
+_SPEC_27 = importlib.util.spec_from_file_location(
+    "journey_27", TASKS / "27_m2_image_masks" / "journey.py"
+)
+_JOURNEY_27 = importlib.util.module_from_spec(_SPEC_27)
+_SPEC_27.loader.exec_module(_JOURNEY_27)
+apply_info = _JOURNEY_27.apply_unet_info
 
 # 形の数, 1 つの撮影の枚数, 画像の (高さ, 幅), 正解の点群の点の数
 SHAPES = 40
@@ -308,6 +318,7 @@ def build(work: Path) -> dict:
         "item_steps": None,
         "example": "point_cloud_predictor",
         "adapt": adapt_cloud,
+        "apply_info": apply_info,
         "epochs": EPOCHS,
         "check_samples": check_samples,
         "new": new / "captures",

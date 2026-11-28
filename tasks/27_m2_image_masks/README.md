@@ -80,29 +80,29 @@ ML-Pathfinder が書き出した骨組み (`project/train.py`) を書き換え�
 
 ## 結果のメモ
 
-5 つのアプリの main (ML-Pathfinder abc819d, ML-Fathom a4efc5c, ML-CreateArchitecture 9e40f28, ML-Dashboard e87b15f, ML-Provide 073ebfe) を, CI の「通しを測る」(上の「実行方法」) で動かした値.
+5 つのアプリの main (ML-Pathfinder 17b542e, ML-Fathom 29f20f1, ML-CreateArchitecture fe9859d, ML-Dashboard 7c086d0, ML-Provide 5b2f4ea) を, 上の「実行方法」で動かした値. 説明は `journey.py` が書く文 (パスと長い値は略す).
 
 | 段階 | 判定 | 説明 |
 | --- | --- | --- |
-| 問題の設定 (受け持ち, 正解の種類, 元のデータ) | OK | 元の `images/` と `masks/` を持つディレクトリを入れる |
-| 骨組みの書き出し (場所を問題の設定に記録) | OK | データセット `outputs/dataset` とモデルの定義 `models/model.yaml` の場所が記録される |
-| ML-Fathom で問題の設定を一覧から始める | OK | 書き出しの画面 (画像と領域) に移り, 入力と正解のディレクトリ (`images`, `masks`) と分割 (random, 検証用とテスト用 15 %) が下書きで入る |
-| ML-Fathom でプロジェクトへ書き出す | OK | 版 3, 学習用 42, 検証用 9, テスト用 9. 中身の手順 `resize` (32x32) と, 領域に自動でかかる `resize_mask` |
-| 開き直した書き出しの画面に中身の手順が残る | OK | 問題の設定の書き出しの設定 (`options.item_steps`) に残る |
+| 問題の設定 (受け持ち, 正解の種類, 元のデータ) | OK | 元のディレクトリを入れる. 確かめ: 無し |
+| 骨組みの書き出し (場所を問題の設定に記録) | OK | 記録: データセット outputs/dataset, モデルの定義 models/model.yaml |
+| ML-Fathom で問題の設定を一覧から始める | OK | 書き出しの画面 (image_masks) に移り, 入力と正解のディレクトリ (images, masks) と分割 {'method': 'random', 'valid': 0.15, 'test': 0.15, 'seed': 0} が下書きで入る |
+| ML-Fathom でプロジェクトへ書き出す (書き出しの設定を書き戻す) | OK | 版 3, 分割 {'train': 42, 'valid': 9, 'test': 9}, 中身の手順 {'image': [{'op': 'resize', 'width': 32, 'height': 32}], 'mask': [{'op': 'resize_mask', 'width': 32, 'height': 32}]}, 注意 無し |
+| 開き直した書き出しの画面に中身の手順が残る | OK | 問題の設定に書き戻した中身の手順 {'image': [{'op': 'resize', 'width': 32, 'height': 32}]} |
 | ML-CreateArchitecture で問題の設定を一覧から選ぶ | OK | 保存先が問題の設定の記録から決まる |
-| ML-CreateArchitecture (同梱の例, 入力と出力) | OK | 「データセットから入力と出力を作る」が入力 `[4, 3, 32, 32]` と背景を含む 3 クラスを返し, 画面と同じく例の `head` の `out_channels` を 3 にする. 手で直す所は無い |
-| ML-CreateArchitecture でプロジェクトに保存 | OK | `models/model.yaml` |
-| ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | |
-| 学習の準備 | OK | データセットとモデルの定義がある. 足りない機能 eda, modelcontrol, inference |
-| 環境を作る (画面から) | OK | 8 秒 |
-| 学習の起動の config | OK | 骨組みのまま (30 エポック. 打つ所は無い) |
-| 学習 | OK | 30 エポック. ベストの valid/iou 0.3355 |
-| テスト用の評価 | OK | IoU は背景 0.988, 円 0.191, 四角 0.665. 背景を除く平均 0.428 |
-| 学習の後の推論の一式 | OK | 一式で推論した valid/iou 0.3355 が記録と合う |
-| 見本を見る | OK | 領域の見本 6 件. 凡例は背景, 円, 四角 |
-| ML-Provide で実験の一式を一覧から登録 | OK | 一式の確かめ (valid の iou) が記録と合う |
-| 問題の設定をつなぐ (候補) | OK | ファイルの組の受け持ちは意思決定が無いので候補に出さない (ML-Provide の決まり) |
-| 新しい件の推論と出力 | OK | 4 件. 値は 0, 1, 2 だけ. 正解を出力の大きさにして比べた画素の一致 0.872. 48x40 の 2 枚も元の画像の大きさで返る |
+| ML-CreateArchitecture (同梱の例 unet_segmentation, 入力と出力) | OK | データセットから入力と出力: 入力 image `[4, 3, 32, 32]` (略). 画面が当てる: 最後の畳み込みの out_channels を 3 にしました |
+| ML-CreateArchitecture でプロジェクトに保存 | OK | 保存先 models/model.yaml |
+| ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | 問題の設定「画像の領域を塗る」が記録したプロジェクト |
+| 学習の準備 (データセット, モデルの定義, 環境) | OK | データセット True, モデルの定義 models/model.yaml (exists True), 足りない機能 ['eda', 'modelcontrol', 'inference'] |
+| 環境を作る (画面から) | OK | succeeded, 16 秒, 足りない [] |
+| 学習の起動の config (エポックの数, モデルの定義) | OK | エポックの数 30 (骨組みのまま) |
+| 学習 | OK | valid/iou 0.3356 (30 エポックまで, 18 秒) |
+| テスト用の評価 (ML-Dashboard の結果) | OK | {'test_iou': [{'class': 'background', 'iou': 0.988}, {'class': 'circle', 'iou': 0.186}, {'class': 'square', 'iou': 0.673}, {'class': 'mean', 'iou': 0.430}]} |
+| 学習の後の推論の一式 (ML-Dashboard のログ) | OK | 推論の一式: valid の iou 0.3356 (記録 0.3356475345790386, 合う: True) |
+| 見本を見る (ML-Dashboard の結果) | OK | 領域の見本 6 件, 凡例 background, circle, square |
+| ML-Provide で実験の一式を一覧から登録 (一式の確かめ) | OK | 問題の設定「画像の領域を塗る」の実験 mask_predict/(日時). 一式の確かめ: valid の iou が記録と合う (matches True) |
+| 問題の設定をつなぐ (候補) | OK | 候補 無し. 受け持ちが列の予測でないので候補に出さない決まり |
+| 新しい件の推論と出力 | OK | 4 件 (件の名前で正解と引き合わせ). 食い違い 無し. 値 [0, 1, 2] の外 無し, 画素の一致 (正解を出力の大きさにして) 0.871. 元の画像と大きさの違う出力 無し |
 
 手の段階 0, 誤りの段階 0.
 

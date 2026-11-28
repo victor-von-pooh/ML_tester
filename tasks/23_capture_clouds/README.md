@@ -37,7 +37,7 @@
 
 ## モデル
 
-ML-CreateArchitecture の同梱の例 `point_cloud_predictor`. 「データセットから入力と出力を作る」が入力 `[4, 512, 3]` と正解の点の数 2000 を返す. 点群の出す点の数は画面が当てない決まりで, 例の入力 512 点が骨組みの `data.input_points` と同じなので, 例のまま使う.
+ML-CreateArchitecture の同梱の例 `point_cloud_predictor`. 「データセットから入力と出力を作る」が入力 `[4, 512, 3]` と正解の点の数 2000 を返す. 点群の出す点の数は画面が当てない決まりで, 例の入力 512 点が骨組みの `data.input_points` と同じなので, 点の数は例のまま使う. 入力の名前は, 画面が例の `observed` からデータセットの項目の名前 `capture` に変える.
 
 ## 学習の設計
 
@@ -80,28 +80,28 @@ ML-Pathfinder が書き出した骨組みの config のまま (エポックの�
 
 ## 結果のメモ
 
-5 つのアプリの main (ML-Pathfinder 387dd26, ML-Fathom b226609, ML-CreateArchitecture ee46a89, ML-Dashboard 1a0cac8, ML-Provide 599afa7) を手元 (CPU, Apple Silicon の Mac) で `journey.py` で動かした値. ML-EDA はルートの README の「導入」で固定した版を使った.
+5 つのアプリの main (ML-Pathfinder 17b542e, ML-Fathom 29f20f1, ML-CreateArchitecture fe9859d, ML-Dashboard 7c086d0, ML-Provide 5b2f4ea) を, 上の「実行方法」で動かした値. 説明は `journey.py` が書く文 (パスと長い値は略す).
 
 | 段階 | 判定 | 説明 |
 | --- | --- | --- |
-| 問題の設定 (受け持ち, 正解の種類, 元のデータ) | OK | 元の `captures/` と `clouds/` を持つディレクトリを入れる. 確かめに「データが 40 件と少なく」と出る |
-| 骨組みの書き出し (場所を問題の設定に記録) | OK | データセットとモデルの定義の場所が記録される |
-| ML-Fathom で問題の設定を一覧から始める | OK | 入力と正解のディレクトリ (`captures`, `clouds`) と分割 (random, 検証用とテスト用 15 %, 種 0) が下書きで入る |
-| ML-Fathom でプロジェクトへ書き出す | OK | 版 2, 学習用 28, 検証用 6, テスト用 6. 注意 無し. `target.origin` は `synthetic`, `ml_eda.synthetic.write_shape_captures`, 設定 (count 40, views 8, size 24x32, points 2000, seed 0) |
+| 問題の設定 (受け持ち, 正解の種類, 元のデータ) | OK | 元のディレクトリを入れる. 確かめ: データが 40 件と少なく, 機械学習で学べることは限られます. 今のやり方やルールで足りないかも考えてください |
+| 骨組みの書き出し (場所を問題の設定に記録) | OK | 記録: データセット outputs/dataset, モデルの定義 models/model.yaml |
+| ML-Fathom で問題の設定を一覧から始める | OK | 書き出しの画面 (capture_clouds) に移り, 入力と正解のディレクトリ (captures, clouds) と分割 {'method': 'random', 'valid': 0.15, 'test': 0.15, 'seed': 0} が下書きで入る |
+| ML-Fathom でプロジェクトへ書き出す (書き出しの設定を書き戻す) | OK | 版 2, 分割 {'train': 28, 'valid': 6, 'test': 6}, 中身の手順 無し, 注意 無し |
 | ML-CreateArchitecture で問題の設定を一覧から選ぶ | OK | 保存先が問題の設定の記録から決まる |
-| ML-CreateArchitecture (同梱の例, 入力と出力) | OK | 入力 `[4, 512, 3]` と正解の点の数 2000. 例のまま |
-| ML-CreateArchitecture でプロジェクトに保存 | OK | `models/model.yaml` |
-| ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | |
-| 学習の準備 | OK | 足りない機能 eda, modelcontrol, inference |
-| 環境を作る (画面から) | OK | 12 秒 |
-| 学習の起動の config | OK | 骨組みのまま (30 エポック) |
-| 学習 | OK | 30 エポック. 検証はエポック 2, 4, ..., 30 の 15 回. ベストは最後のエポック 30 の valid/chamfer 0.0159 m. 18 秒 |
-| テスト用の評価 | OK | テスト用の Chamfer 距離 0.0204 m |
-| 学習の後の推論の一式 | OK | 一式で推論した valid/chamfer 0.0159 が記録と合う |
-| 見本を見る | OK | 点群の見本 9 件. 元の座標あり |
-| ML-Provide で実験の一式を一覧から登録 | OK | 一式の確かめ (valid の chamfer) が記録と合う |
-| 問題の設定をつなぐ (候補) | OK | ファイルの組の受け持ちは意思決定が無いので候補に出さない (ML-Provide の決まり) |
-| 新しい件の推論と出力 | OK | 1 件, 256 点. 推論の点群の重心と正解の重心のずれ 0.006 m (正解の重心は原点から 1.48 m). 正規化の平行移動を戻した元の座標にある |
+| ML-CreateArchitecture (同梱の例 point_cloud_predictor, 入力と出力) | OK | データセットから入力と出力: 入力 capture `[4, 512, 3]`, 出す点の数 2000 (略). 画面が当てる: 入力 observed の名前を capture にしました |
+| ML-CreateArchitecture でプロジェクトに保存 | OK | 保存先 models/model.yaml |
+| ML-Dashboard で書き出したプロジェクトを一覧から登録 | OK | 問題の設定「撮影から形の点群を作る (原点の近くの形)」が記録したプロジェクト |
+| 学習の準備 (データセット, モデルの定義, 環境) | OK | データセット True, モデルの定義 models/model.yaml (exists True), 足りない機能 ['eda', 'modelcontrol', 'inference'] |
+| 環境を作る (画面から) | OK | succeeded, 10 秒, 足りない [] |
+| 学習の起動の config (エポックの数, モデルの定義) | OK | エポックの数 30 (骨組みのまま) |
+| 学習 | OK | valid/chamfer 0.0159 (30 エポックまで, 15 秒) |
+| テスト用の評価 (ML-Dashboard の結果) | OK | {'test_chamfer': [{'answer': 'model', 'chamfer': 0.0204}]} |
+| 学習の後の推論の一式 (ML-Dashboard のログ) | OK | 推論の一式: valid の chamfer 0.0159 (記録 0.01594570279121399, 合う: True) |
+| 見本を見る (ML-Dashboard の結果) | OK | 点群の見本 9 件, 元の座標 あり |
+| ML-Provide で実験の一式を一覧から登録 (一式の確かめ) | OK | 問題の設定「撮影から形の点群を作る (原点の近くの形)」の実験 point_cloud_predict/(日時). 一式の確かめ: valid の chamfer が記録と合う (matches True) |
+| 問題の設定をつなぐ (候補) | OK | 候補 無し. 受け持ちが列の予測でないので候補に出さない決まり |
+| 新しい件の推論と出力 | OK | 1 件 (件の名前で正解と引き合わせ). 食い違い 無し. 形 [(256, 3)], 正解の重心とのずれ [0.006] m (正解の重心の原点からの距離 [1.48] m. 上限 0.1 m). 文: ['1 件のうち 1 件を推論'] |
 
 手の段階 0, 誤りの段階 0.
 
@@ -112,4 +112,4 @@ ML-Pathfinder が書き出した骨組みの config のまま (エポックの�
 ## 気付いたこと
 
 - 深度から点に戻す式 (カメラの軸, 深度の測り方, 画素の中心), Chamfer 距離, 見本の元の座標に戻す値の決まり (`shift` の向き) は, 骨組みと ML-Fathom の書き出しが受け持つ. 利用者が打つのは正解の出どころと点群の単位だけ
-- 「データセットから入力と出力を作る」の値を例に当てる所は, 28 の `journey.py` と同じく写していない (`apply_info` を渡さない). 学習はモデルを位置で呼ぶので, 例の入力の名前 (`observed`) がデータセットの項目の名前 (`capture`) と違っても通る. 画面では入力の名前が `capture` に変わる
+- 「データセットから入力と出力を作る」の値を例に当てる所は, 28 の `journey.py` と同じく 27 の `apply_unet_info` を使う. 画面と同じく例の入力の名前 (`observed`) をデータセットの項目の名前 (`capture`) に変え, 保存したモデルの定義も `capture` になる

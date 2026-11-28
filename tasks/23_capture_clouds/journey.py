@@ -33,7 +33,8 @@ def load_parts() -> ModuleType:
     Returns
     ----------
     module: ModuleType
-        28 の journey.py (adapt_cloud, check_samples, check_outputs を使う)
+        28 の journey.py (adapt_cloud, apply_info, check_samples,
+        check_outputs を使う)
     """
     # 同じ名前の journey.py が並ぶので, 場所を指した読み込み
     path = TASKS / "28_m2_capture_clouds" / "journey.py"
@@ -93,6 +94,7 @@ def build(work: Path) -> dict:
         "item_steps": None,
         "example": "point_cloud_predictor",
         "adapt": parts.adapt_cloud,
+        "apply_info": parts.apply_info,
         "epochs": EPOCHS,
         "check_samples": parts.check_samples,
         "new": new / "captures",

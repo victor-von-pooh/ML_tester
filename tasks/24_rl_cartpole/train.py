@@ -1,7 +1,7 @@
+from importlib.util import find_spec
 import json
 from pathlib import Path
 import sys
-from importlib.util import find_spec
 from typing import Any
 
 import numpy as np
@@ -146,8 +146,10 @@ def compare_inference(
     # 推論の段階のライブラリ (24 ではこの比べだけに使う)
     from ml_inference import load_policy as inference_load_policy
 
-    # 止める条件の内と外の観測と, 数でない値を含む観測
+    # 推論の段階での一式の読み込み
     inference = inference_load_policy(place, PolicyNet(**model_args))
+
+    # 止める条件の内と外の観測と, 数でない値を含む観測
     rng = np.random.default_rng(seed)
     scale = np.asarray(COMPARE_SCALE)
     observations = list(
@@ -227,7 +229,7 @@ def evaluate_guards(
             policy, env, episodes=cfg.evaluation.guarded_episodes,
             seed=cfg.evaluation.guarded_seed
         )
-        # ML-Inference が入っていなければ比べを飛ばす (学習の結果は残す)
+        # ML-Inference が入っていなければ比べを飛ばす所 (学習の結果は残す)
         if find_spec("ml_inference") is None:
             text = (
                 f"ML-Inference の load_policy との比べ {name}: ML-Inference が"

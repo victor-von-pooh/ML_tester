@@ -96,7 +96,7 @@ def make_customers(
     ----------
     None
     """
-    # 群ごとに使う額, 来店の回数, 多い地域が違う (群の境は少し重なる)
+    # 群ごとに違う, 使う額, 来店の回数, 多い地域 (群の境は少し重なる)
     rng = np.random.default_rng(seed)
     segment = rng.choice(GROUPS, customers, p=[0.5, 0.3, 0.2])
     spend = rng.normal(np.array([3000, 8000, 15000])[segment], 1200)
@@ -300,7 +300,7 @@ def analyze(
     entry: dict[str, Any]
         ML-Fathom の一覧の問題の設定 (summary に群の要約)
     """
-    # 一覧から開くと群分けのタブになり, 問題の設定の答えが読める
+    # 一覧から群分けのタブで開き, 問題の設定の答えの読み込み
     listed = fathom.ok("GET", "/api/problems")["problems"]
     entry = next((p for p in listed if p["name"] == name), None)
     if entry is None:

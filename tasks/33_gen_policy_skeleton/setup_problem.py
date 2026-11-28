@@ -171,7 +171,9 @@ def write(problem: dict, folder: Path) -> None:
     """
     # 確かめ (直すところが無いこと) と筋道の文
     print(f"== {problem['name']}")
-    for item in ml_quest.check(problem):
+    findings = ml_quest.check(problem)
+    print(f"確かめ: {len(findings)} 件")
+    for item in findings:
         print(f"[{item['level']}] {item['id']}: {item['message']}")
     if not ml_quest.is_ready(problem):
         print("問題の設定に直すところがあります")

@@ -21,7 +21,7 @@
 │   └── project/        # ML-Quest が書き出した骨組み (README.md, problem.yaml, configs, train.py) と, prepare.py が置く models/model.yaml
 ├── policy/
 │   ├── problem.yaml    # 方策の問題の設定 (setup_problem.py が書く)
-│   └── project/        # ML-Quest が書き出した骨組み (README.md, problem.yaml, configs, train.py, model.py) と, 1 回目の train.py が書く既定の定義 models/policy.yaml
+│   └── project/        # ML-Quest が書き出した骨組み (README.md, problem.yaml, configs, train.py, model.py) と, 1 回目の train.py が書いた既定の定義 models/policy.yaml (git に入れてあり, 消すと次の学習で書き直す)
 └── outputs/            # infer.py が書く並べた画像 generated.png (git の管理外)
 ```
 
@@ -35,7 +35,7 @@
 ## モデル
 
 - 画像の生成: `prepare.py` が骨組みの config の `model.spec` の場所 (`generate/project/models/model.yaml`) に置く, ML-ModelControl の小さな U-Net の形の定義 (126,945 個のパラメータ). 入力は雑音を加えた画像 (1, 28, 28) と int64 の時刻. 時刻は `op.SinusoidalEmbedding` (64 次元) と全結合で埋め込み, 各段のチャンネルの数にして足す. 28 × 28 で 2 段, 14 × 14 で 1 段の畳み込みと, 28 × 28 の特徴を飛ばしてつなぐ. 出力は画像と同じ形の加えた雑音の予測
-- 方策: 骨組みの `train.py` が 1 回目の学習で観測と行動の空間から書く既定の定義 (`policy/project/models/policy.yaml`. 全結合と Tanh を 2 段 (幅 64) と, 行動の数 2 の全結合). 価値の関数は骨組みの `model.py` の `PolicyNet` (REINFORCE では使わない)
+- 方策: 骨組みの `train.py` が 1 回目の学習で観測と行動の空間から書いた既定の定義 (git に入れてある. 消すと次の学習で書き直す) (`policy/project/models/policy.yaml`. 全結合と Tanh を 2 段 (幅 64) と, 行動の数 2 の全結合). 価値の関数は骨組みの `model.py` の `PolicyNet` (REINFORCE では使わない)
 
 ## 学習の設計
 
@@ -54,7 +54,7 @@
 
 ## 期待する結果
 
-- `setup_problem.py` の確かめは 2 つとも error が無い
+- `setup_problem.py` の確かめは 2 つとも 0 件 (「確かめ: 0 件」と出る)
 - 画像の生成: `train.log` の最後に「推論の一式 (雑音だけ): inference/」が出る. `infer.py` の結果が全て `ok` で, 骨組みの見本との差が 2.5 / 255 より小さい (見本は PNG に丸めた値)
 - 方策: `train.log` の最後に守り付きの評価が出て, 実験の中に `policy/` ができる. `infer.py` で余った重みが無く, 守りの結果と報酬の和が出る
 
@@ -80,7 +80,7 @@ python tasks/33_gen_policy_skeleton/infer.py
 
 - `infer.py` は, それぞれの骨組みの `outputs/` の中で最も新しい実験の一式を読む
 - `setup_problem.py` は, 答えが前の `problem.yaml` と同じなら時刻を含めて前のものを使う (実行のたびに差分を出さない)
-- `generate/project/train.py` と `policy/project/train.py` が「README の『次にすること』」と案内するのは, それぞれの骨組みの `project/README.md` のこと
+- `generate/project/train.py` と `policy/project/train.py` が, データセットや定義が足りないときに「README の『次にすること』」と案内するのは, それぞれの骨組みの `project/README.md` のこと
 
 ## 結果のメモ
 
@@ -103,7 +103,7 @@ PyTorch 2.15.0, Gymnasium 1.4.0, Apple Silicon の Mac での値 (画像の生�
 | 1 (骨組みの既定) | 7 | 500.0 | いいえ (`guards_set` が false) | 平均 500.0, ok 5000 | 平均 500.0, ok 5000 |
 | 2 (守りを上書きで数に) | 7 | 500.0 | はい (選んでよい行動 0 と 1, 台車の位置が -2.4 から 2.4) | 平均 500.0, ok 5000 | 平均 500.0, ok 5000 |
 
-- 検証の報酬の和はエポック 3 から上限の 500 に届き, ベストは同じ値が並んだときの学習のエピソードの報酬 (`monitor_tiebreak`) でエポック 7. 学習時間は 18 秒ほど. 1 回目の学習で骨組みが既定の定義 `policy/project/models/policy.yaml` を書き, 2 回目はそれを使った
+- 検証の報酬の和はエポック 3 から上限の 500 に届き, ベストは同じ値が並んだときの学習のエピソードの報酬 (`monitor_tiebreak`) でエポック 7. 学習時間は 18 秒ほど. 1 回目の学習で骨組みが既定の定義 `policy/project/models/policy.yaml` を書き (このファイルを git に入れてある), 2 回目はそれを使った
 - `infer.py` が `load_policy` で読んだ一式は, 2 つとも余った重みが無い. 2 の位置の範囲 (2.4) は CartPole がエピソードを終える位置と同じなので, 守りの結果は全て `ok` で, 守りが働く場面は無い (守りが働くことの確かめは 24 の練習の一式)
 
 ## 気付いたこと

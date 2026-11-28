@@ -15,6 +15,10 @@ OUTPUT_DIR = TASK_DIR / "outputs"
 # 雑音だけの一式で作る画像の件数 (4 × 4 に並べるので平方数)
 COUNT = 16
 
+# 骨組みの見本との差の許す上限 (PNG への丸めの 0.5 / 255 と, 計算の
+# 機器の違いなどによる数値の誤差の分)
+TOLERANCE = 2.5 / 255
+
 # 方策を守り付きで動かすエピソード数と, 最初のエピソードの乱数の種
 # (学習の検証と守り付きの評価の種と重ならない値)
 EPISODES = 10
@@ -92,6 +96,9 @@ def generate_images() -> None:
     if diffs:
         print(f"骨組みの見本 {len(diffs)} 件との最も大きい差: "
               f"{max(diffs) * 255:.2f} / 255")
+        if max(diffs) > TOLERANCE:
+            print(f"見本との差が上限 {TOLERANCE * 255:.1f} / 255 を超えました")
+            sys.exit(1)
 
     # 縦と横に COUNT の平方根の数ずつ並べた画像
     side = int(np.sqrt(COUNT))
@@ -128,6 +135,9 @@ def run_policy() -> None:
     print(f"環境: {spec['metadata']['env_id']}, 守りを数にしたか: "
           f"{spec['metadata']['guards_set']}, 余った重み: "
           f"{policy.unused_keys}")
+    if policy.unused_keys:
+        print("一式に定義で使わない重みがあります")
+        sys.exit(1)
 
     # 1 歩ごとの act の行動での進めと, stop と handover でのエピソードの終わり
     env = gym.make(spec["metadata"]["env_id"])
@@ -150,6 +160,9 @@ def run_policy() -> None:
     print(f"報酬の和: 平均 {np.mean(rewards):.1f}, 最小 {min(rewards):.1f}, "
           f"最大 {max(rewards):.1f} ({EPISODES} エピソード)")
     print(f"守りの結果: {dict(counts)}")
+    if set(counts) != {"ok"}:
+        print("守りの働いた歩があります (ok でない結果)")
+        sys.exit(1)
 
 
 def main() -> None:

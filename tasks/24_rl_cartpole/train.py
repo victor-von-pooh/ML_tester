@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import sys
+from importlib.util import find_spec
 from typing import Any
 
 import numpy as np
@@ -19,6 +20,9 @@ STATUSES = ("ok", "clipped", "fallback", "stop", "handover")
 
 # 行動を返さずにエピソードを終える守りの結果
 STOP_STATUSES = ("stop", "handover")
+
+# 推論の段階との比べで, 同じかを見る act の返り値の欄
+COMPARE_KEYS = ("action", "status", "reasons")
 
 # 推論の段階との比べに使う観測の数と, 観測を選ぶ幅 (台車の位置, 速度,
 # 棒の角度, 角速度. 止める条件の内と外の両方が入る幅)
@@ -155,8 +159,9 @@ def compare_inference(
     for observation in observations:
         expected = policy.act(observation)
         actual = inference.act(observation)
-        keys = ("action", "status", "reasons")
-        if all(expected.get(key) == actual.get(key) for key in keys):
+        if all(
+            expected.get(key) == actual.get(key) for key in COMPARE_KEYS
+        ):
             result["same"] += 1
         result[expected["status"]] += 1
 
@@ -222,15 +227,23 @@ def evaluate_guards(
             policy, env, episodes=cfg.evaluation.guarded_episodes,
             seed=cfg.evaluation.guarded_seed
         )
-        compared = compare_inference(
-            place, policy, model_args, cfg.evaluation.guarded_seed
-        )
-        text = (
-            f"ML-Inference の load_policy との比べ {name}: 行動と守りの結果"
-            f"と理由が同じ観測 {compared['same']}/{compared['total']} ("
-            + ", ".join(f"{status} {compared[status]}" for status in STATUSES)
-            + ")"
-        )
+        # ML-Inference が入っていなければ比べを飛ばす (学習の結果は残す)
+        if find_spec("ml_inference") is None:
+            text = (
+                f"ML-Inference の load_policy との比べ {name}: ML-Inference が"
+                "入っていないので飛ばしました (ルートの README の「導入」)"
+            )
+        else:
+            compared = compare_inference(
+                place, policy, model_args, cfg.evaluation.guarded_seed
+            )
+            text = (
+                f"ML-Inference の load_policy との比べ {name}: 行動と守りの"
+                f"結果と理由が同じ観測 {compared['same']}/{compared['total']}"
+                " (" + ", ".join(
+                    f"{status} {compared[status]}" for status in STATUSES
+                ) + ")"
+            )
         experiment.logger.info(text)
         print(text)
         text_guards = describe_guards(guards)

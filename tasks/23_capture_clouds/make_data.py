@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 
 from ml_eda.synthetic import write_shape_captures
 
@@ -25,6 +26,10 @@ def main() -> None:
     ----------
     None
     """
+    # 前に作ったものの削除 (名前の違う撮影が残ると train.py が選ぶため)
+    for place in (DATA_DIR, NEW_DIR):
+        shutil.rmtree(place, ignore_errors=True)
+
     # 学習と評価の撮影 (captures/<名前>/) と点群 (clouds/<名前>.ply)
     common = {
         "views": SETTINGS["views"], "size": tuple(SETTINGS["size"]),

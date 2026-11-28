@@ -90,8 +90,9 @@ UPLIFT_ANSWERS: list[tuple[str, Any]] = [
 ]
 
 
-def make_coupons(path: Path, seed: int = 0,
-                 customers: int = CUSTOMERS) -> None:
+def make_coupons(
+    path: Path, seed: int = 0, customers: int = CUSTOMERS
+) -> None:
     """
     無作為にクーポンを配った合成の記録 (配った後に決まる列 used を持つ) を
     書く関数
@@ -100,16 +101,17 @@ def make_coupons(path: Path, seed: int = 0,
     ----------
     path: Path
         書く CSV
-    seed: int
+    seed: int = 0
         乱数の種
-    customers: int
+    customers: int = CUSTOMERS
         顧客の数
 
     Returns
     ----------
     None
     """
-    # 来店の多い顧客と北の地域の顧客ほど配ると買う (年齢は買う確率だけ)
+    # 来店の多い顧客と北の地域の顧客ほど大きい配ったときの効果 (年齢は
+    # 配らないときの買う確率だけ)
     rng = np.random.default_rng(seed)
     age = rng.uniform(20, 70, customers).round()
     visits = rng.poisson(4, customers)
@@ -167,7 +169,7 @@ def rounded(value: Any) -> Any:
     result: Any
         小数を丸めた値 (小数でなければそのまま)
     """
-    # 辞書は値ごと, 小数だけを丸める
+    # 辞書は値ごと, 小数だけの丸め
     if isinstance(value, dict):
         result = {key: rounded(item) for key, item in value.items()}
     elif isinstance(value, float):
@@ -224,7 +226,7 @@ def set_problem(
     result: tuple[str, dict[str, Any], dict[str, Any]]
         問題の設定の id, 画面の値, 骨組みの記録
     """
-    # 見本から名前を付けて作り, 受け持ちと課題をクーポンに答え直す
+    # 見本から名前を付けた作成と, 受け持ちと課題のクーポンへの答え直し
     mark, example, _ = LEARNERS[learner]
     view = pf.ok("POST", "/api/problems", {
         "example": "解約の引き止め", "name": f"クーポンの効果 ({mark})"
@@ -241,7 +243,9 @@ def set_problem(
     handoff = view.get("handoff") or {}
     uplift = handoff.get("uplift") or {}
     model = handoff.get("model") or {}
-    errors = errors_of(view)
+    errors = errors_of(view) + [
+        item.get("id") for item in view.get("open_errors") or []
+    ]
     journey.add(
         f"[{mark}] 問題の設定 (表, 効果の見積もりの列, 配る数の上限)",
         "OK" if view["exportable"] and not errors
@@ -252,7 +256,7 @@ def set_problem(
         f"{(handoff.get('training') or {}).get('monitor')}, 誤り {errors}"
     )
 
-    # 骨組みを書き出し, 場所を問題の設定に記録する
+    # 骨組みの書き出しと, 場所の問題の設定への記録
     written = pf.ok("POST", f"/api/problems/{pid}/project",
                     {"path": str(project)})
     record = written["project"]
@@ -317,7 +321,7 @@ def analyze(
                if step["op"] == "drop_columns"]
     journey.add(
         f"[{mark}] ML-Fathom の介入の記録の要約",
-        "OK" if posts and all(c in sum(dropped, []) for c in posts[0])
+        "OK" if posts and all(c in sum(dropped, []) for p in posts for c in p)
         else "誤り",
         f"処置の群 {groups['treated']['rows']} 行 (平均 "
         f"{groups['treated']['mean']:.3f}), 対照の群 "
@@ -326,7 +330,7 @@ def analyze(
         f"配った後に決まる列 {posts} を雛形が落とす {dropped}"
     )
 
-    # 種類の列を数の列にする手順を, 雛形の標準化の前に足して書き出す
+    # 種類の列を数の列にする手順の, 雛形の標準化の前への足しと書き出し
     first = next((i for i, s in enumerate(recipe["steps"])
                   if s["op"] == "standardize"), len(recipe["steps"]))
     recipe["steps"].insert(first, {"op": "one_hot", "columns": ["region"]})
@@ -401,7 +405,7 @@ def make_model(
         f"{Path(target.get('dataset') or '-').name}"
     )
 
-    # 入力の幅 (列の数と, S-learner の処置の列の足す数) で雛形を書き換える
+    # 入力の幅 (列の数と, S-learner の処置の列の足す数) での雛形の書き換え
     code, info = ca.call(
         "POST", "/api/dataset/inputs",
         {"path": target["dataset"], "problem": chosen["path"]}
@@ -411,7 +415,7 @@ def make_model(
         offset = int((info.get("offsets") or {}).get("x", 0))
         status, note = "OK", "データセットの入力から"
     else:
-        # 読めなければ, ML-Fathom の入力の形と決め方の足す数を手で写す
+        # 読めなければ, ML-Fathom の入力の形と決め方の足す数の手での写し
         columns = int(hints["input_shape"][-1])
         offset = 1 if example.endswith("_s") else 0
         journey.add(
@@ -431,7 +435,7 @@ def make_model(
     outputs = sorted(spec["outputs"])
     journey.add(
         f"[{mark}] ML-CreateArchitecture (雛形を列の数に書き換え, 保存)",
-        # データセットを読めない注意は, 上の誤りと同じ理由なので手に数える
+        # データセットを読めない注意は, 上の誤りと同じ理由なので手の扱い
         status if not saved.get("notes") or code != 200 else "誤り",
         f"{note}. 列 {columns} (足す数 {offset}), 入力 "
         f"{spec['inputs']['x']['shape']}, 出力 {outputs}, 注意 "
@@ -464,7 +468,7 @@ def train(
     result: tuple[str, dict[str, Any]]
         実験の id と, 分割ごとの効果の評価の行
     """
-    # 一覧から登録し, 画面から環境を作る
+    # 一覧からの登録と, 画面からの環境づくり
     recorded = dash.ok("GET", "/api/problems/projects")["projects"]
     found = next(
         (p for p in recorded
@@ -488,7 +492,7 @@ def train(
         f"{ready['missing']}"
     )
 
-    # 骨組みを書き換えずに学習し, 効果の評価と Qini の曲線を読む
+    # 骨組みを書き換えない学習と, 効果の評価と Qini の曲線の読み込み
     started_at = time.time()
     launched = dash.ok(
         "POST", f"/api/projects/{did}/jobs",
@@ -554,7 +558,7 @@ def provide(
     ----------
     None
     """
-    # 実験の一覧から登録し, 説明の種類と版と決め方を見る
+    # 実験の一覧からの登録と, 説明の種類と版と決め方の確かめ
     listing = client.ok("GET", "/api/experiments")
     row = next(
         (r for r in listing["experiments"]
@@ -568,6 +572,8 @@ def provide(
         "path": row["path"], "name": f"{row['problem']} ({row['experiment']})"
     })
     bid = str(bundle["id"])
+    if not bundle.get("ok", True) or not bundle.get("description"):
+        raise RuntimeError(f"一式を読めません: {bundle.get('error')}")
     description = bundle["description"]
     uplift = description.get("uplift") or {}
     got = (description.get("kind"), description.get("format_version"),
@@ -579,7 +585,7 @@ def provide(
     )
 
     # 効果の一式は問題の設定を使わない (配る数の上限は骨組みの config から
-    # 一式が写して持つ). 欄が無く, 一式の判断のまま試しの記録を推論する
+    # 一式が写して持つ). 欄が無く, 一式の判断のままの試しの記録の推論
     state = client.ok("GET", f"/api/bundles/{bid}/problem")
     uses = bundle.get("uses_problem")
     journey.add(
@@ -593,13 +599,19 @@ def provide(
     summary = result["summary"]
     measured = summary.get("measured") or {}
     decided = (result.get("decision") or {}).get("summary") or {}
-    treated = client.ok("GET", f"/api/results/{result['id']}/treated")
+    treated = client.ok(
+        "GET", f"/api/results/{result['id']}/treated?limit={BUDGET}"
+    )
     effects = [r["effect"] for r in treated["rows"]]
     ordered = all(a >= b for a, b in zip(effects, effects[1:]))
     journey.add(
         f"[{mark}] 推論 (効果の上位から配る数の上限まで配る)",
-        "OK" if decided.get("acted") == BUDGET == treated["budget"]
-        and ordered and measured else "誤り",
+        # 配るのは上位の上限の行のうち効果が正の行 (acted). 読んだ行の数
+        # (total) と合い, 上限を超えないことの確かめ
+        "OK" if treated["budget"] == BUDGET
+        and treated["total"] == decided.get("acted") <= BUDGET
+        and len(effects) == treated["total"] and ordered and measured
+        else "誤り",
         f"{summary['predicted']} 行を推論, 配る {decided.get('acted')} 行 "
         f"(上限 {treated['budget']}, 効果の高い順 {ordered}, 最上位 "
         f"{treated['rows'][0]['id'] if treated['rows'] else None} の効果 "

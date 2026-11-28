@@ -82,7 +82,7 @@ ML-CreateArchitecture の `POST /api/dataset/inputs` が答えない場合は, �
 | [T] ML-CreateArchitecture のデータセットの入力 | 誤り | 500 (Internal Server Error). 列の数を ML-Fathom の書き出しから写して続ける |
 | [T] ML-CreateArchitecture (雛形を列の数に書き換え, 保存) | 手 | 列の数を手で写す. 列 5 (足す数 0), 入力 [8, 5], 出力 `control`, `treated`. 保存の注意 1 件 (データセットを読めないので形の最後の大きさを確かめていない) |
 | [T] ML-Dashboard で登録し環境を作る | OK | 10 秒 |
-| [T] 学習 (骨組みを書き換えない) と効果の評価 | OK | 13 秒. ベストはエポック 29 の `valid/qini` 0.2281. テスト用: Qini の係数 0.2081, 上位 3 割の効果の差 0.2801, 全体の差 0.1465. Qini の曲線は検証用とテスト用 |
+| [T] 学習 (骨組みを書き換えない) と効果の評価 | OK | 14 秒. ベストはエポック 29 の `valid/qini` 0.2281. テスト用: Qini の係数 0.2081, 上位 3 割の効果の差 0.2801, 全体の差 0.1465. Qini の曲線は検証用とテスト用 |
 | [T] ML-Provide で実験を一覧から登録 | OK | 種類 `uplift`, 版 12, 決め方 `t_learner`. 一式の判断 `{'type': 'treat', 'budget': 300}` |
 | [T] 問題の設定の欄 (一式の画面) | OK | 問題の設定を使わない一式なので欄が無い (配る数の上限は一式が持つ) |
 | [T] 推論 (効果の上位から配る数の上限まで配る) | OK | 1,000 行を推論し, 300 行に配る (効果の高い順. 最上位の効果 0.5349). 試しの記録で数え直し: 処置の群 511 行, 対照の群 489 行, Qini の係数 0.1339, 上位 3 割の効果の差 0.2201, 全体の差 0.1034 |
@@ -107,7 +107,7 @@ ML-CreateArchitecture の `POST /api/dataset/inputs` が答えない場合は, �
 
 ## 気付いたこと
 
-- ML-CreateArchitecture の `POST /api/dataset/inputs` が, 効果の見積もりのデータセットで 500 を返す. ML-Fathom (ML-EDA を `ml-eda[all]` で入れる) は pyarrow があるので表を parquet で書き出すが, ML-CreateArchitecture の追加の依存 `project` は ML-EDA を `ml-eda` だけで入れるので pyarrow が無い. 効果の見積もりの入力では処置の列と行の id の列を読むために ML-EDA の `load_dataset` で表まで読み (`dataset_uplift` から `dataset_section`), parquet を読めない `ImportError` が読めないときの例外の組 (`READ_ERRORS`) に入っていないので 500 になる. 同じ理由で `PUT /api/project/model` は「データセットを読めないので, データセットで決まる形の最後の大きさは確かめていません」と注意を返す (保存はできる). ML-CreateArchitecture の CI のテストは同じ環境 (pyarrow が無い) で ML-EDA から書き出すので, 表が csv になり当たらない. 表を読むのは効果の見積もり, 値段を変える判断, 時間をまたぐ量の判断の説明の項目 (`uplift`, `price`, `demand`) だけで, 表の分類 (25) の入力は当たらない
+- ML-CreateArchitecture の `POST /api/dataset/inputs` が, 効果の見積もりのデータセットで 500 を返す. ML-Fathom (ML-EDA を `ml-eda[all]` で入れる) は pyarrow があるので表を parquet で書き出すが, ML-CreateArchitecture の追加の依存 `project` は ML-EDA を `ml-eda` だけで入れるので pyarrow が無い. 効果の見積もりの入力では処置の列と行の id の列を読むために ML-EDA の `load_dataset` で表まで読み (`dataset_uplift` から `dataset_section`), parquet を読めない `ImportError` が読めないときの例外の組 (`READ_ERRORS`) に入っていないので 500 になる. 同じ理由で `PUT /api/project/model` は, 記録のデータセットを読めないのでデータセットで決まる形の最後の大きさを確かめていない, という注意を返す (保存はできる). ML-CreateArchitecture の CI のテストは同じ環境 (pyarrow が無い) で ML-EDA から書き出すので, 表が csv になり当たらない. 表を読むのは効果の見積もり, 値段を変える判断, 時間をまたぐ量の判断の説明の項目 (`uplift`, `price`, `demand`) だけで, 表の分類 (25) の入力は当たらない
 - 効果の一式は ML-Provide で問題の設定を使わない (配る数の上限は ML-Quest が骨組みの config に写し, 骨組みが一式に写す). 一式の画面に問題の設定の欄が出ないので, 学習の後に配る数の上限を変えるには, 推論で配る判断 (`decision` の `budget`) を渡すか, 問題の設定を直して骨組みを書き出し直す
 - 効果を見積もるには見本が無いので, 見本「解約の引き止め」から作って課題と受け持ちを答え直す (ML-Pathfinder の効果の見積もりのテストと同じ作り方). 答え直す問いは, 表を入れる前の 30 と後の 10
 - ML-Fathom の介入の記録の要約 (`POST /api/sources/{id}/uplift`) は, 問題の設定から開いたレシピの処置, 結果, 結果の種類, 行の id の列をそのまま渡せる. 配った後に決まる列 `used` を気付きに出し, 雛形のレシピが同じ列を落とす (問題の設定の受け渡しの除く列)

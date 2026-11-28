@@ -7,7 +7,7 @@ import argparse
 import math
 from pathlib import Path
 import sys
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 from ml_found import save_evaluation
@@ -50,7 +50,7 @@ EVALUATION_NAME = "off_policy"
 
 class EpsilonGreedy:
     def __init__(self, policy: Any, epsilon: float, seed: int):
-        # 守り付きの方策, ε, 選んでよい行動, 行動を選ぶ乱数
+        # 守り付きの方策, ε, 選んでよい行動, 行動を選ぶ乱数を保存
         self.policy = policy
         self.epsilon = epsilon
         guards = policy.spec["guards"]
@@ -98,7 +98,7 @@ class EpsilonGreedy:
             act の結果 (action, status, reasons) と action_prob. 守りが
             働いた判断 (ok でない) はそのまま (行動があれば確率 1)
         """
-        # 守りが働いた判断は替えない
+        # 守りが働いた判断はそのまま
         result = self.policy.act(observation)
         if result["action"] is None:
             return result
@@ -129,7 +129,7 @@ def latest_run(run: Optional[Path]) -> Path:
     place: Path
         実験のディレクトリ
     """
-    # 名前の新しい順 (日付と時刻のディレクトリ)
+    # 実験の名前, 日付, 時刻のディレクトリの名前の順で最後のもの
     if run is not None:
         place = run.resolve()
     else:
@@ -142,7 +142,7 @@ def latest_run(run: Optional[Path]) -> Path:
     return place
 
 
-def target_prob_of(policy: Any, epsilon: float) -> Any:
+def target_prob_of(policy: Any, epsilon: float) -> Callable:
     """
     見積もる ε-greedy の方策の, 観測で行動を選ぶ確率の関数を返す関数
 
@@ -161,7 +161,7 @@ def target_prob_of(policy: Any, epsilon: float) -> Any:
     chooser = EpsilonGreedy(policy, epsilon, CHOICE_SEED)
 
     def target_prob(observation: Any, action: Any) -> float:
-        # 守りが働く観測は, 守りが返す行動を確率 1 で選ぶ
+        # 守りが働く観測は, 守りが返す行動だけを確率 1
         result = policy.act(observation)
         if result["action"] is None:
             prob = 0.0
@@ -300,7 +300,7 @@ def analyze(apps: Apps, journey: Journey, setup: dict[str, Any]) -> None:
         else "誤り",
         f"欠け {prob.get('missing')}, 範囲の外 {prob.get('out_of_range')}, "
         f"最小 {prob.get('min')}, 最大 {prob.get('max')}, 平均 "
-        f"{prob.get('mean'):.4f}. 守りの結果 "
+        f"{rounded(prob.get('mean'))}. 守りの結果 "
         f"{(summary['guard'] or {}).get('results')}, 働いた理由の種類 "
         f"{len((summary['guard'] or {}).get('reasons') or [])}"
     )

@@ -107,7 +107,7 @@ python tasks/24_rl_cartpole/off_policy.py                                       
 
 CPU で, 1 は 10 秒ほど, 2 は 3 秒ほど, 3 は 1 秒ほど, 4 は 20 秒ほど (Python と ML-Fathom の起動を含む). 3 には pytest が要る (ルートの README の「導入」で入れる).
 
-4 は `outputs/` の中で最も新しい実験の `policy/` を読む (`--run` で実験を選べる). ML-Fathom の画面のアプリを, 25 の `apps.py` で実験の中の `fathom/` を置き場にして起動し, 終えたら止める. ML-Fathom を clone して `make setup` したディレクトリの親を `--apps` で渡す (既定はこのリポジトリと同じ並び).
+4 は `outputs/` の中で最も新しい実験の `policy/` を読む (`--run` で実験を選べる). 2 も 1 と同じ `outputs/cartpole/` に書くので, 1 の方策で見積もるには 4 を 1 のすぐ後に流すか, `--run` で 1 の実験を渡す. ML-Fathom の画面のアプリを, 25 の `apps.py` で実験の中の `fathom/` を置き場にして起動し, 終えたら止める. ML-Fathom を clone して `make setup` したディレクトリの親を `--apps` で渡す (既定はこのリポジトリと同じ並び).
 
 ## 結果のメモ
 

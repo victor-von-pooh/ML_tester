@@ -9,8 +9,8 @@ from pathlib import Path
 import sys
 from typing import Any
 
-import gymnasium as gym
 import yaml
+from ml_found.rl import make_env
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "25_m1_churn"))
 from apps import (  # noqa: E402
@@ -159,8 +159,8 @@ def train(
         f"{ready['switch_python']})"
     )
 
-    # 守りの数は experiment の config の編集で渡す (画面の config の編集と
-    # 同じ. 骨組みの train.py と default の config は書き換えない)
+    # 守りの数は experiment の config の編集での受け渡し (画面の config の
+    # 編集と同じ. 骨組みの train.py と default の config はそのまま)
     text = yaml.safe_dump({"guards": GUARDS}, allow_unicode=True,
                           sort_keys=False)
     launched = dash.ok("POST", f"/api/projects/{did}/jobs",
@@ -217,7 +217,7 @@ def register(
                        "name": f"{row['problem']} ({row['experiment']})"})
     policy_id = str(view["id"])
 
-    # 登録の後の一覧の行は登録済みの id を持つ
+    # 登録の後の一覧の行の, 登録済みの id
     rows = provide.ok("GET", "/api/experiments/policies")["experiments"]
     marked = next((r for r in rows if r["path"] == row["path"]), {})
     guards = (view.get("spec") or {}).get("guards") or {}
@@ -264,8 +264,8 @@ def act(
             f"reasons {result['reasons']}"
         )
 
-    # 1 歩ごとに観測を渡して行動を受け取り, 環境を進める (環境は手元)
-    env = gym.make(ENV_ID)
+    # 1 歩ごとの観測の受け渡しと, 行動での環境の進め (環境は手元)
+    env = make_env(ENV_ID)
     observation, _ = env.reset(seed=EPISODE_SEED)
     total, statuses, done = 0.0, {}, False
     while not done:

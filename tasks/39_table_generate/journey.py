@@ -236,7 +236,7 @@ def analyze(
     entry: dict[str, Any]
         ML-Fathom の一覧の問題の設定
     """
-    # 一覧から開き, 雛形のレシピ (task: none) のまま書き戻して書き出す
+    # 一覧から開き, 雛形のレシピ (task: none) のままの書き戻しと書き出し
     listed = fathom.ok("GET", "/api/problems")["problems"]
     entry = next((p for p in listed if p["name"] == name), None)
     if entry is None:
@@ -258,7 +258,8 @@ def analyze(
         "ML-Fathom (目的の列の無いレシピ, プロジェクトへ書き出す)",
         "OK" if recipe.get("task") == "none" and not recipe.get("target")
         and not check["conflicts"]
-        and Path(exported["path"]) == Path(record["dataset"]) else "誤り",
+        and Path(exported["path"]).resolve()
+        == Path(record["dataset"]).resolve() else "誤り",
         f"task {recipe.get('task')}, 分割 {recipe['split']}, 手順 "
         f"{[s['op'] for s in recipe['steps']]}, 食い違い "
         f"{check['conflicts']}, 注意 {started.get('notes')}"
@@ -404,7 +405,8 @@ def train(
     samples = [s["name"] for s in results.get("samples") or []]
     journey.add(
         "学習 (骨組みを書き換えない) と列ごとの分布の近さ",
-        "OK" if mean and "column_distance_valid" in tables else "誤り",
+        "OK" if np.isfinite(mean.get("distance", np.nan))
+        and "column_distance_valid" in tables else "誤り",
         f"{time.time() - started_at:.0f} 秒, {run['best']['monitor']} "
         f"{run['best']['value']:.4f}. テスト用の列の平均の近さ "
         f"{mean.get('distance', float('nan')):.4f} (同じ分布の目安 "
@@ -435,13 +437,17 @@ def read_rows(client: Client, result_id: str, count: int) -> pd.DataFrame:
     frame: pd.DataFrame
         結果の行
     """
-    # 1 回の上限ずつの読み
+    # 1 回の上限ずつの読みと, 読んだ行の数の確かめ
     rows: list[dict] = []
     for offset in range(0, count, PAGE):
-        rows += client.ok(
+        page = client.ok(
             "GET",
             f"/api/results/{result_id}/rows?offset={offset}&limit={PAGE}"
-        )["rows"]
+        )
+        rows += page["rows"]
+    if not len(rows) == page["total"] == count:
+        raise RuntimeError(f"結果の行の数 {len(rows)} (全体 "
+                           f"{page['total']}) が {count} と合いません")
     frame = pd.DataFrame(rows)
 
     return frame
@@ -505,14 +511,18 @@ def provide(
     again = client.ok("POST", url, {"count": COUNT, "seed": SEED})
     made = read_rows(client, result["id"], COUNT)
     remade = read_rows(client, again["id"], COUNT)
+    missing = [name for name in columns if name not in made]
+    if missing:
+        raise RuntimeError(f"結果の表に出力の列 {missing} がありません")
     same = made[columns].equals(remade[columns])
 
-    # 作った表と元の表の列ごとの KS 統計量 (学習の評価の数え方の数の列と
-    # 同じ)
+    # 作った表 (作れた行) と元の表の列ごとの KS 統計量 (学習の評価の
+    # 数え方の数の列と同じ)
     real = pd.read_csv(data)
+    ok = made[made["status"] == "ok"]
     distances = {
         name: round(ks_distance(real[name].to_numpy(float),
-                                made[name].to_numpy(float)), 4)
+                                ok[name].dropna().to_numpy(float)), 4)
         for name in columns
     }
     done = int((made["status"] == "ok").sum())

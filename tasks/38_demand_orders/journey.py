@@ -116,8 +116,8 @@ def make_daily(
     ----------
     None
     """
-    # 商品ごとの水準 (種類 1 は多く売れる), 週末の多い売れ行き, ゆっくり
-    # 上がる傾き. 商品の水準は乱数の種に依らない
+    # 乱数の種に依らない商品ごとの水準 (種類 1 は多く売れる), 週末の多い
+    # 売れ行き, 学習の記録の日の数で 1 から 1.3 へゆっくり上がる傾き
     rng = np.random.default_rng(seed)
     dates = pd.date_range("2026-01-01", periods=days)
     rows = []
@@ -126,7 +126,7 @@ def make_daily(
         level = 2 + product % 6 + 4 * category
         for number, day in enumerate(dates):
             mean = level * (1.8 if day.weekday() >= 5 else 1.0) * (
-                1 + 0.3 * number / days
+                1 + 0.3 * number / DAYS
             )
             units = int(rng.poisson(mean))
             rows.append({
@@ -312,20 +312,20 @@ def analyze(
     ops = [step["op"] for step in recipe["steps"]]
     dropped = sum((step["columns"] for step in recipe["steps"]
                    if step["op"] == "drop_columns"), [])
-    errors = [item.get("code") for item in summary["findings"]
-              if item.get("level") == "error"]
+    warnings = [item.get("code") for item in summary["findings"]
+                if item.get("severity") == "warning"]
     journey.add(
         "ML-Fathom の需要の記録の要約",
         "OK" if recipe.get("task") == "demand"
         and summary["products"]["count"] == PRODUCTS
         and summary["rows"] == PRODUCTS * DAYS and "lag" in ops
-        and "waste" in dropped and not errors else "誤り",
+        and "datetime_parts" in ops and "waste" in dropped else "誤り",
         f"{summary['rows']} 行, 商品 {summary['products']['count']}, 日付 "
         f"{summary['dates']['min']} から {summary['dates']['max']} "
         f"({summary['dates']['days']} 日), 抜けの日 "
         f"{summary['products']['gaps']}, 売れた数の平均 "
         f"{rounded(summary['unit_stats']['mean'])}. 雛形の手順 {ops}, 落とす"
-        f"列 {dropped}, 確かめの誤り {errors}"
+        f"列 {dropped}, 注意 {warnings}"
     )
 
     # 雛形のレシピのままの書き戻しと書き出し
@@ -576,8 +576,8 @@ def provide(
         f"{demand.get('levels')}, 期間 {demand.get('horizon')} 日"
     )
 
-    # 需要の一式は問題の設定を使わない (発注の判断は骨組みの config から
-    # 一式が写して持つ). 欄が無く, 一式の判断のままの試しの記録の推論
+    # 問題の設定を使わない需要の一式 (発注の判断は骨組みの config から
+    # 一式が写して持つ) の欄の無さと, 一式の判断のままの試しの記録の推論
     state = client.ok("GET", f"/api/bundles/{bid}/problem")
     uses = bundle.get("uses_problem")
     journey.add(
@@ -598,21 +598,30 @@ def provide(
     ordered = all(a >= b for a, b in zip(counts, counts[1:]))
     within = all(0 <= c <= MAX_ORDER and float(c).is_integer()
                  for c in counts)
-    products = {str(r[orders["product"]]) for r in orders["rows"]}
+    products = {str(r["product_id"]) for r in orders["rows"]}
     top = orders["rows"][0] if orders["rows"] else {}
+    # 発注の数は分位点から在庫を引いた数の切り下げか切り上げ (損の見込み
+    # の小さい方) を 0 から上限の間に収めたもの
+    derived = all(
+        r["order"] in {
+            min(max(np.floor(r["quantile"] - r["on_hand"]), 0), MAX_ORDER),
+            min(max(np.ceil(r["quantile"] - r["on_hand"]), 0), MAX_ORDER)
+        } for r in orders["rows"]
+    )
+    read = len(pd.read_csv(trial))
     journey.add(
         "推論 (商品ごとに上限の中で発注の数を決める)",
         "OK" if summary["predicted"] == PRODUCTS
         and orders["total"] == len(products) == PRODUCTS and within
-        and ordered and sum(counts) == totals.get("total")
+        and derived and ordered and sum(counts) == totals.get("total")
         and totals.get("level") == SHORTAGE / (SHORTAGE + HOLDING)
         else "誤り",
-        f"{summary['rows']} 行を読み {summary['predicted']} 行 (商品 "
+        f"{read} 行の記録のうち発注を決める日の {summary['predicted']} 行 (商品 "
         f"{len(products)}) を推論, 水準 τ = {totals.get('level')} の分位点"
-        f"から在庫を引き, 発注の数の和 {totals.get('total')} (上限 "
+        f"から在庫を引く {derived}, 発注の数の和 {totals.get('total')} (上限 "
         f"{orders['max_order']} で切った商品 {totals.get('capped')}, 大きい"
         f"順 {ordered}, 上限の中の整数 {within}, 最も多い "
-        f"{top.get(orders['product'])} の {top.get('order')} 個. 分位点 "
+        f"{top.get('product_id')} の {top.get('order')} 個. 分位点 "
         f"{rounded(top.get('quantiles'))}, 在庫 {top.get('on_hand')}, 前の"
         f"期間と同じ発注 {top.get('baseline_order')}), 損の"
         f"見込みの和 {rounded(totals.get('expected_cost'))}. 分位点の平均 "

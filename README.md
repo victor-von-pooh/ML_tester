@@ -21,14 +21,14 @@ pip install -e "./ML-Found[examples,rl]"    # scikit-learn と, 24 で使う Gym
 pip install torchvision==0.29.2           # 02, 08 から 11 と 33 で使う (torch 2.15.0 と組み合わせて動作確認)
 pip install qiskit==2.6.2 qiskit-machine-learning==0.9.1   # 12 で使う
 pip install "ml-modelcontrol @ git+https://github.com/victor-von-pooh/ML-ModelControl.git@76c6bfc"   # 13, 17, 18, 21, 33 で使う
-pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@660ea3b"   # 14 から 18 と, 22, 23, 27, 28 の合成のデータと, 33 で使う (all に部分語の tokenizers も入る)
+pip install "ml-eda[all] @ git+https://github.com/victor-von-pooh/ML-EDA.git@660ea3b"   # 14 から 23 と, 27 から 30 の元のデータと, 33 で使う (all に部分語の tokenizers も入る)
 pip install --no-deps "ml-inference @ git+https://github.com/victor-von-pooh/ML-Inference.git@4a3f153"   # 17 から 21 と 24, 33 で使う (依存は上の 2 つ. 版をそろえるため --no-deps)
 pip install --no-deps "ml-quest @ git+https://github.com/victor-von-pooh/ML-Quest.git@8695ffb"   # 21 と 33 で使う (依存の pandas と PyYAML は上で入る)
 pip install transformers==5.22.2          # 04 の段階 2 で使う
 pip install pytest                        # 24 の守りのテスト (tasks/24_rl_cartpole/test_guards.py) で使う
 ```
 
-22, 23, 25 から 39 の画面のアプリの通し (`journey.py`) と, 24 の `off_policy.py`, 29 の `resnet_ui.py`, 33 の `provide.py` は, 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard, ML-Provide) を ML_tester と同じ並びに clone し, 各アプリの README の手順で `make setup` しておく (アプリの親のディレクトリは `--apps` で変えられる). 39 は scikit-learn (上の ML-Found の `examples` で入る) で本物の表 (California Housing) を取りに行く. 29 の `resnet_ui.py` は, さらに node と pnpm, ML-Provide の画面の依存 (`make setup` の `pnpm install`) と Playwright のブラウザ (ML-Provide の `frontend` で `pnpm exec playwright install chromium`) が要る
+22, 23, 25 から 32 と 34 から 39 の画面のアプリの通し (`journey.py`) と, 24 の `off_policy.py`, 29 の `resnet_ui.py`, 33 の `provide.py` は, 5 つの画面のアプリ (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard, ML-Provide) を ML_tester と同じ並びに clone し, 各アプリの README の手順で `make setup` しておく (アプリの親のディレクトリは `--apps` で変えられる). 39 は scikit-learn (上の ML-Found の `examples` で入る) で本物の表 (California Housing) を取りに行く. 29 の `resnet_ui.py` は, さらに node と pnpm, ML-Provide の画面の依存 (`make setup` の `pnpm install`) と Playwright のブラウザ (ML-Provide の `frontend` で `pnpm exec playwright install chromium`) が要る
 
 ## ML-Dashboard で見る
 
@@ -36,7 +36,7 @@ pip install pytest                        # 24 の守りのテスト (tasks/24_r
 
 1. 上の「導入」で `.venv` を作っておく. 学習に使う Python は, 登録したときにタスクのディレクトリから上に向かって仮想環境を探して決まるので, 先に作ると `.venv` が自動で選ばれる
 2. ML-Dashboard を ML_tester とは別のディレクトリに clone し, その README の「導入と起動」の手順で起動して, 表示されたトークン付きの URL を開く
-3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 20 のプロジェクト (01 から 18 と, 21 の `project/`, 24. 19, 20, 22, 23, 25 から 39 は学習のスクリプトを持たないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外. 33 の `generate/project/` と `policy/project/` は ML-Dashboard が探す深さ (3 階層) より下なので候補に出ない. 使うならプロジェクトのディレクトリを直に入れて登録する). そのまま「20 件を追加」で登録する
+3. 「プロジェクトを追加」で ML_tester を clone したディレクトリを絶対パスで入れて「探す」を押すと, `tasks/` の 20 のプロジェクト (01 から 18 と, 21 の `project/`, 24. 19, 20, 22, 23, 25 から 32 と 34 から 39 は学習のスクリプトを持たないのでプロジェクトではない) が候補に出る (submodule の ML-Found の例は対象外. 33 の `generate/project/` と `policy/project/` は ML-Dashboard が探す深さ (3 階層) より下なので候補に出ない. 使うならプロジェクトのディレクトリを直に入れて登録する). そのまま「20 件を追加」で登録する
 
 clone した直後は実験が無いので, 各タスクの README の手順で学習するか, 画面から起動すると一覧に出る.
 

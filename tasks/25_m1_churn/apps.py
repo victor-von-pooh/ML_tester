@@ -980,4 +980,4 @@ def main_with(
 
 
 if __name__ == "__main__":
-    sys.exit("各タスクの journey.py などから使う (docstring を参照)")
+    sys.exit("journey.py, off_policy.py, resnet_ui.py, provide.py から使う")
